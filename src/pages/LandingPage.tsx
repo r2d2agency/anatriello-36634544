@@ -1113,8 +1113,8 @@ export default function LandingPage() {
                 <img src={branding.logo_topbar} alt={branding.company_name || "Logo"} className="h-8 object-contain" />
               ) : (
                 <>
-                  <img src={gleegoLogo} alt="Glee-go Whats" className="h-8 w-8 object-contain" />
-                  <span className="font-semibold text-lg">{branding.company_name || "Glee-go Whats"}</span>
+                  <img src={ayratechLogo} alt="Ayratech" className="h-8 w-8 object-contain" />
+                  <span className="font-semibold text-lg">{branding.company_name || "Ayratech"}</span>
                 </>
               )}
             </div>
