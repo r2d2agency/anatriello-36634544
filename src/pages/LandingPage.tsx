@@ -742,9 +742,9 @@ export default function LandingPage() {
               A solução
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Como o{" "}
+              Como a{" "}
               <span className="bg-gradient-to-r from-[hsl(217,75%,55%)] via-[hsl(152,55%,48%)] to-[hsl(24,92%,55%)] bg-clip-text text-transparent">
-                Glee-go Whats
+                Ayratech
               </span>{" "}
               resolve cada problema
             </h2>
