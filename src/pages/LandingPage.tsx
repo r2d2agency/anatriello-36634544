@@ -629,7 +629,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-green-500" />
                 </div>
                 <div className="flex-1 text-center text-xs text-muted-foreground">
-                  {branding.company_name || "Glee-go Whats"} — Gestão Comercial Inteligente
+                  {branding.company_name || "Ayratech"} — Gestão de Promotores
                 </div>
               </div>
               <img src={heroImage} alt="Plataforma de gestão comercial com WhatsApp e CRM integrado" className="w-full h-auto" />
