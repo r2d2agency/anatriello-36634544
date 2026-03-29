@@ -181,7 +181,7 @@ const Login = () => {
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} {branding.company_name || 'Glee-go Whats'}. Todos os direitos reservados.
+            © {new Date().getFullYear()} {branding.company_name || 'Ayratech'}. Todos os direitos reservados.
           </p>
         </div>
       </footer>
