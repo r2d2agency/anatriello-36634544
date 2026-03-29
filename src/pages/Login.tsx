@@ -98,8 +98,7 @@ const Login = () => {
               </div>
               
               <CardDescription>
-                Plataforma completa de CRM e automação de WhatsApp para gerenciar contatos, 
-                campanhas e atendimento ao cliente
+                Plataforma completa de gestão de promotores, merchandising e comunicação via WhatsApp
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleSubmit}>

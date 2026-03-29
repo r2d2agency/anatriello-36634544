@@ -1129,7 +1129,7 @@ export default function LandingPage() {
               <Building2 className="h-4 w-4" />
               <span>CNPJ: 04.609.030/0001-29</span>
             </div>
-            <span>© {new Date().getFullYear()} {branding.company_name || "Glee-go Whats"}. Todos os direitos reservados.</span>
+            <span>© {new Date().getFullYear()} {branding.company_name || "Ayratech"}. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>
