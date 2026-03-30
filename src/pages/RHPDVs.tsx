@@ -159,7 +159,7 @@ function GeocodeButton({ form, setForm }: { form: any; setForm: React.Dispatch<R
       return;
     }
     try {
-      const result = await geocode.mutateAsync({ address: form.address, city: form.city, state: form.state, zip_code: form.zip_code });
+      const result = await geocode.mutateAsync({ address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state, zip_code: form.zip_code });
       if (result.found) {
         setForm((f: any) => ({ ...f, latitude: String(result.latitude), longitude: String(result.longitude) }));
         toast({ title: 'Coordenadas geradas!', description: result.display_name });
