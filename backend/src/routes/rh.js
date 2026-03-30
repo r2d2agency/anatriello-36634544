@@ -178,7 +178,7 @@ router.post('/employees', async (req, res) => {
 // Update employee
 router.put('/employees/:id', async (req, res) => {
   try {
-    const d = req.body;
+    const d = normalizeEmployeePayload(req.body);
     // Get old values for audit
     const old = await query(`SELECT * FROM employees WHERE id = $1`, [req.params.id]);
     if (!old.rows[0]) return res.status(404).json({ error: 'Não encontrado' });
@@ -189,15 +189,13 @@ router.put('/employees/:id', async (req, res) => {
     const sets = fields.map((f, i) => `${f} = $${i + 2}`);
     sets.push(`updated_at = NOW()`);
     const jsonbFields = ['salary_items', 'benefits'];
-    const jsonbFields2 = ['salary_items', 'benefits', 'work_schedule'];
-    const vals = fields.map(f => jsonbFields2.includes(f) && typeof d[f] === 'object' ? JSON.stringify(d[f]) : d[f]);
+    const vals = fields.map((f) => jsonbFields.includes(f) ? JSON.stringify(d[f] || []) : d[f]);
 
     const result = await query(
       `UPDATE employees SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
       [req.params.id, ...vals]
     );
 
-    // Audit changes
     const changes = fields
       .filter(f => String(old.rows[0][f]) !== String(d[f]))
       .map(f => ({ field: f, oldVal: String(old.rows[0][f] ?? ''), newVal: String(d[f] ?? '') }));
@@ -207,8 +205,9 @@ router.put('/employees/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    logError('rh.employees.update', err);
-    res.status(500).json({ error: 'Erro ao atualizar' });
+    logError('rh.employees.update', err, { body: req.body, employee_id: req.params.id });
+    const message = err?.detail || err?.message || 'Erro ao atualizar colaborador';
+    res.status(400).json({ error: message });
   }
 });
 

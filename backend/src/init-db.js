@@ -3624,6 +3624,11 @@ CREATE INDEX IF NOT EXISTS idx_employees_org ON employees(organization_id);
 CREATE INDEX IF NOT EXISTS idx_employees_status ON employees(status);
 CREATE INDEX IF NOT EXISTS idx_employees_cpf ON employees(cpf);
 
+DO $$ BEGIN
+  ALTER TABLE employees ALTER COLUMN work_schedule TYPE TEXT;
+EXCEPTION WHEN others THEN null;
+END $$;
+
 -- Dependentes
 CREATE TABLE IF NOT EXISTS employee_dependents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
