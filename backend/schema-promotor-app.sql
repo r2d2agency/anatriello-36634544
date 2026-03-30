@@ -114,6 +114,27 @@ CREATE TABLE IF NOT EXISTS time_rules (
 CREATE INDEX IF NOT EXISTS idx_time_rules_org ON time_rules(organization_id);
 
 -- ================================================
+-- Solicitações de Hora Extra
+-- ================================================
+CREATE TABLE IF NOT EXISTS overtime_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  request_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  reason TEXT NOT NULL,
+  requested_start TIME,
+  requested_end TIME,
+  status VARCHAR(20) DEFAULT 'pendente',
+  approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+  approved_at TIMESTAMPTZ,
+  supervisor_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_overtime_requests_emp ON overtime_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_overtime_requests_date ON overtime_requests(request_date);
+CREATE INDEX IF NOT EXISTS idx_overtime_requests_status ON overtime_requests(status);
+
+-- ================================================
 -- Alertas de Ponto
 -- ================================================
 CREATE TABLE IF NOT EXISTS time_alerts (
