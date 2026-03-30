@@ -312,6 +312,12 @@ router.post('/employees', async (req, res) => {
     const d = normalizeEmployeePayload(req.body);
     if (!d.full_name) return res.status(400).json({ error: 'Nome do colaborador é obrigatório' });
 
+    // Auto-geocode home address if no coordinates provided
+    if (!d.home_latitude && !d.home_longitude && (d.address || d.city)) {
+      const geo = await autoGeocodeAddress(d.address, d.city, d.state, d.zip_code);
+      if (geo) { d.home_latitude = geo.lat; d.home_longitude = geo.lng; }
+    }
+
     const result = await query(
       `INSERT INTO employees (organization_id, full_name, social_name, cpf, rg, rg_issuer, birth_date, gender, marital_status, email, phone, phone2,
         address, address_number, complement, neighborhood, city, state, zip_code,
