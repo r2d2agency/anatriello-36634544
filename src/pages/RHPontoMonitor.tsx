@@ -6,6 +6,12 @@ import { usePunchMonitor } from "@/hooks/use-promotor";
 import { Clock, CheckCircle2, AlertTriangle, MapPin, UserX, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFormatDate(value: any, fmt: string, fallback = '—'): string {
+  if (!value) return fallback;
+  const d = new Date(String(value).replace(' ', 'T'));
+  return d && !Number.isNaN(d.getTime()) ? format(d, fmt) : fallback;
+}
+
 export default function RHPontoMonitor() {
   const { data, isLoading } = usePunchMonitor();
 
@@ -106,7 +112,7 @@ export default function RHPontoMonitor() {
                 {punchedToday.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.full_name}</TableCell>
-                    <TableCell className="text-xs">{format(new Date(p.punched_at), 'HH:mm:ss')}</TableCell>
+                    <TableCell className="text-xs">{safeFormatDate(p.punched_at, 'HH:mm:ss')}</TableCell>
                     <TableCell className="text-xs">{p.pdv_name || '-'}</TableCell>
                     <TableCell>
                       {p.geo_status === 'dentro_area' ? <Badge className="bg-green-500 text-[10px]">Dentro</Badge>

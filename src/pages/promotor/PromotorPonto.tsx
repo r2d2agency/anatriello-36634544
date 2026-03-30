@@ -18,18 +18,25 @@ const PUNCH_LABELS: Record<string, string> = {
   entrada: '🟢 Entrada', saida_intervalo: '🟡 Saída Intervalo', retorno_intervalo: '🔵 Retorno', saida: '🔴 Saída', extraordinaria: '⚪ Extra', ajuste: '🔧 Ajuste'
 };
 
+function safeFormatDate(value: any, fmt: string, fallback = '—'): string {
+  if (!value) return fallback;
+  const d = new Date(String(value).replace(' ', 'T'));
+  return d && !Number.isNaN(d.getTime()) ? format(d, fmt) : fallback;
+}
+
 export default function PromotorPonto() {
   const startDate = subDays(new Date(), 30).toISOString().slice(0, 10);
   const { data: punches, isLoading } = usePromotorPunches({ start_date: startDate });
 
   // Group by date
   const grouped = (punches || []).reduce((acc: Record<string, any[]>, p: any) => {
-    const date = format(new Date(p.punched_at), 'yyyy-MM-dd');
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(p);
+    const ts = p.punched_at || p.offline_local_time || p.created_at;
+    const dateStr = safeFormatDate(ts, 'yyyy-MM-dd', '');
+    if (!dateStr) return acc;
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(p);
     return acc;
   }, {});
-
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
   return (
@@ -47,14 +54,14 @@ export default function PromotorPonto() {
         {dates.map(date => (
           <Card key={date}>
             <CardHeader className="p-3 pb-1">
-              <CardTitle className="text-sm font-medium">{format(new Date(date + 'T12:00:00'), 'EEEE, dd/MM/yyyy', { locale: undefined })}</CardTitle>
+              <CardTitle className="text-sm font-medium">{safeFormatDate(date + 'T12:00:00', 'EEEE, dd/MM/yyyy')}</CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0 space-y-2">
               {grouped[date].map((p: any) => (
                 <div key={p.id} className="flex items-center justify-between text-sm p-2 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-2">
                     <span>{PUNCH_LABELS[p.punch_type] || p.punch_type}</span>
-                    <span className="text-muted-foreground">{format(new Date(p.punched_at), 'HH:mm:ss')}</span>
+                    <span className="text-muted-foreground">{safeFormatDate(p.punched_at || p.offline_local_time, 'HH:mm:ss')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {p.is_offline && <Badge variant="outline" className="text-[10px]">Offline</Badge>}
