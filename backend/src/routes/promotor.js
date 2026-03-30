@@ -1085,7 +1085,8 @@ router.get('/rh/live-map', async (req, res) => {
           (SELECT tp.punch_type FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_punch_type,
           (SELECT tp.punched_at FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_punch_at,
           (SELECT tp.pdv_id FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_pdv_id,
-          (SELECT p.name FROM time_punches tp JOIN pdvs p ON p.id = tp.pdv_id WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_pdv_name
+          (SELECT p.name FROM time_punches tp JOIN pdvs p ON p.id = tp.pdv_id WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_pdv_name,
+          (SELECT string_agg(DISTINCT mb.name, ', ') FROM merch_pdv_brands mpb JOIN merch_brands mb ON mb.id = mpb.brand_id JOIN time_punches tp2 ON tp2.pdv_id = mpb.pdv_id WHERE tp2.employee_id = e.id AND tp2.punched_at::date = $2 AND mpb.active = true LIMIT 1) as current_brands
         FROM employees e
         LEFT JOIN employee_live_locations ll ON ll.employee_id = e.id
         WHERE e.organization_id = $1 AND e.status = 'ativo'
