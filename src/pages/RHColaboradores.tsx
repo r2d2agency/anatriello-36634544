@@ -440,13 +440,47 @@ export default function RHColaboradores() {
                     </div>
                   )}
                 </div>
-                <div><Label>Perfil</Label>
-                  <Select value={form.worker_profile} onValueChange={v => setField("worker_profile", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label>Perfil Funcional</Label>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => setShowProfileManager(!showProfileManager)}>
+                      <UserCog className="h-3 w-3" /> Gerenciar
+                    </Button>
+                  </div>
+                  <Select value={form.worker_profile || ""} onValueChange={v => setField("worker_profile", v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar perfil" /></SelectTrigger>
                     <SelectContent>
+                      {/* Default profiles */}
                       {Object.entries(PROFILE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      {/* Custom profiles */}
+                      {workerProfiles.filter((p: any) => !Object.keys(PROFILE_LABELS).includes(p.name)).map((p: any) => (
+                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {showProfileManager && (
+                    <div className="mt-2 p-3 border rounded-lg bg-muted/30 space-y-2">
+                      <p className="text-xs font-medium">Perfis cadastrados:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(PROFILE_LABELS).map(([k, v]) => (
+                          <Badge key={k} variant="outline" className="gap-1">{v}</Badge>
+                        ))}
+                        {workerProfiles.map((p: any) => (
+                          <Badge key={p.id} variant="secondary" className="gap-1 pr-1">
+                            {p.name}
+                            <button onClick={() => deleteProfileMut.mutate(p.id)} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <Input value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="Novo perfil..." className="h-8 text-sm" />
+                        <Button size="sm" className="h-8 shrink-0" disabled={!newProfileName.trim() || createProfileMut.isPending}
+                          onClick={async () => { await createProfileMut.mutateAsync({ name: newProfileName.trim() }); setNewProfileName(""); }}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div><Label>Tipo de Vínculo</Label>
                   <Select value={form.employment_type} onValueChange={v => setField("employment_type", v)}>
