@@ -184,10 +184,10 @@ export default function RHDashboard() {
 
     employees.forEach((e: any) => {
       if (!e.birth_date) return;
-      const bd = new Date(e.birth_date + "T12:00:00");
+      const bd = safeDate(e.birth_date);
+      if (!bd) return;
       const bMonth = bd.getMonth();
       const bDay = bd.getDate();
-      // Check this year's birthday
       const bThisYear = new Date(now.getFullYear(), bMonth, bDay);
       const isToday = bMonth === todayM && bDay === todayD;
       const isThisWeek = bThisYear >= weekStart && bThisYear <= weekEnd;
