@@ -143,6 +143,7 @@ function calcAge(birthDate: string): string {
 export default function RHColaboradores() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [profileFilter, setProfileFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({ ...EMPTY_FORM });
@@ -151,10 +152,16 @@ export default function RHColaboradores() {
   const [cepLoading, setCepLoading] = useState(false);
   const { toast } = useToast();
 
-  const { data: employees = [], isLoading } = useEmployees({
+  const { data: rawEmployees = [], isLoading } = useEmployees({
     search: search || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
+
+  const employees = useMemo(() => {
+    if (profileFilter === "all") return rawEmployees;
+    if (profileFilter === "promotor_access") return rawEmployees.filter((e: any) => e.promotor_access);
+    return rawEmployees.filter((e: any) => e.worker_profile === profileFilter);
+  }, [rawEmployees, profileFilter]);
   const { data: departments = [] } = useRhDepartments();
   const { data: branches = [] } = useBranches();
   const { data: positions = [] } = useRhPositions();
