@@ -329,6 +329,9 @@ export default function LiveMaps() {
                             ) : (
                               <span className="text-destructive">Sem check-in</span>
                             )}
+                            {e.current_brands && (
+                              <span className="text-yellow-600 text-[9px] truncate block">🏷️ {e.current_brands}</span>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-0.5">
