@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { api } from '@/lib/api';
 
 // ===== EMPLOYEES =====
 export function useEmployees(filters?: { status?: string; search?: string; department_id?: string; branch_id?: string }) {
@@ -11,14 +11,14 @@ export function useEmployees(filters?: { status?: string; search?: string; depar
   const qs = params.toString();
   return useQuery({
     queryKey: ['rh-employees', qs],
-    queryFn: () => apiGet(`/api/rh/employees${qs ? `?${qs}` : ''}`),
+    queryFn: () => api<any[]>(`/api/rh/employees${qs ? `?${qs}` : ''}`),
   });
 }
 
 export function useEmployee(id?: string) {
   return useQuery({
     queryKey: ['rh-employee', id],
-    queryFn: () => apiGet(`/api/rh/employees/${id}`),
+    queryFn: () => api<any>(`/api/rh/employees/${id}`),
     enabled: !!id,
   });
 }
@@ -26,7 +26,7 @@ export function useEmployee(id?: string) {
 export function useCreateEmployee() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/employees', data),
+    mutationFn: (data: any) => api<any>('/api/rh/employees', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-employees'] }),
   });
 }
@@ -34,7 +34,7 @@ export function useCreateEmployee() {
 export function useUpdateEmployee() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: any) => apiPut(`/api/rh/employees/${id}`, data),
+    mutationFn: ({ id, ...data }: any) => api<any>(`/api/rh/employees/${id}`, { method: 'PUT', body: data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rh-employees'] });
       qc.invalidateQueries({ queryKey: ['rh-employee'] });
@@ -45,7 +45,7 @@ export function useUpdateEmployee() {
 export function useDeleteEmployee() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => apiDelete(`/api/rh/employees/${id}`),
+    mutationFn: (id: string) => api<any>(`/api/rh/employees/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-employees'] }),
   });
 }
@@ -59,14 +59,14 @@ export function useTimeRecords(filters?: { employee_id?: string; start_date?: st
   const qs = params.toString();
   return useQuery({
     queryKey: ['rh-time-records', qs],
-    queryFn: () => apiGet(`/api/rh/time-records${qs ? `?${qs}` : ''}`),
+    queryFn: () => api<any[]>(`/api/rh/time-records${qs ? `?${qs}` : ''}`),
   });
 }
 
 export function useSaveTimeRecord() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/time-records', data),
+    mutationFn: (data: any) => api<any>('/api/rh/time-records', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-time-records'] }),
   });
 }
@@ -79,14 +79,14 @@ export function usePayslips(filters?: { employee_id?: string; reference_month?: 
   const qs = params.toString();
   return useQuery({
     queryKey: ['rh-payslips', qs],
-    queryFn: () => apiGet(`/api/rh/payslips${qs ? `?${qs}` : ''}`),
+    queryFn: () => api<any[]>(`/api/rh/payslips${qs ? `?${qs}` : ''}`),
   });
 }
 
 export function useCreatePayslip() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/payslips', data),
+    mutationFn: (data: any) => api<any>('/api/rh/payslips', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-payslips'] }),
   });
 }
@@ -94,7 +94,7 @@ export function useCreatePayslip() {
 export function useUpdatePayslip() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: any) => apiPut(`/api/rh/payslips/${id}`, data),
+    mutationFn: ({ id, ...data }: any) => api<any>(`/api/rh/payslips/${id}`, { method: 'PUT', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-payslips'] }),
   });
 }
@@ -104,48 +104,48 @@ export function useAbsences(employeeId?: string) {
   const params = employeeId ? `?employee_id=${employeeId}` : '';
   return useQuery({
     queryKey: ['rh-absences', employeeId],
-    queryFn: () => apiGet(`/api/rh/absences${params}`),
+    queryFn: () => api<any[]>(`/api/rh/absences${params}`),
   });
 }
 
 export function useCreateAbsence() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/absences', data),
+    mutationFn: (data: any) => api<any>('/api/rh/absences', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-absences'] }),
   });
 }
 
 // ===== SUPPORT TABLES =====
 export function useBranches() {
-  return useQuery({ queryKey: ['rh-branches'], queryFn: () => apiGet('/api/rh/branches') });
+  return useQuery({ queryKey: ['rh-branches'], queryFn: () => api<any[]>('/api/rh/branches') });
 }
 export function useCreateBranch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/branches', data),
+    mutationFn: (data: any) => api<any>('/api/rh/branches', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-branches'] }),
   });
 }
 
 export function useRhDepartments() {
-  return useQuery({ queryKey: ['rh-departments'], queryFn: () => apiGet('/api/rh/rh-departments') });
+  return useQuery({ queryKey: ['rh-departments'], queryFn: () => api<any[]>('/api/rh/rh-departments') });
 }
 export function useCreateRhDepartment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/rh-departments', data),
+    mutationFn: (data: any) => api<any>('/api/rh/rh-departments', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-departments'] }),
   });
 }
 
 export function useCostCenters() {
-  return useQuery({ queryKey: ['rh-cost-centers'], queryFn: () => apiGet('/api/rh/cost-centers') });
+  return useQuery({ queryKey: ['rh-cost-centers'], queryFn: () => api<any[]>('/api/rh/cost-centers') });
 }
 export function useCreateCostCenter() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => apiPost('/api/rh/cost-centers', data),
+    mutationFn: (data: any) => api<any>('/api/rh/cost-centers', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-cost-centers'] }),
   });
 }
@@ -158,6 +158,6 @@ export function useRhAuditLog(entityType?: string, entityId?: string) {
   const qs = params.toString();
   return useQuery({
     queryKey: ['rh-audit', qs],
-    queryFn: () => apiGet(`/api/rh/audit-log${qs ? `?${qs}` : ''}`),
+    queryFn: () => api<any[]>(`/api/rh/audit-log${qs ? `?${qs}` : ''}`),
   });
 }
