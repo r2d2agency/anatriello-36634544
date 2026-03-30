@@ -184,6 +184,8 @@ const App = () => (
             <Route path="/rh/documentos" element={<ProtectedRoute><RHDocumentos /></ProtectedRoute>} />
             <Route path="/rh/ponto-monitor" element={<ProtectedRoute><RHPontoMonitor /></ProtectedRoute>} />
             <Route path="/rh/pdvs" element={<ProtectedRoute><RHPDVs /></ProtectedRoute>} />
+            <Route path="/rh/feriados" element={<ProtectedRoute><RHFeriados /></ProtectedRoute>} />
+            <Route path="/rh/mapa" element={<ProtectedRoute><RHMapaOperacional /></ProtectedRoute>} />
             {/* Promotor App */}
             <Route path="/promotor/login" element={<PromotorLogin />} />
             <Route path="/promotor/home" element={<PromotorHome />} />
