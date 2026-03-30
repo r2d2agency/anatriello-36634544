@@ -3,7 +3,7 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { callAI } from '../lib/ai-caller.js';
 import { logInfo, logError } from '../logger.js';
-import fetch from 'node-fetch';
+
 
 const router = express.Router();
 router.use(authenticate);
