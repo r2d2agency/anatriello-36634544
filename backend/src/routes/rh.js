@@ -8,6 +8,21 @@ import { logInfo, logError } from '../logger.js';
 const router = express.Router();
 router.use(authenticate);
 
+// Auto-geocode using Nominatim (OpenStreetMap)
+async function autoGeocodeAddress(address, city, state, zip_code) {
+  const parts = [address, city, state, zip_code, 'Brazil'].filter(Boolean);
+  if (parts.length < 2) return null;
+  const q = encodeURIComponent(parts.join(', '));
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+      headers: { 'User-Agent': 'AyratechApp/1.0' }
+    });
+    const data = await res.json();
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch (_) {}
+  return null;
+}
+
 let holidaysInfraPromise = null;
 const seededHolidayYears = new Set();
 
