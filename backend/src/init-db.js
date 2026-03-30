@@ -3600,7 +3600,7 @@ CREATE TABLE IF NOT EXISTS employees (
   termination_date DATE,
   termination_reason TEXT,
   salary NUMERIC(12,2),
-  work_schedule VARCHAR(100) DEFAULT '08:00-17:00',
+  work_schedule TEXT DEFAULT '08:00-17:00',
   bank_name VARCHAR(100),
   bank_agency VARCHAR(20),
   bank_account VARCHAR(30),
