@@ -416,6 +416,7 @@ app.use('/api/meta', metaTemplatesRoutes);
 app.use('/api/doc-signatures', docSignaturesRoutes);
 app.use('/api/rh', rhRoutes);
 app.use('/api/promotor', promotorRoutes);
+app.use('/api/merchandising', merchandisingRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
