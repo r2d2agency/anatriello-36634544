@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from "react";
+import { Cake } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations } from "@/hooks/use-rh";
 import { api } from "@/lib/api";
@@ -160,6 +161,46 @@ export default function RHDashboard() {
   const vacExpiring = dashboard?.vacations_expiring || [];
   const pendingCerts = dashboard?.pending_certificates || [];
   const activeVacations = dashboard?.active_vacations || [];
+
+  // ===== BIRTHDAY CALCULATIONS =====
+  const birthdays = useMemo(() => {
+    if (!employees.length) return { today: [], week: [], month: [] };
+    const now = new Date();
+    const todayM = now.getMonth();
+    const todayD = now.getDate();
+    const todayDow = now.getDay(); // 0=Sun
+    // Week range: Mon-Sun of current week
+    const mondayOffset = todayDow === 0 ? -6 : 1 - todayDow;
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() + mondayOffset);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const today: any[] = [];
+    const week: any[] = [];
+    const month: any[] = [];
+
+    employees.forEach((e: any) => {
+      if (!e.birth_date) return;
+      const bd = new Date(e.birth_date + "T12:00:00");
+      const bMonth = bd.getMonth();
+      const bDay = bd.getDate();
+      // Check this year's birthday
+      const bThisYear = new Date(now.getFullYear(), bMonth, bDay);
+      const isToday = bMonth === todayM && bDay === todayD;
+      const isThisWeek = bThisYear >= weekStart && bThisYear <= weekEnd;
+      const isThisMonth = bMonth === todayM;
+      const age = now.getFullYear() - bd.getFullYear();
+      const entry = { ...e, birthday_date: format(bd, "dd/MM"), age };
+      if (isToday) today.push(entry);
+      if (isThisWeek && !isToday) week.push(entry);
+      if (isThisMonth && !isToday && !isThisWeek) month.push(entry);
+    });
+
+    return { today, week, month };
+  }, [employees]);
 
   const setVacField = (k: string, v: any) => setVacForm((p: any) => {
     const next = { ...p, [k]: v };
@@ -409,6 +450,70 @@ export default function RHDashboard() {
                 </CardContent>
               </Card>
             )}
+            {/* Birthdays */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Cake className="h-4 w-4 text-pink-500" /> Aniversariantes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Today */}
+                {birthdays.today.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-pink-600 mb-1">🎂 Hoje</p>
+                    <div className="space-y-1">
+                      {birthdays.today.map((e: any) => (
+                        <div key={e.id} className="flex items-center justify-between p-2 rounded bg-pink-50 dark:bg-pink-950/20">
+                          <div>
+                            <p className="text-sm font-medium">{e.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{e.position || "—"}</p>
+                          </div>
+                          <Badge className="bg-pink-500/10 text-pink-700 border-pink-200">{e.age} anos</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* This week */}
+                {birthdays.week.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-purple-600 mb-1">📅 Esta semana</p>
+                    <div className="space-y-1">
+                      {birthdays.week.map((e: any) => (
+                        <div key={e.id} className="flex items-center justify-between p-2 rounded bg-purple-50 dark:bg-purple-950/20">
+                          <div>
+                            <p className="text-sm font-medium">{e.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{e.birthday_date} • {e.position || "—"}</p>
+                          </div>
+                          <Badge variant="outline" className="text-purple-600 border-purple-300">{e.age} anos</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* This month */}
+                {birthdays.month.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-blue-600 mb-1">📆 Este mês</p>
+                    <div className="space-y-1">
+                      {birthdays.month.map((e: any) => (
+                        <div key={e.id} className="flex items-center justify-between p-2 rounded bg-blue-50 dark:bg-blue-950/20">
+                          <div>
+                            <p className="text-sm font-medium">{e.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{e.birthday_date} • {e.position || "—"}</p>
+                          </div>
+                          <Badge variant="outline" className="text-blue-600 border-blue-300">{e.age} anos</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {birthdays.today.length === 0 && birthdays.week.length === 0 && birthdays.month.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Nenhum aniversariante neste mês</p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* VACATIONS TAB */}
