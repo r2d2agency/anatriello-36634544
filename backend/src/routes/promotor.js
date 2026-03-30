@@ -8,16 +8,17 @@ import { logInfo, logError } from '../logger.js';
 
 const router = express.Router();
 
-// Auto-geocode using Nominatim (OpenStreetMap)
-async function autoGeocode(address, city, state, zip_code) {
-  const parts = [address, city, state, zip_code, 'Brazil'].filter(Boolean);
+// Auto-geocode using canonical Brazilian address + Nominatim
+async function autoGeocode(address, city, state, zip_code, neighborhood) {
+  const cleanZip = typeof zip_code === 'string' ? zip_code.replace(/\D/g, '') : zip_code;
+  const parts = [address, neighborhood, city, state, cleanZip, 'Brasil'].filter(Boolean);
   if (parts.length < 2) return null;
   const q = encodeURIComponent(parts.join(', '));
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
-    headers: { 'User-Agent': 'AyratechApp/1.0' }
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${q}`, {
+    headers: { 'User-Agent': 'Ayratech/1.0 (suporte@ayratech.app.br)' }
   });
   const data = await res.json();
-  if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  if (Array.isArray(data) && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display_name: data[0].display_name };
   return null;
 }
 
@@ -693,7 +694,7 @@ router.post('/rh/pdvs', async (req, res) => {
     let lat = d.latitude, lng = d.longitude;
     if ((!lat || !lng) && (d.address || d.city)) {
       try {
-        const geo = await autoGeocode(d.address, d.city, d.state, d.zip_code);
+        const geo = await autoGeocode(d.address, d.city, d.state, d.zip_code, d.neighborhood);
         if (geo) { lat = geo.lat; lng = geo.lng; }
       } catch (_) {}
     }
@@ -713,7 +714,7 @@ router.put('/rh/pdvs/:id', async (req, res) => {
     let lat = d.latitude, lng = d.longitude;
     if ((!lat || !lng) && (d.address || d.city)) {
       try {
-        const geo = await autoGeocode(d.address, d.city, d.state, d.zip_code);
+        const geo = await autoGeocode(d.address, d.city, d.state, d.zip_code, d.neighborhood);
         if (geo) { lat = geo.lat; lng = geo.lng; }
       } catch (_) {}
     }

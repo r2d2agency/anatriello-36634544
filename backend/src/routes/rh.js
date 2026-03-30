@@ -8,17 +8,19 @@ import { logInfo, logError } from '../logger.js';
 const router = express.Router();
 router.use(authenticate);
 
-// Auto-geocode using Nominatim (OpenStreetMap)
-async function autoGeocodeAddress(address, city, state, zip_code) {
-  const parts = [address, city, state, zip_code, 'Brazil'].filter(Boolean);
+// Auto-geocode using canonical Brazilian address + Nominatim
+async function autoGeocodeAddress(address, city, state, zip_code, neighborhood) {
+  const cleanZip = typeof zip_code === 'string' ? zip_code.replace(/\D/g, '') : zip_code;
+  const parts = [address, neighborhood, city, state, cleanZip, 'Brasil'].filter(Boolean);
   if (parts.length < 2) return null;
   const q = encodeURIComponent(parts.join(', '));
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${q}`;
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
-      headers: { 'User-Agent': 'AyratechApp/1.0' }
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Ayratech/1.0 (suporte@ayratech.app.br)' }
     });
     const data = await res.json();
-    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    if (Array.isArray(data) && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display_name: data[0].display_name };
   } catch (_) {}
   return null;
 }
@@ -314,7 +316,7 @@ router.post('/employees', async (req, res) => {
 
     // Auto-geocode home address if no coordinates provided
     if (!d.home_latitude && !d.home_longitude && (d.address || d.city)) {
-      const geo = await autoGeocodeAddress(d.address, d.city, d.state, d.zip_code);
+      const geo = await autoGeocodeAddress(d.address, d.city, d.state, d.zip_code, d.neighborhood);
       if (geo) { d.home_latitude = geo.lat; d.home_longitude = geo.lng; }
     }
 
@@ -387,9 +389,9 @@ router.put('/employees/:id', async (req, res) => {
       const addrVal = d.address || req.body.address;
       const cityVal = d.city || req.body.city;
       const stateVal = d.state || req.body.state;
-      const zipVal = d.zip_code || req.body.zip_code;
+      const neighborhoodVal = d.neighborhood || req.body.neighborhood;
       if (addrVal || cityVal) {
-        const geo = await autoGeocodeAddress(addrVal, cityVal, stateVal, zipVal);
+        const geo = await autoGeocodeAddress(addrVal, cityVal, stateVal, zipVal, neighborhoodVal);
         if (geo) { d.home_latitude = geo.lat; d.home_longitude = geo.lng; }
       }
     }
@@ -1593,14 +1595,14 @@ router.delete('/regions/:regionId/pdvs/:pdvId', async (req, res) => {
 // ===== GEOCODING (via Nominatim - free) =====
 router.post('/geocode', async (req, res) => {
   try {
-    const { address, city, state, zip_code } = req.body;
-    const parts = [address, city, state, zip_code].filter(Boolean).join(', ');
-    if (!parts) return res.status(400).json({ error: 'Endereço necessário' });
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(parts)}&format=json&limit=1&countrycodes=br`;
-    const resp = await fetch(url, { headers: { 'User-Agent': 'AyratechRH/1.0' } });
-    const data = await resp.json();
-    if (data.length === 0) return res.json({ found: false });
-    res.json({ found: true, latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon), display_name: data[0].display_name });
+    const { address, neighborhood, city, state, zip_code } = req.body;
+    const geo = await autoGeocodeAddress(address, city, state, zip_code, neighborhood);
+    if (!geo) {
+      const cleanZip = typeof zip_code === 'string' ? zip_code.replace(/\D/g, '') : zip_code;
+      const attempted = [address, neighborhood, city, state, cleanZip, 'Brasil'].filter(Boolean).join(', ');
+      return res.json({ found: false, attempted_address: attempted });
+    }
+    res.json({ found: true, latitude: geo.lat, longitude: geo.lng, display_name: geo.display_name });
   } catch (err) { logError('rh.geocode', err); res.status(500).json({ error: err.message }); }
 });
 
