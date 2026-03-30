@@ -19,7 +19,7 @@ import { resolveMediaUrl } from "@/lib/media";
 import {
   LayoutDashboard, AlertTriangle, Clock, UserX, Palmtree, FileText,
   Plus, CheckCircle, XCircle, Stethoscope, CalendarDays, Users, Timer,
-  ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip
+  ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip, Sparkles, Search, ShieldCheck, ShieldX, ShieldQuestion
 } from "lucide-react";
 import { format } from "date-fns";
 
