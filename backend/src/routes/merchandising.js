@@ -6,115 +6,97 @@ import { logInfo, logError } from '../logger.js';
 const router = express.Router();
 router.use(authenticate);
 
-let infraPromise = null;
+let infraDone = false;
 
 async function ensureMerchandisingInfra() {
-  if (!infraPromise) {
-    infraPromise = (async () => {
-      try {
-        await query(`
-          CREATE TABLE IF NOT EXISTS brands (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            razao_social VARCHAR(255),
-            cnpj VARCHAR(20),
-            logo_url TEXT,
-            description TEXT,
-            segment VARCHAR(100),
-            responsible VARCHAR(255),
-            phone VARCHAR(30),
-            email VARCHAR(255),
-            status VARCHAR(20) DEFAULT 'active',
-            notes TEXT,
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          )
-        `);
-        await query(`
-          CREATE TABLE IF NOT EXISTS product_categories (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            description TEXT,
-            status VARCHAR(20) DEFAULT 'active',
-            created_at TIMESTAMPTZ DEFAULT NOW()
-          )
-        `);
-        await query(`
-          CREATE TABLE IF NOT EXISTS product_subcategories (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID NOT NULL,
-            category_id UUID NOT NULL REFERENCES product_categories(id) ON DELETE CASCADE,
-            name VARCHAR(255) NOT NULL,
-            description TEXT,
-            status VARCHAR(20) DEFAULT 'active',
-            created_at TIMESTAMPTZ DEFAULT NOW()
-          )
-        `);
-        await query(`
-          CREATE TABLE IF NOT EXISTS products (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID NOT NULL,
-            brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-            category_id UUID NOT NULL REFERENCES product_categories(id) ON DELETE RESTRICT,
-            subcategory_id UUID NOT NULL REFERENCES product_subcategories(id) ON DELETE RESTRICT,
-            name VARCHAR(255) NOT NULL,
-            sku VARCHAR(100),
-            internal_code VARCHAR(100),
-            barcode VARCHAR(100),
-            description TEXT,
-            image_url TEXT,
-            unit VARCHAR(20) DEFAULT 'un',
-            status VARCHAR(20) DEFAULT 'active',
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          )
-        `);
-        // pdv_brands - link brands to pdvs
-        await query(`
-          CREATE TABLE IF NOT EXISTS pdv_brands (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID NOT NULL,
-            pdv_id UUID NOT NULL,
-            brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-            active BOOLEAN DEFAULT true,
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            UNIQUE(pdv_id, brand_id)
-          )
-        `);
-        // pdv_brand_products - the MIX
-        await query(`
-          CREATE TABLE IF NOT EXISTS pdv_brand_products (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            organization_id UUID NOT NULL,
-            pdv_id UUID NOT NULL,
-            brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
-            product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-            active BOOLEAN DEFAULT true,
-            mandatory BOOLEAN DEFAULT false,
-            priority VARCHAR(10) DEFAULT 'media',
-            notes TEXT,
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW(),
-            UNIQUE(pdv_id, brand_id, product_id)
-          )
-        `);
-        // Indexes
-        await query(`CREATE INDEX IF NOT EXISTS idx_brands_org ON brands(organization_id)`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id)`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id)`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_pdv_brands_pdv ON pdv_brands(pdv_id)`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_pdv_brands_brand ON pdv_brands(brand_id)`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_pdv_brand_products_pdv ON pdv_brand_products(pdv_id)`);
-        await query(`CREATE INDEX IF NOT EXISTS idx_pdv_brand_products_brand ON pdv_brand_products(brand_id)`);
-      } catch (err) {
-        logError('merchandising infra error', err);
-        infraPromise = null;
-      }
-    })();
+  if (infraDone) return;
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS merch_brands (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      razao_social VARCHAR(255),
+      cnpj VARCHAR(20),
+      logo_url TEXT,
+      description TEXT,
+      segment VARCHAR(100),
+      responsible VARCHAR(255),
+      phone VARCHAR(30),
+      email VARCHAR(255),
+      status VARCHAR(20) DEFAULT 'active',
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS merch_categories (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS merch_subcategories (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      category_id UUID NOT NULL REFERENCES merch_categories(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS merch_products (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      brand_id UUID NOT NULL REFERENCES merch_brands(id) ON DELETE CASCADE,
+      category_id UUID NOT NULL REFERENCES merch_categories(id) ON DELETE RESTRICT,
+      subcategory_id UUID NOT NULL REFERENCES merch_subcategories(id) ON DELETE RESTRICT,
+      name VARCHAR(255) NOT NULL,
+      sku VARCHAR(100),
+      internal_code VARCHAR(100),
+      barcode VARCHAR(100),
+      description TEXT,
+      image_url TEXT,
+      unit VARCHAR(20) DEFAULT 'un',
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS merch_pdv_brands (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      pdv_id UUID NOT NULL,
+      brand_id UUID NOT NULL REFERENCES merch_brands(id) ON DELETE CASCADE,
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(pdv_id, brand_id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS merch_pdv_brand_products (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      pdv_id UUID NOT NULL,
+      brand_id UUID NOT NULL REFERENCES merch_brands(id) ON DELETE CASCADE,
+      product_id UUID NOT NULL REFERENCES merch_products(id) ON DELETE CASCADE,
+      active BOOLEAN DEFAULT true,
+      mandatory BOOLEAN DEFAULT false,
+      priority VARCHAR(10) DEFAULT 'media',
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(pdv_id, brand_id, product_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_brands_org ON merch_brands(organization_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_products_brand ON merch_products(brand_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_products_category ON merch_products(category_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_pdv_brands_pdv ON merch_pdv_brands(pdv_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_pdv_brands_brand ON merch_pdv_brands(brand_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_pdv_bp_pdv ON merch_pdv_brand_products(pdv_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_pdv_bp_brand ON merch_pdv_brand_products(brand_id)`,
+  ];
+  for (const sql of statements) {
+    try { await query(sql); } catch (err) { logError('merch infra stmt', err, { sql: sql.slice(0, 80) }); }
   }
-  return infraPromise;
+  infraDone = true;
 }
 
 // ==================== BRANDS ====================
