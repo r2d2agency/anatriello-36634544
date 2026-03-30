@@ -56,6 +56,40 @@ export default function RHDashboard() {
   const createVacation = useCreateVacation();
   const createCert = useCreateMedicalCertificate();
   const validateCert = useValidateMedicalCertificate();
+  const { data: inboundDocs = [] } = useInboundDocumentsRH();
+
+  const filteredEmpVac = useMemo(() => {
+    if (!empSearchVac) return employees;
+    const s = empSearchVac.toLowerCase();
+    return employees.filter((e: any) => e.full_name?.toLowerCase().includes(s));
+  }, [employees, empSearchVac]);
+
+  const filteredEmpCert = useMemo(() => {
+    if (!empSearchCert) return employees;
+    const s = empSearchCert.toLowerCase();
+    return employees.filter((e: any) => e.full_name?.toLowerCase().includes(s));
+  }, [employees, empSearchCert]);
+
+  // Docs sent by the selected employee (for cert dialog)
+  const employeeInboundDocs = useMemo(() => {
+    if (!certForm.employee_id) return [];
+    return inboundDocs.filter((d: any) => d.employee_id === certForm.employee_id);
+  }, [inboundDocs, certForm.employee_id]);
+
+  const handleFileDrop = useCallback(async (file: File) => {
+    try {
+      const url = await uploadFile(file);
+      if (url) setCertForm((p: any) => ({ ...p, document_url: url }));
+    } catch (err: any) {
+      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+    }
+  }, [uploadFile, toast]);
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileDrop(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [handleFileDrop]);
 
   const summary = dashboard?.summary || {};
   const lateArrivals = dashboard?.late_arrivals || [];
