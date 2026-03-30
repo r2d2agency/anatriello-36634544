@@ -123,7 +123,8 @@ router.put('/employees/:id', async (req, res) => {
 
     const sets = fields.map((f, i) => `${f} = $${i + 2}`);
     sets.push(`updated_at = NOW()`);
-    const vals = fields.map(f => d[f]);
+    const jsonbFields = ['salary_items', 'benefits'];
+    const vals = fields.map(f => jsonbFields.includes(f) ? JSON.stringify(d[f]) : d[f]);
 
     const result = await query(
       `UPDATE employees SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
