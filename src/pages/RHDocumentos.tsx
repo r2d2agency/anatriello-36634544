@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/use-rh";
-import { useDocumentDeliveries, useSendDocumentDelivery, useInboundDocumentsRH, useDocumentTypes } from "@/hooks/use-promotor";
-import { FileText, Send, Search, Eye, RotateCcw, XCircle, Plus, Upload, Loader2, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useDocumentDeliveries, useSendDocumentDelivery, useInboundDocumentsRH, useDocumentTypes, useSendNotice } from "@/hooks/use-promotor";
+import { FileText, Send, Search, Megaphone, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_MAP: Record<string, { label: string; variant: string }> = {
@@ -29,19 +30,35 @@ const STATUS_MAP: Record<string, { label: string; variant: string }> = {
   cancelado: { label: 'Cancelado', variant: 'secondary' },
 };
 
+function parseSafe(val: unknown, mask: string) {
+  if (!val) return '—';
+  try {
+    const d = new Date(String(val));
+    return isNaN(d.getTime()) ? '—' : format(d, mask);
+  } catch { return '—'; }
+}
+
 export default function RHDocumentos() {
   const [tab, setTab] = useState("enviados");
   const [showSendDialog, setShowSendDialog] = useState(false);
+  const [showNoticeDialog, setShowNoticeDialog] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const { data: deliveries, isLoading: loadingDeliveries } = useDocumentDeliveries({ status: statusFilter || undefined });
-  const { data: inboundDocs, isLoading: loadingInbound } = useInboundDocumentsRH();
+  const { data: deliveries } = useDocumentDeliveries({ status: statusFilter || undefined });
+  const { data: inboundDocs } = useInboundDocumentsRH();
   const { data: employees } = useEmployees();
   const { data: docTypes } = useDocumentTypes();
   const sendDelivery = useSendDocumentDelivery();
+  const sendNotice = useSendNotice();
   const { toast } = useToast();
 
+  // Send Document form
   const [sendForm, setSendForm] = useState({ title: '', description: '', employee_id: '', file_url: '', requires_confirmation: true, requires_signature: false, document_type_id: '' });
+
+  // Send Notice form
+  const [noticeForm, setNoticeForm] = useState({ title: '', message: '', employee_ids: [] as string[], type: 'info', sendToAll: false });
+
+  const activeEmployees = (employees || []).filter((e: any) => e.status === 'ativo');
 
   const handleSend = async () => {
     if (!sendForm.title || !sendForm.employee_id) { toast({ title: 'Preencha título e selecione colaborador', variant: 'destructive' }); return; }
@@ -55,14 +72,43 @@ export default function RHDocumentos() {
     }
   };
 
-  const filteredDeliveries = (deliveries || []).filter((d: any) => !search || d.employee_name?.toLowerCase().includes(search.toLowerCase()) || d.title?.toLowerCase().includes(search.toLowerCase()));
+  const handleSendNotice = async () => {
+    const ids = noticeForm.sendToAll ? activeEmployees.map((e: any) => e.id) : noticeForm.employee_ids;
+    if (!noticeForm.title || ids.length === 0) { toast({ title: 'Preencha o título e selecione ao menos um colaborador', variant: 'destructive' }); return; }
+    try {
+      await sendNotice.mutateAsync({ title: noticeForm.title, message: noticeForm.message, employee_ids: ids, type: noticeForm.type });
+      toast({ title: `Recado enviado para ${ids.length} colaborador(es)!` });
+      setShowNoticeDialog(false);
+      setNoticeForm({ title: '', message: '', employee_ids: [], type: 'info', sendToAll: false });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleEmployee = (id: string) => {
+    setNoticeForm(f => ({
+      ...f,
+      employee_ids: f.employee_ids.includes(id) ? f.employee_ids.filter(x => x !== id) : [...f.employee_ids, id]
+    }));
+  };
+
+  const filteredDeliveries = (deliveries || []).filter((d: any) =>
+    !search || d.employee_name?.toLowerCase().includes(search.toLowerCase()) || d.title?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <MainLayout>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h1 className="text-xl font-bold flex items-center gap-2"><FileText className="h-5 w-5" /> Central de Documentos</h1>
-          <Button onClick={() => setShowSendDialog(true)}><Send className="h-4 w-4 mr-2" /> Enviar Documento</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowNoticeDialog(true)} className="gap-2">
+              <Megaphone className="h-4 w-4" /> Enviar Recado
+            </Button>
+            <Button onClick={() => setShowSendDialog(true)} className="gap-2">
+              <Send className="h-4 w-4" /> Enviar Documento
+            </Button>
+          </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -73,7 +119,10 @@ export default function RHDocumentos() {
 
           <TabsContent value="enviados" className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="pl-9" /></div>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="pl-9" />
+              </div>
               <Select value={statusFilter || "__all__"} onValueChange={v => setStatusFilter(v === "__all__" ? "" : v)}>
                 <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
@@ -105,9 +154,9 @@ export default function RHDocumentos() {
                       <TableCell className="font-medium">{d.title}</TableCell>
                       <TableCell>{d.employee_name}</TableCell>
                       <TableCell><Badge variant={STATUS_MAP[d.status]?.variant as any || 'outline'}>{STATUS_MAP[d.status]?.label || d.status}</Badge></TableCell>
-                      <TableCell className="text-xs">{d.sent_at ? format(new Date(d.sent_at), 'dd/MM/yy HH:mm') : '-'}</TableCell>
-                      <TableCell className="text-xs">{d.viewed_at ? format(new Date(d.viewed_at), 'dd/MM/yy HH:mm') : '-'}</TableCell>
-                      <TableCell className="text-xs">{d.signed_at ? format(new Date(d.signed_at), 'dd/MM/yy HH:mm') : '-'}</TableCell>
+                      <TableCell className="text-xs">{parseSafe(d.sent_at, 'dd/MM/yy HH:mm')}</TableCell>
+                      <TableCell className="text-xs">{parseSafe(d.viewed_at, 'dd/MM/yy HH:mm')}</TableCell>
+                      <TableCell className="text-xs">{parseSafe(d.signed_at, 'dd/MM/yy HH:mm')}</TableCell>
                     </TableRow>
                   ))}
                   {filteredDeliveries.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum documento encontrado</TableCell></TableRow>}
@@ -135,7 +184,7 @@ export default function RHDocumentos() {
                       <TableCell>{d.employee_name}</TableCell>
                       <TableCell>{d.title}</TableCell>
                       <TableCell><Badge variant="outline">{d.status}</Badge></TableCell>
-                      <TableCell className="text-xs">{format(new Date(d.created_at), 'dd/MM/yy HH:mm')}</TableCell>
+                      <TableCell className="text-xs">{parseSafe(d.created_at, 'dd/MM/yy HH:mm')}</TableCell>
                     </TableRow>
                   ))}
                   {(inboundDocs || []).length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum documento recebido</TableCell></TableRow>}
@@ -146,7 +195,7 @@ export default function RHDocumentos() {
         </Tabs>
       </div>
 
-      {/* Send Dialog */}
+      {/* Send Document Dialog */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Enviar Documento</DialogTitle></DialogHeader>
@@ -154,7 +203,7 @@ export default function RHDocumentos() {
             <div className="space-y-1"><Label>Colaborador *</Label>
               <Select value={sendForm.employee_id} onValueChange={v => setSendForm(f => ({ ...f, employee_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{(employees || []).filter((e: any) => e.status === 'ativo').map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
+                <SelectContent>{activeEmployees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1"><Label>Título *</Label><Input value={sendForm.title} onChange={e => setSendForm(f => ({ ...f, title: e.target.value }))} /></div>
@@ -172,6 +221,61 @@ export default function RHDocumentos() {
             <Button onClick={handleSend} className="w-full" disabled={sendDelivery.isPending}>
               {sendDelivery.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               Enviar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Notice/Recado Dialog */}
+      <Dialog open={showNoticeDialog} onOpenChange={setShowNoticeDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5" /> Enviar Recado</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>Título *</Label><Input value={noticeForm.title} onChange={e => setNoticeForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Reunião amanhã às 8h" /></div>
+            <div className="space-y-1"><Label>Mensagem</Label><Textarea value={noticeForm.message} onChange={e => setNoticeForm(f => ({ ...f, message: e.target.value }))} rows={3} placeholder="Detalhes do recado..." /></div>
+            <div className="space-y-1"><Label>Tipo</Label>
+              <Select value={noticeForm.type} onValueChange={v => setNoticeForm(f => ({ ...f, type: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">ℹ️ Informativo</SelectItem>
+                  <SelectItem value="alert">⚠️ Alerta</SelectItem>
+                  <SelectItem value="document">📄 Documento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Destinatários</Label>
+              <div className="flex items-center gap-2 pb-1">
+                <Checkbox
+                  id="sendAll"
+                  checked={noticeForm.sendToAll}
+                  onCheckedChange={(v) => setNoticeForm(f => ({ ...f, sendToAll: !!v, employee_ids: [] }))}
+                />
+                <label htmlFor="sendAll" className="text-sm font-medium cursor-pointer">Enviar para todos ({activeEmployees.length})</label>
+              </div>
+              {!noticeForm.sendToAll && (
+                <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
+                  {activeEmployees.map((e: any) => (
+                    <div key={e.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`emp-${e.id}`}
+                        checked={noticeForm.employee_ids.includes(e.id)}
+                        onCheckedChange={() => toggleEmployee(e.id)}
+                      />
+                      <label htmlFor={`emp-${e.id}`} className="text-sm cursor-pointer">{e.full_name}</label>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!noticeForm.sendToAll && noticeForm.employee_ids.length > 0 && (
+                <p className="text-xs text-muted-foreground">{noticeForm.employee_ids.length} selecionado(s)</p>
+              )}
+            </div>
+
+            <Button onClick={handleSendNotice} className="w-full" disabled={sendNotice.isPending}>
+              {sendNotice.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Megaphone className="h-4 w-4 mr-2" />}
+              Enviar Recado
             </Button>
           </div>
         </DialogContent>

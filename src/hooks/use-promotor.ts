@@ -267,3 +267,12 @@ export function useCreateDocumentType() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-doc-types'] }),
   });
 }
+
+export function useSendNotice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { title: string; message?: string; employee_ids: string[]; type?: string }) =>
+      api<any>('/api/promotor/rh/send-notice', { method: 'POST', body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-doc-deliveries'] }),
+  });
+}
