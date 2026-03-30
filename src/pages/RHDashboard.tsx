@@ -224,7 +224,7 @@ export default function RHDashboard() {
             <Button onClick={() => { setVacForm({ ...VACATION_EMPTY }); setVacDialog(true); }} className="gap-2" variant="outline">
               <Palmtree className="h-4 w-4" /> Lançar Férias
             </Button>
-            <Button onClick={() => { setCertForm({ ...CERT_EMPTY }); setCertDialog(true); }} className="gap-2">
+            <Button onClick={() => { setCertForm({ ...CERT_EMPTY }); setCrmValidation(null); setIsAnalyzing(false); setCertDialog(true); }} className="gap-2">
               <Stethoscope className="h-4 w-4" /> Registrar Atestado
             </Button>
           </div>
