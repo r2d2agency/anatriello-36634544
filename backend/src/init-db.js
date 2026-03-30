@@ -3896,6 +3896,10 @@ CREATE TABLE IF NOT EXISTS collaborator_app_settings (id UUID PRIMARY KEY DEFAUL
 
 -- Supervisor column
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS supervisor_id UUID;
+
+-- Compensation columns for existing RH databases
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_items JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS benefits JSONB NOT NULL DEFAULT '[]'::jsonb;
 `;
 
 const migrationSteps = [
