@@ -190,7 +190,8 @@ router.put('/employees/:id', async (req, res) => {
       'role_level','branch_id','department_id','cost_center_id','direct_manager_id',
       'admission_date','contract_end_date','salary','work_schedule','bank_name','bank_agency',
       'bank_account','bank_account_type','ctps_number','ctps_series','pis_pasep','cnpj',
-      'company_name','status','photo_url','salary_items','benefits'
+      'company_name','status','photo_url','salary_items','benefits',
+      'home_latitude','home_longitude'
     ]);
 
     const sentKeys = Object.keys(req.body).filter(k => allowedCols.has(k));
