@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from "react";
+import { Cake } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations } from "@/hooks/use-rh";
 import { api } from "@/lib/api";
