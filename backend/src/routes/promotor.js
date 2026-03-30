@@ -696,9 +696,17 @@ router.post('/rh/pdvs', async (req, res) => {
 router.put('/rh/pdvs/:id', async (req, res) => {
   try {
     const d = req.body;
+    // Auto-geocode if no lat/lng provided but address exists
+    let lat = d.latitude, lng = d.longitude;
+    if ((!lat || !lng) && (d.address || d.city)) {
+      try {
+        const geo = await autoGeocode(d.address, d.city, d.state, d.zip_code);
+        if (geo) { lat = geo.lat; lng = geo.lng; }
+      } catch (_) {}
+    }
     const result = await query(
       `UPDATE pdvs SET name=$2, client_name=$3, address=$4, zip_code=$5, city=$6, state=$7, neighborhood=$8, latitude=$9, longitude=$10, radius_meters=$11, supervisor_id=$12, notes=$13, active=$14, updated_at=NOW() WHERE id=$1 RETURNING *`,
-      [req.params.id, d.name, d.client_name, d.address, d.zip_code, d.city, d.state, d.neighborhood, d.latitude, d.longitude, d.radius_meters, d.supervisor_id || null, d.notes, d.active !== false]
+      [req.params.id, d.name, d.client_name, d.address, d.zip_code, d.city, d.state, d.neighborhood, lat, lng, d.radius_meters, d.supervisor_id || null, d.notes, d.active !== false]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: 'Erro' }); }
