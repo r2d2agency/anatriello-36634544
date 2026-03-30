@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePunchMonitor } from "@/hooks/use-promotor";
-import { Clock, CheckCircle2, AlertTriangle, MapPin, UserX, Loader2 } from "lucide-react";
+import { usePunchMonitor, useRhOvertimeRequests, useApproveOvertimeRequest } from "@/hooks/use-promotor";
+import { useToast } from "@/hooks/use-toast";
+import { Clock, CheckCircle2, AlertTriangle, MapPin, UserX, Loader2, ShieldAlert, Check, X } from "lucide-react";
 import { format } from "date-fns";
 
 function safeFormatDate(value: any, fmt: string, fallback = '—'): string {
@@ -14,11 +18,24 @@ function safeFormatDate(value: any, fmt: string, fallback = '—'): string {
 
 export default function RHPontoMonitor() {
   const { data, isLoading } = usePunchMonitor();
+  const { data: otRequests = [] } = useRhOvertimeRequests({ status: 'pendente' });
+  const approveOt = useApproveOvertimeRequest();
+  const { toast } = useToast();
+  const [otNotes, setOtNotes] = useState<Record<string, string>>({});
 
   const punchedToday = data?.punched_today || [];
   const notPunched = data?.not_punched || [];
   const alerts = data?.alerts || [];
   const outsidePdv = data?.outside_pdv || [];
+
+  const handleOtAction = async (id: string, status: 'aprovado' | 'recusado') => {
+    try {
+      await approveOt.mutateAsync({ id, status, supervisor_notes: otNotes[id] || '' });
+      toast({ title: status === 'aprovado' ? 'Hora extra aprovada!' : 'Hora extra recusada' });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    }
+  };
 
   if (isLoading) return <MainLayout><div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></MainLayout>;
 
@@ -29,7 +46,7 @@ export default function RHPontoMonitor() {
         <p className="text-sm text-muted-foreground">Atualiza automaticamente a cada 15 segundos</p>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card className="bg-green-50 dark:bg-green-950/20 border-green-200">
             <CardContent className="p-3 text-center">
               <CheckCircle2 className="h-6 w-6 mx-auto text-green-600 mb-1" />
@@ -58,7 +75,61 @@ export default function RHPontoMonitor() {
               <p className="text-xs text-orange-600">Fora do PDV</p>
             </CardContent>
           </Card>
+          <Card className={`${otRequests.length > 0 ? 'bg-purple-50 dark:bg-purple-950/20 border-purple-300 animate-pulse' : 'bg-muted/30'}`}>
+            <CardContent className="p-3 text-center">
+              <ShieldAlert className={`h-6 w-6 mx-auto mb-1 ${otRequests.length > 0 ? 'text-purple-600' : 'text-muted-foreground'}`} />
+              <p className={`text-2xl font-bold ${otRequests.length > 0 ? 'text-purple-700' : 'text-muted-foreground'}`}>{otRequests.length}</p>
+              <p className={`text-xs ${otRequests.length > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>HE Pendentes</p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Overtime Requests */}
+        {otRequests.length > 0 && (
+          <Card className="border-purple-300">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-purple-600" /> Solicitações de Hora Extra Pendentes ({otRequests.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 space-y-3">
+              {otRequests.map((ot: any) => (
+                <div key={ot.id} className="p-3 rounded-lg bg-purple-50/50 dark:bg-purple-950/10 border border-purple-200 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{ot.employee_name}</p>
+                      <p className="text-xs text-muted-foreground">{ot.position} • Jornada: {ot.work_schedule || '—'}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-[10px]">{safeFormatDate(ot.request_date + 'T12:00:00', 'dd/MM')}</Badge>
+                  </div>
+                  <p className="text-sm bg-background/80 rounded p-2"><b>Motivo:</b> {ot.reason}</p>
+                  {(ot.requested_start || ot.requested_end) && (
+                    <p className="text-xs text-muted-foreground">
+                      Horário solicitado: {ot.requested_start || '—'} a {ot.requested_end || '—'}
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    <Textarea
+                      placeholder="Observação (opcional)..."
+                      value={otNotes[ot.id] || ''}
+                      onChange={e => setOtNotes(n => ({ ...n, [ot.id]: e.target.value }))}
+                      rows={2}
+                      className="text-xs"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="destructive" onClick={() => handleOtAction(ot.id, 'recusado')} disabled={approveOt.isPending} className="gap-1 text-xs">
+                      <X className="h-3.5 w-3.5" /> Recusar
+                    </Button>
+                    <Button size="sm" onClick={() => handleOtAction(ot.id, 'aprovado')} disabled={approveOt.isPending} className="gap-1 text-xs">
+                      <Check className="h-3.5 w-3.5" /> Aprovar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Alerts */}
         {alerts.length > 0 && (
