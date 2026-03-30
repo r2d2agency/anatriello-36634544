@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations } from "@/hooks/use-rh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useUpload } from "@/hooks/use-upload";
+import { useInboundDocumentsRH } from "@/hooks/use-promotor";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   LayoutDashboard, AlertTriangle, Clock, UserX, Palmtree, FileText,
   Plus, CheckCircle, XCircle, Stethoscope, CalendarDays, Users, Timer,
-  ShieldAlert, FileCheck, Upload
+  ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip
 } from "lucide-react";
 import { format } from "date-fns";
 
