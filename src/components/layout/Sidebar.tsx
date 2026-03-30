@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarDays,
   ChevronDown,
+  Clock,
   Code,
   ClipboardList,
   FileSignature,
@@ -39,6 +40,7 @@ import {
   Ghost,
   FolderKanban,
   BarChart4,
+  DollarSign,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import ayratechLogo from "@/assets/ayratech_logo.jpg";
