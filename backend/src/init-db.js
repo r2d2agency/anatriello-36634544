@@ -3506,6 +3506,243 @@ CREATE INDEX IF NOT EXISTS idx_meta_templates_status
   ON meta_message_templates(status);
 `;
 
+// Step 42: RH Module (Colaboradores, Ponto, Holerite)
+const step42RH = `
+-- RH Enums
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employment_type') THEN
+    CREATE TYPE employment_type AS ENUM ('clt','pj','freelancer','temporario','estagiario','aprendiz');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'worker_profile') THEN
+    CREATE TYPE worker_profile AS ENUM ('administrativo','supervisor','promotor','operacional');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employee_status') THEN
+    CREATE TYPE employee_status AS ENUM ('ativo','afastado','ferias','desligado','suspenso');
+  END IF;
+END $$;
+
+-- Filiais
+CREATE TABLE IF NOT EXISTS branches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  cnpj VARCHAR(20),
+  address TEXT,
+  city VARCHAR(100),
+  state VARCHAR(2),
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_branches_org ON branches(organization_id);
+
+-- Centros de Custo
+CREATE TABLE IF NOT EXISTS cost_centers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  code VARCHAR(20) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cost_centers_org ON cost_centers(organization_id);
+
+-- Departamentos RH
+CREATE TABLE IF NOT EXISTS rh_departments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rh_departments_org ON rh_departments(organization_id);
+
+-- Colaboradores
+CREATE TABLE IF NOT EXISTS employees (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  full_name VARCHAR(255) NOT NULL,
+  social_name VARCHAR(255),
+  cpf VARCHAR(14),
+  rg VARCHAR(20),
+  rg_issuer VARCHAR(20),
+  birth_date DATE,
+  gender VARCHAR(20),
+  marital_status VARCHAR(30),
+  nationality VARCHAR(50) DEFAULT 'Brasileira',
+  photo_url TEXT,
+  email VARCHAR(255),
+  phone VARCHAR(20),
+  phone2 VARCHAR(20),
+  address TEXT,
+  address_number VARCHAR(10),
+  complement VARCHAR(100),
+  neighborhood VARCHAR(100),
+  city VARCHAR(100),
+  state VARCHAR(2),
+  zip_code VARCHAR(10),
+  registration_number VARCHAR(50),
+  worker_profile worker_profile DEFAULT 'operacional',
+  employment_type employment_type DEFAULT 'clt',
+  position VARCHAR(255),
+  role_level VARCHAR(100),
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
+  department_id UUID REFERENCES rh_departments(id) ON DELETE SET NULL,
+  cost_center_id UUID REFERENCES cost_centers(id) ON DELETE SET NULL,
+  direct_manager_id UUID,
+  admission_date DATE,
+  contract_end_date DATE,
+  probation_end_date DATE,
+  termination_date DATE,
+  termination_reason TEXT,
+  salary NUMERIC(12,2),
+  work_schedule VARCHAR(100) DEFAULT '08:00-17:00',
+  bank_name VARCHAR(100),
+  bank_agency VARCHAR(20),
+  bank_account VARCHAR(30),
+  bank_account_type VARCHAR(20),
+  ctps_number VARCHAR(30),
+  ctps_series VARCHAR(10),
+  pis_pasep VARCHAR(20),
+  voter_id VARCHAR(20),
+  military_cert VARCHAR(30),
+  cnh VARCHAR(20),
+  cnh_category VARCHAR(5),
+  cnh_expiry DATE,
+  cnpj VARCHAR(20),
+  company_name VARCHAR(255),
+  status employee_status DEFAULT 'ativo',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_employees_org ON employees(organization_id);
+CREATE INDEX IF NOT EXISTS idx_employees_status ON employees(status);
+CREATE INDEX IF NOT EXISTS idx_employees_cpf ON employees(cpf);
+
+-- Dependentes
+CREATE TABLE IF NOT EXISTS employee_dependents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  relationship VARCHAR(50),
+  birth_date DATE,
+  cpf VARCHAR(14),
+  ir_deduction BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Documentos do Colaborador
+CREATE TABLE IF NOT EXISTS employee_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  doc_type VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  file_url TEXT,
+  expiry_date DATE,
+  notes TEXT,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Registro de Ponto
+CREATE TABLE IF NOT EXISTS time_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  record_date DATE NOT NULL,
+  entry1 TIME, exit1 TIME, entry2 TIME, exit2 TIME, entry3 TIME, exit3 TIME,
+  total_hours NUMERIC(5,2),
+  overtime_hours NUMERIC(5,2) DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'normal',
+  justification TEXT,
+  approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  approved_at TIMESTAMPTZ,
+  location_lat NUMERIC(10,7),
+  location_lng NUMERIC(10,7),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_time_records_emp ON time_records(employee_id);
+CREATE INDEX IF NOT EXISTS idx_time_records_date ON time_records(record_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_time_records_unique ON time_records(employee_id, record_date);
+
+-- Banco de Horas
+CREATE TABLE IF NOT EXISTS hour_bank (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  reference_month VARCHAR(7) NOT NULL,
+  balance_hours NUMERIC(6,2) DEFAULT 0,
+  carried_over NUMERIC(6,2) DEFAULT 0,
+  used_hours NUMERIC(6,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Afastamentos
+CREATE TABLE IF NOT EXISTS employee_absences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  absence_type VARCHAR(50) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  days_count INTEGER,
+  reason TEXT,
+  document_url TEXT,
+  approved BOOLEAN DEFAULT false,
+  approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Holerites
+CREATE TABLE IF NOT EXISTS payslips (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  reference_month VARCHAR(7) NOT NULL,
+  payment_type VARCHAR(30) DEFAULT 'mensal',
+  gross_salary NUMERIC(12,2) DEFAULT 0,
+  earnings JSONB DEFAULT '[]',
+  total_earnings NUMERIC(12,2) DEFAULT 0,
+  deductions JSONB DEFAULT '[]',
+  total_deductions NUMERIC(12,2) DEFAULT 0,
+  net_salary NUMERIC(12,2) DEFAULT 0,
+  fgts_base NUMERIC(12,2) DEFAULT 0,
+  fgts_value NUMERIC(12,2) DEFAULT 0,
+  inss_base NUMERIC(12,2) DEFAULT 0,
+  inss_value NUMERIC(12,2) DEFAULT 0,
+  irrf_base NUMERIC(12,2) DEFAULT 0,
+  irrf_value NUMERIC(12,2) DEFAULT 0,
+  payment_date DATE,
+  status VARCHAR(20) DEFAULT 'rascunho',
+  pdf_url TEXT,
+  notes TEXT,
+  generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_payslips_emp ON payslips(employee_id);
+CREATE INDEX IF NOT EXISTS idx_payslips_month ON payslips(reference_month);
+
+-- Trilha de Auditoria RH
+CREATE TABLE IF NOT EXISTS rh_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id UUID NOT NULL,
+  action VARCHAR(20) NOT NULL,
+  field_name VARCHAR(100),
+  old_value TEXT,
+  new_value TEXT,
+  changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  changed_at TIMESTAMPTZ DEFAULT NOW(),
+  ip_address VARCHAR(45)
+);
+CREATE INDEX IF NOT EXISTS idx_rh_audit_entity ON rh_audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_rh_audit_org ON rh_audit_log(organization_id);
+`;
+
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
@@ -3549,6 +3786,7 @@ const migrationSteps = [
   { name: 'Global AI Agents', sql: step39GlobalAgents, critical: false },
   { name: 'Lead Webhooks', sql: step40LeadWebhooks, critical: false },
   { name: 'Meta Message Templates', sql: step41MetaTemplates, critical: false },
+  { name: 'RH Module', sql: step42RH, critical: false },
 ];
 
 export async function initDatabase() {
