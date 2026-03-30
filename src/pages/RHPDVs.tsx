@@ -164,7 +164,7 @@ function GeocodeButton({ form, setForm }: { form: any; setForm: React.Dispatch<R
         setForm((f: any) => ({ ...f, latitude: String(result.latitude), longitude: String(result.longitude) }));
         toast({ title: 'Coordenadas geradas!', description: result.display_name });
       } else {
-        toast({ title: 'Endereço não encontrado', description: 'Tente um endereço mais completo', variant: 'destructive' });
+        toast({ title: 'Endereço não encontrado', description: result?.attempted_address ? `Busca: ${result.attempted_address}` : 'Tente um endereço mais completo', variant: 'destructive' });
       }
     } catch (err: any) {
       toast({ title: 'Erro na geocodificação', description: err.message, variant: 'destructive' });
