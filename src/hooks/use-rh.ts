@@ -225,6 +225,31 @@ export function useSyncDiagnostics() {
   });
 }
 
+// ===== CONSOLIDATED TIMESHEET =====
+export function useConsolidatedTimesheet(filters?: { employee_id?: string; start_date?: string; end_date?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.employee_id) params.set('employee_id', filters.employee_id);
+  if (filters?.start_date) params.set('start_date', filters.start_date);
+  if (filters?.end_date) params.set('end_date', filters.end_date);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ['rh-consolidated-timesheet', qs],
+    queryFn: () => api<any[]>(`/api/rh/consolidated-timesheet${qs ? `?${qs}` : ''}`),
+  });
+}
+
+// ===== PUNCH DIVERGENCES =====
+export function usePunchDivergences(filters?: { start_date?: string; end_date?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.start_date) params.set('start_date', filters.start_date);
+  if (filters?.end_date) params.set('end_date', filters.end_date);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ['rh-punch-divergences', qs],
+    queryFn: () => api<any[]>(`/api/rh/punch-divergences${qs ? `?${qs}` : ''}`),
+  });
+}
+
 // ===== AUDIT =====
 
 // ===== DASHBOARD =====
