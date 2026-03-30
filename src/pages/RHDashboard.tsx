@@ -42,7 +42,12 @@ export default function RHDashboard() {
   const [vacForm, setVacForm] = useState<any>({ ...VACATION_EMPTY });
   const [certForm, setCertForm] = useState<any>({ ...CERT_EMPTY });
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [empSearchVac, setEmpSearchVac] = useState("");
+  const [empSearchCert, setEmpSearchCert] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { uploadFile, isUploading, progress } = useUpload();
 
   const { data: dashboard, isLoading } = useRhDashboard();
   const { data: employees = [] } = useEmployees({ status: "ativo" });
