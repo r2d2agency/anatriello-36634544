@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations } from "@/hooks/use-rh";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
