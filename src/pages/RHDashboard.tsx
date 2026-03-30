@@ -162,6 +162,46 @@ export default function RHDashboard() {
   const pendingCerts = dashboard?.pending_certificates || [];
   const activeVacations = dashboard?.active_vacations || [];
 
+  // ===== BIRTHDAY CALCULATIONS =====
+  const birthdays = useMemo(() => {
+    if (!employees.length) return { today: [], week: [], month: [] };
+    const now = new Date();
+    const todayM = now.getMonth();
+    const todayD = now.getDate();
+    const todayDow = now.getDay(); // 0=Sun
+    // Week range: Mon-Sun of current week
+    const mondayOffset = todayDow === 0 ? -6 : 1 - todayDow;
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() + mondayOffset);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const today: any[] = [];
+    const week: any[] = [];
+    const month: any[] = [];
+
+    employees.forEach((e: any) => {
+      if (!e.birth_date) return;
+      const bd = new Date(e.birth_date + "T12:00:00");
+      const bMonth = bd.getMonth();
+      const bDay = bd.getDate();
+      // Check this year's birthday
+      const bThisYear = new Date(now.getFullYear(), bMonth, bDay);
+      const isToday = bMonth === todayM && bDay === todayD;
+      const isThisWeek = bThisYear >= weekStart && bThisYear <= weekEnd;
+      const isThisMonth = bMonth === todayM;
+      const age = now.getFullYear() - bd.getFullYear();
+      const entry = { ...e, birthday_date: format(bd, "dd/MM"), age };
+      if (isToday) today.push(entry);
+      if (isThisWeek && !isToday) week.push(entry);
+      if (isThisMonth && !isToday && !isThisWeek) month.push(entry);
+    });
+
+    return { today, week, month };
+  }, [employees]);
+
   const setVacField = (k: string, v: any) => setVacForm((p: any) => {
     const next = { ...p, [k]: v };
     if (k === "days_total" || k === "days_taken") {
