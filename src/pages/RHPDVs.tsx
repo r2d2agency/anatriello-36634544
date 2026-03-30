@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/use-rh";
 import { usePDVs, useCreatePDV, useUpdatePDV } from "@/hooks/use-promotor";
-import { MapPin, Plus, Edit, Search, Loader2 } from "lucide-react";
+import { useGeocode } from "@/hooks/use-rh";
+import { MapPin, Plus, Edit, Search, Loader2, Navigation } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -129,6 +130,7 @@ export default function RHPDVs() {
               <div className="space-y-1"><Label>Longitude</Label><Input type="number" step="any" value={form.longitude} onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))} placeholder="-46.633308" /></div>
               <div className="space-y-1"><Label>Raio (metros)</Label><Input type="number" value={form.radius_meters} onChange={e => setForm(f => ({ ...f, radius_meters: Number(e.target.value) }))} /></div>
             </div>
+            <GeocodeButton form={form} setForm={setForm} />
             <div className="space-y-1"><Label>Supervisor</Label>
               <Select value={form.supervisor_id} onValueChange={v => setForm(f => ({ ...f, supervisor_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -144,5 +146,35 @@ export default function RHPDVs() {
         </DialogContent>
       </Dialog>
     </MainLayout>
+  );
+}
+
+function GeocodeButton({ form, setForm }: { form: any; setForm: React.Dispatch<React.SetStateAction<any>> }) {
+  const geocode = useGeocode();
+  const { toast } = useToast();
+
+  const handleGeocode = async () => {
+    if (!form.address && !form.city && !form.zip_code) {
+      toast({ title: 'Preencha o endereço primeiro', variant: 'destructive' });
+      return;
+    }
+    try {
+      const result = await geocode.mutateAsync({ address: form.address, city: form.city, state: form.state, zip_code: form.zip_code });
+      if (result.found) {
+        setForm((f: any) => ({ ...f, latitude: String(result.latitude), longitude: String(result.longitude) }));
+        toast({ title: 'Coordenadas geradas!', description: result.display_name });
+      } else {
+        toast({ title: 'Endereço não encontrado', description: 'Tente um endereço mais completo', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro na geocodificação', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Button type="button" variant="outline" size="sm" onClick={handleGeocode} disabled={geocode.isPending} className="gap-2 text-xs">
+      {geocode.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
+      Gerar Coordenadas pelo Endereço
+    </Button>
   );
 }
