@@ -1595,14 +1595,14 @@ router.delete('/regions/:regionId/pdvs/:pdvId', async (req, res) => {
 // ===== GEOCODING (via Nominatim - free) =====
 router.post('/geocode', async (req, res) => {
   try {
-    const { address, city, state, zip_code } = req.body;
-    const parts = [address, city, state, zip_code].filter(Boolean).join(', ');
-    if (!parts) return res.status(400).json({ error: 'Endereço necessário' });
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(parts)}&format=json&limit=1&countrycodes=br`;
-    const resp = await fetch(url, { headers: { 'User-Agent': 'AyratechRH/1.0' } });
-    const data = await resp.json();
-    if (data.length === 0) return res.json({ found: false });
-    res.json({ found: true, latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon), display_name: data[0].display_name });
+    const { address, neighborhood, city, state, zip_code } = req.body;
+    const geo = await autoGeocodeAddress(address, city, state, zip_code, neighborhood);
+    if (!geo) {
+      const cleanZip = typeof zip_code === 'string' ? zip_code.replace(/\D/g, '') : zip_code;
+      const attempted = [address, neighborhood, city, state, cleanZip, 'Brasil'].filter(Boolean).join(', ');
+      return res.json({ found: false, attempted_address: attempted });
+    }
+    res.json({ found: true, latitude: geo.lat, longitude: geo.lng, display_name: geo.display_name });
   } catch (err) { logError('rh.geocode', err); res.status(500).json({ error: err.message }); }
 });
 
