@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useTimeRecords, useSaveTimeRecord, useEmployees, useAppPunches } from "@/hooks/use-rh";
+import { useTimeRecords, useSaveTimeRecord, useEmployees, useAppPunches, useConsolidatedTimesheet, usePunchDivergences } from "@/hooks/use-rh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Clock, Smartphone, MapPin, CheckCircle2, AlertTriangle, Wifi, WifiOff } from "lucide-react";
-import { format } from "date-fns";
+import {
+  Plus, Clock, Smartphone, MapPin, CheckCircle2, AlertTriangle, Wifi, WifiOff,
+  Download, FileSpreadsheet, CalendarDays, CalendarRange, Calendar, Send, Filter
+} from "lucide-react";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import * as XLSX from "xlsx";
 
 const STATUS_LABELS: Record<string, string> = {
   normal: "Normal", falta: "Falta", atestado: "Atestado", feriado: "Feriado", compensado: "Compensado",
@@ -30,27 +35,58 @@ const PUNCH_LABELS: Record<string, string> = {
   entrada: '🟢 Entrada', saida_intervalo: '🟡 Saída Intervalo', retorno_intervalo: '🔵 Retorno', saida: '🔴 Saída', extraordinaria: '⚪ Extra', ajuste: '🔧 Ajuste'
 };
 
+const DIVERGENCE_ICONS: Record<string, { icon: typeof AlertTriangle; color: string }> = {
+  sem_registro: { icon: AlertTriangle, color: 'text-red-600' },
+  incompleto: { icon: Clock, color: 'text-yellow-600' },
+  fora_pdv: { icon: MapPin, color: 'text-orange-600' },
+};
+
+type PeriodPreset = 'hoje' | 'semana' | 'mes' | 'mes_anterior' | 'personalizado';
+
+function getPeriodDates(preset: PeriodPreset): { start: string; end: string } {
+  const now = new Date();
+  switch (preset) {
+    case 'hoje':
+      return { start: format(now, 'yyyy-MM-dd'), end: format(now, 'yyyy-MM-dd') };
+    case 'semana':
+      return { start: format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd'), end: format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd') };
+    case 'mes':
+      return { start: format(startOfMonth(now), 'yyyy-MM-dd'), end: format(endOfMonth(now), 'yyyy-MM-dd') };
+    case 'mes_anterior': {
+      const prev = subMonths(now, 1);
+      return { start: format(startOfMonth(prev), 'yyyy-MM-dd'), end: format(endOfMonth(prev), 'yyyy-MM-dd') };
+    }
+    default:
+      return { start: format(subDays(now, 30), 'yyyy-MM-dd'), end: format(now, 'yyyy-MM-dd') };
+  }
+}
+
 export default function RHPonto() {
   const [employeeFilter, setEmployeeFilter] = useState("");
-  const [startDate, setStartDate] = useState(format(new Date(Date.now() - 30 * 86400000), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('mes');
+  const [customStart, setCustomStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("app");
+  const [activeTab, setActiveTab] = useState("consolidated");
   const [form, setForm] = useState<any>({ employee_id: "", record_date: format(new Date(), "yyyy-MM-dd"), entry1: "08:00", exit1: "12:00", entry2: "13:00", exit2: "17:00", entry3: "", exit3: "", status: "normal", justification: "" });
   const { toast } = useToast();
 
-  const { data: records = [], isLoading } = useTimeRecords({
-    employee_id: employeeFilter || undefined,
-    start_date: startDate,
-    end_date: endDate,
-  });
-  const { data: appPunches = [], isLoading: loadingPunches } = useAppPunches({
-    employee_id: employeeFilter || undefined,
-    start_date: startDate,
-    end_date: endDate,
-  });
+  const { start: startDate, end: endDate } = useMemo(() => {
+    if (periodPreset === 'personalizado') return { start: customStart, end: customEnd };
+    return getPeriodDates(periodPreset);
+  }, [periodPreset, customStart, customEnd]);
+
+  const { data: records = [], isLoading } = useTimeRecords({ employee_id: employeeFilter || undefined, start_date: startDate, end_date: endDate });
+  const { data: appPunches = [], isLoading: loadingPunches } = useAppPunches({ employee_id: employeeFilter || undefined, start_date: startDate, end_date: endDate });
+  const { data: consolidated = [], isLoading: loadingConsolidated } = useConsolidatedTimesheet({ employee_id: employeeFilter || undefined, start_date: startDate, end_date: endDate });
+  const { data: divergences = [] } = usePunchDivergences({ start_date: startDate, end_date: endDate });
   const { data: employees = [] } = useEmployees({ status: "ativo" });
   const saveMut = useSaveTimeRecord();
+
+  const filteredDivergences = useMemo(() => {
+    if (!employeeFilter) return divergences;
+    return divergences.filter((d: any) => d.employee_id === employeeFilter);
+  }, [divergences, employeeFilter]);
 
   const calcHours = (f: any) => {
     let total = 0;
@@ -79,49 +115,277 @@ export default function RHPonto() {
 
   const setField = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
+  // Export individual employee timesheet to XLSX
+  const exportEmployeeXLS = useCallback((empId?: string) => {
+    const empData = empId
+      ? consolidated.filter((c: any) => c.employee_id === empId)
+      : consolidated;
+
+    if (!empData.length) {
+      toast({ title: "Nenhum dado para exportar", variant: "destructive" });
+      return;
+    }
+
+    const empName = empId ? empData[0]?.employee_name : 'Todos';
+    const rows = empData.map((c: any) => {
+      const punches = Array.isArray(c.punches) ? c.punches : [];
+      const entrada = punches.find((p: any) => p.punch_type === 'entrada');
+      const saidaInt = punches.find((p: any) => p.punch_type === 'saida_intervalo');
+      const retorno = punches.find((p: any) => p.punch_type === 'retorno_intervalo');
+      const saida = punches.find((p: any) => p.punch_type === 'saida');
+
+      return {
+        'Data': c.record_date ? format(new Date(c.record_date + 'T12:00:00'), 'dd/MM/yyyy') : '',
+        'Colaborador': c.employee_name,
+        'CPF': c.cpf || '',
+        'Cargo': c.position || '',
+        'Entrada': entrada ? format(new Date(entrada.punched_at), 'HH:mm') : '',
+        'Saída Intervalo': saidaInt ? format(new Date(saidaInt.punched_at), 'HH:mm') : '',
+        'Retorno Intervalo': retorno ? format(new Date(retorno.punched_at), 'HH:mm') : '',
+        'Saída': saida ? format(new Date(saida.punched_at), 'HH:mm') : '',
+        'Total Registros': c.punch_count,
+        'Horas Brutas': c.raw_hours ? Number(c.raw_hours).toFixed(2) : '',
+        'Status Geo': punches.some((p: any) => p.geo_status === 'fora_area') ? 'FORA PDV' : 'OK',
+        'Offline': punches.some((p: any) => p.is_offline) ? 'SIM' : 'NÃO',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Column widths
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 20 },
+      { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 8 },
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 8 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Folha de Ponto");
+
+    // Add divergences sheet if present
+    const empDivs = empId ? divergences.filter((d: any) => d.employee_id === empId) : divergences;
+    if (empDivs.length > 0) {
+      const divRows = empDivs.map((d: any) => ({
+        'Data': d.date ? format(new Date(d.date + 'T12:00:00'), 'dd/MM/yyyy') : '',
+        'Colaborador': d.employee_name,
+        'Tipo': d.type === 'sem_registro' ? 'Sem Registro' : d.type === 'incompleto' ? 'Incompleto' : 'Fora PDV',
+        'Descrição': d.description,
+        'Severidade': d.severity === 'high' ? 'ALTA' : d.severity === 'medium' ? 'MÉDIA' : 'BAIXA',
+      }));
+      const wsDiv = XLSX.utils.json_to_sheet(divRows);
+      wsDiv['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 15 }, { wch: 40 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(wb, wsDiv, "Divergências");
+    }
+
+    const fileName = `folha_ponto_${empName.replace(/\s+/g, '_')}_${startDate}_${endDate}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast({ title: "Exportação concluída!", description: fileName });
+  }, [consolidated, divergences, startDate, endDate, toast]);
+
   const totalOvertime = records.reduce((s: number, r: any) => s + (parseFloat(r.overtime_hours) || 0), 0);
   const offlinePunches = appPunches.filter((p: any) => p.is_offline);
   const outsidePdv = appPunches.filter((p: any) => p.geo_status === 'fora_area');
+  const highDivergences = filteredDivergences.filter((d: any) => d.severity === 'high');
+
+  const periodLabel = useMemo(() => {
+    switch (periodPreset) {
+      case 'hoje': return 'Hoje';
+      case 'semana': return 'Esta Semana';
+      case 'mes': return 'Este Mês';
+      case 'mes_anterior': return 'Mês Anterior';
+      default: return 'Personalizado';
+    }
+  }, [periodPreset]);
 
   return (
     <MainLayout>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Clock className="h-6 w-6 text-primary" /> Gestão de Ponto</h1>
-            <p className="text-sm text-muted-foreground">Controle de jornada e banco de horas</p>
+            <p className="text-sm text-muted-foreground">Controle de jornada, divergências e exportação</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Registrar Ponto</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => exportEmployeeXLS(employeeFilter || undefined)} className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" /> Exportar XLS
+            </Button>
+            <Button onClick={() => setDialogOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Registrar Ponto</Button>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{appPunches.length}</p><p className="text-xs text-muted-foreground">Registros App</p></CardContent></Card>
-          <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{records.length}</p><p className="text-xs text-muted-foreground">Registros Manual</p></CardContent></Card>
-          <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-primary">{totalOvertime.toFixed(1)}h</p><p className="text-xs text-muted-foreground">Horas Extras</p></CardContent></Card>
-          <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-yellow-600">{offlinePunches.length}</p><p className="text-xs text-muted-foreground">Offline</p></CardContent></Card>
-          <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-red-600">{outsidePdv.length}</p><p className="text-xs text-muted-foreground">Fora do PDV</p></CardContent></Card>
+        {/* Period Presets */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          {([
+            { key: 'hoje', label: 'Hoje', icon: Calendar },
+            { key: 'semana', label: 'Semana', icon: CalendarDays },
+            { key: 'mes', label: 'Mês', icon: CalendarRange },
+            { key: 'mes_anterior', label: 'Mês Anterior', icon: CalendarRange },
+            { key: 'personalizado', label: 'Personalizado', icon: CalendarDays },
+          ] as const).map(({ key, label, icon: Icon }) => (
+            <Button
+              key={key}
+              variant={periodPreset === key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPeriodPreset(key)}
+              className="gap-1.5 text-xs"
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </Button>
+          ))}
+          {periodPreset === 'personalizado' && (
+            <div className="flex gap-1 items-center">
+              <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-36 h-8 text-xs" />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-36 h-8 text-xs" />
+            </div>
+          )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
+        {/* Employee + Period info */}
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
           <Select value={employeeFilter || "__all__"} onValueChange={v => setEmployeeFilter(v === "__all__" ? "" : v)}>
             <SelectTrigger className="w-60"><SelectValue placeholder="Todos os colaboradores" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todos</SelectItem>
+              <SelectItem value="__all__">Todos os colaboradores</SelectItem>
               {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-40" />
-          <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-40" />
+          <Badge variant="outline" className="text-xs">{periodLabel}: {format(new Date(startDate + 'T12:00:00'), 'dd/MM')} - {format(new Date(endDate + 'T12:00:00'), 'dd/MM/yyyy')}</Badge>
+          {employeeFilter && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => exportEmployeeXLS(employeeFilter)}>
+              <Download className="h-3.5 w-3.5" /> Exportar Individual
+            </Button>
+          )}
         </div>
 
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{consolidated.length}</p><p className="text-[10px] text-muted-foreground">Dias Registrados</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{appPunches.length}</p><p className="text-[10px] text-muted-foreground">Registros App</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-primary">{totalOvertime.toFixed(1)}h</p><p className="text-[10px] text-muted-foreground">Horas Extras</p></CardContent></Card>
+          <Card className={highDivergences.length > 0 ? 'border-destructive/50' : ''}>
+            <CardContent className="p-3 text-center">
+              <p className="text-xl font-bold text-destructive">{highDivergences.length}</p>
+              <p className="text-[10px] text-muted-foreground">Faltas / Sem Registro</p>
+            </CardContent>
+          </Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-yellow-600">{offlinePunches.length}</p><p className="text-[10px] text-muted-foreground">Offline</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-orange-600">{outsidePdv.length}</p><p className="text-[10px] text-muted-foreground">Fora PDV</p></CardContent></Card>
+        </div>
+
+        {/* Divergence alerts */}
+        {filteredDivergences.length > 0 && (
+          <Card className="border-destructive/30">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" /> Divergências ({filteredDivergences.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {filteredDivergences.slice(0, 20).map((d: any, i: number) => {
+                  const cfg = DIVERGENCE_ICONS[d.type] || DIVERGENCE_ICONS.sem_registro;
+                  const DivIcon = cfg.icon;
+                  return (
+                    <div key={i} className="flex items-center gap-3 text-sm p-2 bg-muted/30 rounded-lg">
+                      <DivIcon className={`h-4 w-4 flex-shrink-0 ${cfg.color}`} />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{d.employee_name}</span>
+                        <span className="text-muted-foreground mx-2">•</span>
+                        <span className="text-xs text-muted-foreground">{d.date ? format(new Date(d.date + 'T12:00:00'), 'dd/MM/yyyy') : ''}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate max-w-48">{d.description}</span>
+                      <Badge variant={d.severity === 'high' ? 'destructive' : d.severity === 'medium' ? 'secondary' : 'outline'} className="text-[10px]">
+                        {d.severity === 'high' ? 'ALTA' : d.severity === 'medium' ? 'MÉDIA' : 'BAIXA'}
+                      </Badge>
+                    </div>
+                  );
+                })}
+                {filteredDivergences.length > 20 && (
+                  <p className="text-xs text-center text-muted-foreground py-1">+{filteredDivergences.length - 20} divergências</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="app" className="gap-2"><Smartphone className="h-4 w-4" /> Registros do App ({appPunches.length})</TabsTrigger>
-            <TabsTrigger value="manual" className="gap-2"><Clock className="h-4 w-4" /> Registros Manuais ({records.length})</TabsTrigger>
+          <TabsList className="flex-wrap h-auto">
+            <TabsTrigger value="consolidated" className="gap-2"><CalendarDays className="h-4 w-4" /> Consolidado ({consolidated.length})</TabsTrigger>
+            <TabsTrigger value="app" className="gap-2"><Smartphone className="h-4 w-4" /> App ({appPunches.length})</TabsTrigger>
+            <TabsTrigger value="manual" className="gap-2"><Clock className="h-4 w-4" /> Manual ({records.length})</TabsTrigger>
           </TabsList>
 
+          {/* Consolidated view */}
+          <TabsContent value="consolidated">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Colaborador</TableHead>
+                      <TableHead>Entrada</TableHead>
+                      <TableHead className="hidden md:table-cell">Saída Int.</TableHead>
+                      <TableHead className="hidden md:table-cell">Retorno</TableHead>
+                      <TableHead>Saída</TableHead>
+                      <TableHead>Horas</TableHead>
+                      <TableHead>Registros</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingConsolidated ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                    ) : consolidated.length === 0 ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhum registro consolidado encontrado</TableCell></TableRow>
+                    ) : consolidated.map((c: any, idx: number) => {
+                      const punches = Array.isArray(c.punches) ? c.punches : [];
+                      const entrada = punches.find((p: any) => p.punch_type === 'entrada');
+                      const saidaInt = punches.find((p: any) => p.punch_type === 'saida_intervalo');
+                      const retorno = punches.find((p: any) => p.punch_type === 'retorno_intervalo');
+                      const saida = punches.find((p: any) => p.punch_type === 'saida');
+                      const hasGeoIssue = punches.some((p: any) => p.geo_status === 'fora_area');
+                      const isIncomplete = punches.length % 2 !== 0;
+                      const hours = c.raw_hours ? Number(c.raw_hours).toFixed(1) : '—';
+
+                      return (
+                        <TableRow key={idx} className={isIncomplete ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : hasGeoIssue ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''}>
+                          <TableCell className="font-medium text-sm">
+                            {c.record_date ? format(new Date(c.record_date + 'T12:00:00'), 'dd/MM/yyyy') : '—'}
+                          </TableCell>
+                          <TableCell className="text-sm">{c.employee_name}</TableCell>
+                          <TableCell className="text-sm">{entrada ? format(new Date(entrada.punched_at), 'HH:mm') : '—'}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{saidaInt ? format(new Date(saidaInt.punched_at), 'HH:mm') : '—'}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{retorno ? format(new Date(retorno.punched_at), 'HH:mm') : '—'}</TableCell>
+                          <TableCell className="text-sm">{saida ? format(new Date(saida.punched_at), 'HH:mm') : '—'}</TableCell>
+                          <TableCell className="font-medium text-sm">{hours}h</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Badge variant="outline" className="text-[10px]">{c.punch_count}x</Badge>
+                              {isIncomplete && <Badge variant="secondary" className="text-[10px]">⚠ Ímpar</Badge>}
+                              {hasGeoIssue && <Badge variant="destructive" className="text-[10px]">Fora PDV</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => exportEmployeeXLS(c.employee_id)}
+                            >
+                              <Download className="h-3 w-3" /> XLS
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* App punches */}
           <TabsContent value="app">
             <Card>
               <CardContent className="p-0">
@@ -179,6 +443,7 @@ export default function RHPonto() {
             </Card>
           </TabsContent>
 
+          {/* Manual records */}
           <TabsContent value="manual">
             <Card>
               <CardContent className="p-0">
@@ -222,6 +487,7 @@ export default function RHPonto() {
         </Tabs>
       </div>
 
+      {/* Register Punch Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Registrar Ponto</DialogTitle></DialogHeader>
