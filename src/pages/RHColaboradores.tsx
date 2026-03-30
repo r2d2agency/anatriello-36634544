@@ -103,6 +103,7 @@ export default function RHColaboradores() {
   const { data: departments = [] } = useRhDepartments();
   const { data: branches = [] } = useBranches();
   const { data: positions = [] } = useRhPositions();
+  const { data: workerProfiles = [] } = useWorkerProfiles();
   const createMut = useCreateEmployee();
   const updateMut = useUpdateEmployee();
   const deleteMut = useDeleteEmployee();
@@ -110,11 +111,19 @@ export default function RHColaboradores() {
   const deleteDeptMut = useDeleteRhDepartment();
   const createPosMut = useCreateRhPosition();
   const deletePosMut = useDeleteRhPosition();
+  const createBranchMut = useCreateBranch();
+  const deleteBranchMut = useDeleteBranch();
+  const createProfileMut = useCreateWorkerProfile();
+  const deleteProfileMut = useDeleteWorkerProfile();
 
   const [newDeptName, setNewDeptName] = useState("");
   const [newPosName, setNewPosName] = useState("");
+  const [newBranchName, setNewBranchName] = useState("");
+  const [newProfileName, setNewProfileName] = useState("");
   const [showDeptManager, setShowDeptManager] = useState(false);
   const [showPosManager, setShowPosManager] = useState(false);
+  const [showBranchManager, setShowBranchManager] = useState(false);
+  const [showProfileManager, setShowProfileManager] = useState(false);
 
   const maskCPF = (cpf: string) => {
     if (!cpf) return "—";
