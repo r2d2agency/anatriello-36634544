@@ -45,6 +45,9 @@ export default function RHDashboard() {
   const [empSearchVac, setEmpSearchVac] = useState("");
   const [empSearchCert, setEmpSearchCert] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [crmValidation, setCrmValidation] = useState<any>(null);
+  const [isValidatingCrm, setIsValidatingCrm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { uploadFile, isUploading, progress } = useUpload();
