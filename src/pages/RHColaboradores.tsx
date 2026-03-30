@@ -329,6 +329,17 @@ export default function RHColaboradores() {
               <SelectItem value="desligado">Desligado</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={profileFilter} onValueChange={setProfileFilter}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Perfis</SelectItem>
+              <SelectItem value="promotor">Promotor</SelectItem>
+              <SelectItem value="promotor_access">Com Acesso App</SelectItem>
+              <SelectItem value="administrativo">Administrativo</SelectItem>
+              <SelectItem value="supervisor">Supervisor</SelectItem>
+              <SelectItem value="operacional">Operacional</SelectItem>
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="icon" onClick={() => setShowSensitive(!showSensitive)} title={showSensitive ? "Ocultar dados sensíveis" : "Mostrar dados sensíveis"}>
             {showSensitive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
