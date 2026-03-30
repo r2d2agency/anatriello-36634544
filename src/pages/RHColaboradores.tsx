@@ -737,6 +737,16 @@ export default function RHColaboradores() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Acesso App Promotor */}
+                <div className="col-span-2 flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium">Acesso ao App do Promotor</Label>
+                    <p className="text-xs text-muted-foreground">Liberar login no aplicativo mobile para este colaborador</p>
+                  </div>
+                  <Switch checked={!!form.promotor_access} onCheckedChange={v => setField("promotor_access", v)} />
+                </div>
               </div>
             </TabsContent>
 
