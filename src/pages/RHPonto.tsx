@@ -294,8 +294,8 @@ export default function RHPonto() {
               <p className="text-[10px] text-muted-foreground">Faltas / Sem Registro</p>
             </CardContent>
           </Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-yellow-600">{offlinePunches.length}</p><p className="text-[10px] text-muted-foreground">Offline</p></CardContent></Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-orange-600">{outsidePdv.length}</p><p className="text-[10px] text-muted-foreground">Fora PDV</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-primary">{offlinePunches.length}</p><p className="text-[10px] text-muted-foreground">Offline</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-accent-foreground">{outsidePdv.length}</p><p className="text-[10px] text-muted-foreground">Fora PDV</p></CardContent></Card>
         </div>
 
         {filteredDivergences.length > 0 && (
