@@ -12,7 +12,7 @@ interface UploadResult {
   };
 }
 
-export function useUpload() {
+export function useUpload(customTokenGetter?: () => string | null) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
