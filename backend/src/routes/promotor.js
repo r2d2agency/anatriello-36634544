@@ -676,10 +676,18 @@ router.post('/rh/pdvs', async (req, res) => {
   try {
     const orgId = req.body.organization_id || (await query(`SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`, [req.userId])).rows[0]?.organization_id;
     const d = req.body;
+    // Auto-geocode if no lat/lng provided but address exists
+    let lat = d.latitude, lng = d.longitude;
+    if ((!lat || !lng) && (d.address || d.city)) {
+      try {
+        const geo = await autoGeocode(d.address, d.city, d.state, d.zip_code);
+        if (geo) { lat = geo.lat; lng = geo.lng; }
+      } catch (_) {}
+    }
     const result = await query(
       `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, supervisor_id, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [orgId, d.name, d.client_name, d.address, d.zip_code, d.city, d.state, d.neighborhood, d.latitude, d.longitude, d.radius_meters || 200, d.supervisor_id || null, d.notes]
+      [orgId, d.name, d.client_name, d.address, d.zip_code, d.city, d.state, d.neighborhood, lat, lng, d.radius_meters || 200, d.supervisor_id || null, d.notes]
     );
     res.json(result.rows[0]);
   } catch (err) { logError('promotor.pdvs.create', err); res.status(500).json({ error: 'Erro' }); }
