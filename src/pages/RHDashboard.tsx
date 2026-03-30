@@ -371,7 +371,7 @@ export default function RHDashboard() {
                         <div key={e.id} className="flex items-center justify-between p-2 rounded bg-yellow-50 dark:bg-yellow-950/20">
                           <div>
                             <p className="text-sm font-medium">{e.full_name}</p>
-                            <p className="text-xs text-muted-foreground">Admissão: {e.admission_date ? format(new Date(e.admission_date + "T12:00:00"), "dd/MM/yyyy") : "—"}</p>
+                            <p className="text-xs text-muted-foreground">Admissão: {safeFormat(e.admission_date, "dd/MM/yyyy")}</p>
                           </div>
                           <Badge variant="outline" className="text-yellow-600 border-yellow-300">Vencendo</Badge>
                         </div>
