@@ -35,9 +35,9 @@ const PUNCH_LABELS: Record<string, string> = {
 };
 
 const DIVERGENCE_ICONS: Record<string, { icon: typeof AlertTriangle; color: string }> = {
-  sem_registro: { icon: AlertTriangle, color: 'text-red-600' },
-  incompleto: { icon: Clock, color: 'text-yellow-600' },
-  fora_pdv: { icon: MapPin, color: 'text-orange-600' },
+  sem_registro: { icon: AlertTriangle, color: 'text-destructive' },
+  incompleto: { icon: Clock, color: 'text-primary' },
+  fora_pdv: { icon: MapPin, color: 'text-accent-foreground' },
 };
 
 type PeriodPreset = 'hoje' | 'semana' | 'mes' | 'mes_anterior' | 'personalizado';
