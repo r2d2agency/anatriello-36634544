@@ -381,6 +381,19 @@ router.put('/employees/:id', async (req, res) => {
       }
     }
 
+    // Auto-geocode home address if address changed and no coords sent
+    const addressChanged = ['address', 'city', 'state', 'zip_code'].some(k => sentKeys.includes(k));
+    if (addressChanged && !d.home_latitude && !d.home_longitude) {
+      const addrVal = d.address || req.body.address;
+      const cityVal = d.city || req.body.city;
+      const stateVal = d.state || req.body.state;
+      const zipVal = d.zip_code || req.body.zip_code;
+      if (addrVal || cityVal) {
+        const geo = await autoGeocodeAddress(addrVal, cityVal, stateVal, zipVal);
+        if (geo) { d.home_latitude = geo.lat; d.home_longitude = geo.lng; }
+      }
+    }
+
     const old = await query(`SELECT * FROM employees WHERE id = $1`, [req.params.id]);
     if (!old.rows[0]) return res.status(404).json({ error: 'Não encontrado' });
 
