@@ -1363,7 +1363,69 @@ router.delete('/holidays/:id', async (req, res) => {
   } catch (err) { logError('rh.holidays.delete', err); res.status(500).json({ error: err.message }); }
 });
 
-// ===== SERVICE REGIONS =====
+// ===== SERVICE REGIONS (auto-heal) =====
+let regionsInfraPromise = null;
+async function ensureRegionsInfrastructure() {
+  if (!regionsInfraPromise) {
+    regionsInfraPromise = (async () => {
+      await query(`
+        CREATE TABLE IF NOT EXISTS service_regions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          color VARCHAR(7) DEFAULT '#3b82f6',
+          polygon JSONB DEFAULT '[]',
+          cities JSONB DEFAULT '[]',
+          states JSONB DEFAULT '[]',
+          supervisor_id UUID,
+          active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await query(`CREATE INDEX IF NOT EXISTS idx_service_regions_org ON service_regions(organization_id)`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS organization_id UUID`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS color VARCHAR(7) DEFAULT '#3b82f6'`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS polygon JSONB DEFAULT '[]'`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS cities JSONB DEFAULT '[]'`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS states JSONB DEFAULT '[]'`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS supervisor_id UUID`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true`);
+      await query(`ALTER TABLE service_regions ADD COLUMN IF NOT EXISTS notes TEXT`);
+
+      await query(`
+        CREATE TABLE IF NOT EXISTS region_pdvs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          region_id UUID NOT NULL REFERENCES service_regions(id) ON DELETE CASCADE,
+          pdv_id UUID NOT NULL,
+          auto_assigned BOOLEAN DEFAULT false,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(region_id, pdv_id)
+        )
+      `);
+      await query(`CREATE INDEX IF NOT EXISTS idx_region_pdvs_region ON region_pdvs(region_id)`);
+
+      // Ensure geo columns on pdvs and employees
+      await query(`ALTER TABLE pdvs ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION`);
+      await query(`ALTER TABLE pdvs ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION`);
+      await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS home_latitude NUMERIC(10,7)`);
+      await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS home_longitude NUMERIC(10,7)`);
+    })().catch(err => { regionsInfraPromise = null; throw err; });
+  }
+  return regionsInfraPromise;
+}
+
+// Middleware: ensure tables exist before any region/map route
+router.use(['/regions', '/map-data'], async (req, res, next) => {
+  try {
+    await ensureRegionsInfrastructure();
+    next();
+  } catch (err) {
+    logError('rh.regions.bootstrap', err);
+    res.status(500).json({ error: err?.message || 'Erro ao inicializar regiões' });
+  }
+});
 
 // List regions
 router.get('/regions', async (req, res) => {
