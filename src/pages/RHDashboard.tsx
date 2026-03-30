@@ -79,20 +79,79 @@ export default function RHDashboard() {
     return inboundDocs.filter((d: any) => d.employee_id === certForm.employee_id);
   }, [inboundDocs, certForm.employee_id]);
 
+  const analyzeWithAI = useCallback(async (docUrl: string) => {
+    setIsAnalyzing(true);
+    try {
+      const result = await api<any>('/api/rh/analyze-certificate', { method: 'POST', body: { document_url: docUrl } });
+      if (result?.data) {
+        setCertForm((p: any) => ({
+          ...p,
+          doctor_name: result.data.doctor_name || p.doctor_name,
+          doctor_crm: result.data.doctor_crm || p.doctor_crm,
+          cid_code: result.data.cid_code || p.cid_code,
+          healthcare_unit: result.data.healthcare_unit || p.healthcare_unit,
+          absence_start: result.data.absence_start || p.absence_start,
+          absence_end: result.data.absence_end || p.absence_end,
+          absence_days: result.data.absence_days || p.absence_days,
+          absence_hours: result.data.absence_hours || p.absence_hours,
+          is_partial: result.data.is_partial ?? p.is_partial,
+          notes: result.data.notes || p.notes,
+        }));
+        toast({ title: "✨ Dados extraídos com IA!", description: "Verifique os campos preenchidos automaticamente." });
+        // Auto-validate CRM if extracted
+        if (result.data.doctor_crm) {
+          const crmParts = result.data.doctor_crm.match(/(\d+)\/?(\w{2})?/);
+          if (crmParts) {
+            validateCrmNumber(crmParts[1], crmParts[2] || '');
+          }
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "Não foi possível analisar", description: err.message || "Tente uma imagem mais nítida", variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [toast]);
+
   const handleFileDrop = useCallback(async (file: File) => {
     try {
       const url = await uploadFile(file);
-      if (url) setCertForm((p: any) => ({ ...p, document_url: url }));
+      if (url) {
+        setCertForm((p: any) => ({ ...p, document_url: url }));
+        analyzeWithAI(url);
+      }
     } catch (err: any) {
       toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
     }
-  }, [uploadFile, toast]);
+  }, [uploadFile, toast, analyzeWithAI]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFileDrop(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [handleFileDrop]);
+
+  const validateCrmNumber = useCallback(async (crm: string, uf: string) => {
+    if (!crm) return;
+    setIsValidatingCrm(true);
+    setCrmValidation(null);
+    try {
+      const result = await api<any>('/api/rh/validate-crm', { method: 'POST', body: { crm, uf: uf || 'SP' } });
+      setCrmValidation(result);
+      if (result.valid === true && result.doctor_name) {
+        setCertForm((p: any) => ({ ...p, doctor_name: result.doctor_name || p.doctor_name }));
+      }
+    } catch {
+      setCrmValidation({ valid: null, message: 'Erro na consulta' });
+    } finally {
+      setIsValidatingCrm(false);
+    }
+  }, []);
+
+  const handleSelectInboundDoc = useCallback((docUrl: string) => {
+    setCertField("document_url", docUrl);
+    analyzeWithAI(docUrl);
+  }, [analyzeWithAI]);
 
   const summary = dashboard?.summary || {};
   const lateArrivals = dashboard?.late_arrivals || [];
