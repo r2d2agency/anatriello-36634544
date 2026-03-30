@@ -112,7 +112,7 @@ export default function RHPontoMonitor() {
                 {punchedToday.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.full_name}</TableCell>
-                    <TableCell className="text-xs">{format(new Date(p.punched_at), 'HH:mm:ss')}</TableCell>
+                    <TableCell className="text-xs">{safeFormatDate(p.punched_at, 'HH:mm:ss')}</TableCell>
                     <TableCell className="text-xs">{p.pdv_name || '-'}</TableCell>
                     <TableCell>
                       {p.geo_status === 'dentro_area' ? <Badge className="bg-green-500 text-[10px]">Dentro</Badge>

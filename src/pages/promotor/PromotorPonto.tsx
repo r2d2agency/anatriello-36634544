@@ -61,7 +61,7 @@ export default function PromotorPonto() {
                 <div key={p.id} className="flex items-center justify-between text-sm p-2 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-2">
                     <span>{PUNCH_LABELS[p.punch_type] || p.punch_type}</span>
-                    <span className="text-muted-foreground">{format(new Date(p.punched_at), 'HH:mm:ss')}</span>
+                    <span className="text-muted-foreground">{safeFormatDate(p.punched_at || p.offline_local_time, 'HH:mm:ss')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {p.is_offline && <Badge variant="outline" className="text-[10px]">Offline</Badge>}
