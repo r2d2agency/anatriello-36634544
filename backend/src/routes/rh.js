@@ -97,7 +97,7 @@ router.post('/employees', async (req, res) => {
         d.address, d.address_number, d.complement, d.neighborhood, d.city, d.state, d.zip_code,
         d.registration_number, d.worker_profile || 'operacional', d.employment_type || 'clt', d.position, d.role_level,
         d.branch_id || null, d.department_id || null, d.cost_center_id || null, d.direct_manager_id || null,
-        d.admission_date, d.contract_end_date, d.salary, d.work_schedule || '08:00-17:00',
+        d.admission_date, d.contract_end_date, d.salary, typeof d.work_schedule === 'object' ? JSON.stringify(d.work_schedule) : (d.work_schedule || '08:00-17:00'),
         d.bank_name, d.bank_agency, d.bank_account, d.bank_account_type,
         d.ctps_number, d.ctps_series, d.pis_pasep, d.cnpj, d.company_name, d.status || 'ativo', d.photo_url, req.userId,
         JSON.stringify(d.salary_items || []), JSON.stringify(d.benefits || [])]
@@ -124,7 +124,8 @@ router.put('/employees/:id', async (req, res) => {
     const sets = fields.map((f, i) => `${f} = $${i + 2}`);
     sets.push(`updated_at = NOW()`);
     const jsonbFields = ['salary_items', 'benefits'];
-    const vals = fields.map(f => jsonbFields.includes(f) ? JSON.stringify(d[f]) : d[f]);
+    const jsonbFields2 = ['salary_items', 'benefits', 'work_schedule'];
+    const vals = fields.map(f => jsonbFields2.includes(f) && typeof d[f] === 'object' ? JSON.stringify(d[f]) : d[f]);
 
     const result = await query(
       `UPDATE employees SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
