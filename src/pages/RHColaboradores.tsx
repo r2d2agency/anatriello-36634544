@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, useRhDepartments, useBranches, useCreateRhDepartment, useDeleteRhDepartment, useRhPositions, useCreateRhPosition, useDeleteRhPosition } from "@/hooks/use-rh";
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, useRhDepartments, useBranches, useCreateBranch, useDeleteBranch, useCreateRhDepartment, useDeleteRhDepartment, useRhPositions, useCreateRhPosition, useDeleteRhPosition, useWorkerProfiles, useCreateWorkerProfile, useDeleteWorkerProfile } from "@/hooks/use-rh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, UserCircle, Building2, FileText, Edit, Trash2, Eye, EyeOff, Users, Loader2, Calendar, Briefcase, X } from "lucide-react";
+import { Plus, Search, UserCircle, Building2, FileText, Edit, Trash2, Eye, EyeOff, Users, Loader2, Calendar, Briefcase, X, MapPin, UserCog } from "lucide-react";
 import { format, differenceInYears, differenceInMonths, differenceInDays, addYears, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -103,6 +103,7 @@ export default function RHColaboradores() {
   const { data: departments = [] } = useRhDepartments();
   const { data: branches = [] } = useBranches();
   const { data: positions = [] } = useRhPositions();
+  const { data: workerProfiles = [] } = useWorkerProfiles();
   const createMut = useCreateEmployee();
   const updateMut = useUpdateEmployee();
   const deleteMut = useDeleteEmployee();
@@ -110,11 +111,19 @@ export default function RHColaboradores() {
   const deleteDeptMut = useDeleteRhDepartment();
   const createPosMut = useCreateRhPosition();
   const deletePosMut = useDeleteRhPosition();
+  const createBranchMut = useCreateBranch();
+  const deleteBranchMut = useDeleteBranch();
+  const createProfileMut = useCreateWorkerProfile();
+  const deleteProfileMut = useDeleteWorkerProfile();
 
   const [newDeptName, setNewDeptName] = useState("");
   const [newPosName, setNewPosName] = useState("");
+  const [newBranchName, setNewBranchName] = useState("");
+  const [newProfileName, setNewProfileName] = useState("");
   const [showDeptManager, setShowDeptManager] = useState(false);
   const [showPosManager, setShowPosManager] = useState(false);
+  const [showBranchManager, setShowBranchManager] = useState(false);
+  const [showProfileManager, setShowProfileManager] = useState(false);
 
   const maskCPF = (cpf: string) => {
     if (!cpf) return "—";
@@ -431,13 +440,47 @@ export default function RHColaboradores() {
                     </div>
                   )}
                 </div>
-                <div><Label>Perfil</Label>
-                  <Select value={form.worker_profile} onValueChange={v => setField("worker_profile", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label>Perfil Funcional</Label>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => setShowProfileManager(!showProfileManager)}>
+                      <UserCog className="h-3 w-3" /> Gerenciar
+                    </Button>
+                  </div>
+                  <Select value={form.worker_profile || ""} onValueChange={v => setField("worker_profile", v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar perfil" /></SelectTrigger>
                     <SelectContent>
+                      {/* Default profiles */}
                       {Object.entries(PROFILE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      {/* Custom profiles */}
+                      {workerProfiles.filter((p: any) => !Object.keys(PROFILE_LABELS).includes(p.name)).map((p: any) => (
+                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {showProfileManager && (
+                    <div className="mt-2 p-3 border rounded-lg bg-muted/30 space-y-2">
+                      <p className="text-xs font-medium">Perfis cadastrados:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(PROFILE_LABELS).map(([k, v]) => (
+                          <Badge key={k} variant="outline" className="gap-1">{v}</Badge>
+                        ))}
+                        {workerProfiles.map((p: any) => (
+                          <Badge key={p.id} variant="secondary" className="gap-1 pr-1">
+                            {p.name}
+                            <button onClick={() => deleteProfileMut.mutate(p.id)} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <Input value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="Novo perfil..." className="h-8 text-sm" />
+                        <Button size="sm" className="h-8 shrink-0" disabled={!newProfileName.trim() || createProfileMut.isPending}
+                          onClick={async () => { await createProfileMut.mutateAsync({ name: newProfileName.trim() }); setNewProfileName(""); }}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div><Label>Tipo de Vínculo</Label>
                   <Select value={form.employment_type} onValueChange={v => setField("employment_type", v)}>
@@ -482,13 +525,40 @@ export default function RHColaboradores() {
                     </div>
                   )}
                 </div>
-                <div><Label>Filial</Label>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label>Filial</Label>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => setShowBranchManager(!showBranchManager)}>
+                      <MapPin className="h-3 w-3" /> Gerenciar
+                    </Button>
+                  </div>
                   <Select value={form.branch_id || ""} onValueChange={v => setField("branch_id", v)}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Selecionar filial" /></SelectTrigger>
                     <SelectContent>
                       {branches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      {branches.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhuma filial cadastrada</p>}
                     </SelectContent>
                   </Select>
+                  {showBranchManager && (
+                    <div className="mt-2 p-3 border rounded-lg bg-muted/30 space-y-2">
+                      <p className="text-xs font-medium">Filiais cadastradas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {branches.map((b: any) => (
+                          <Badge key={b.id} variant="secondary" className="gap-1 pr-1">
+                            {b.name}
+                            <button onClick={() => deleteBranchMut.mutate(b.id)} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        <Input value={newBranchName} onChange={e => setNewBranchName(e.target.value)} placeholder="Nova filial..." className="h-8 text-sm" />
+                        <Button size="sm" className="h-8 shrink-0" disabled={!newBranchName.trim() || createBranchMut.isPending}
+                          onClick={async () => { await createBranchMut.mutateAsync({ name: newBranchName.trim() }); setNewBranchName(""); }}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div><Label>Salário (R$)</Label><Input type="number" value={form.salary} onChange={e => setField("salary", e.target.value)} /></div>
                 <div><Label>Jornada</Label><Input value={form.work_schedule} onChange={e => setField("work_schedule", e.target.value)} placeholder="08:00-17:00" /></div>
