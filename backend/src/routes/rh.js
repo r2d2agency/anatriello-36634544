@@ -389,9 +389,9 @@ router.put('/employees/:id', async (req, res) => {
       const addrVal = d.address || req.body.address;
       const cityVal = d.city || req.body.city;
       const stateVal = d.state || req.body.state;
-      const zipVal = d.zip_code || req.body.zip_code;
+      const neighborhoodVal = d.neighborhood || req.body.neighborhood;
       if (addrVal || cityVal) {
-        const geo = await autoGeocodeAddress(addrVal, cityVal, stateVal, zipVal);
+        const geo = await autoGeocodeAddress(addrVal, cityVal, stateVal, zipVal, neighborhoodVal);
         if (geo) { d.home_latitude = geo.lat; d.home_longitude = geo.lng; }
       }
     }
