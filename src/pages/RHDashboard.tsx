@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations } from "@/hooks/use-rh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useUpload } from "@/hooks/use-upload";
+import { useInboundDocumentsRH } from "@/hooks/use-promotor";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   LayoutDashboard, AlertTriangle, Clock, UserX, Palmtree, FileText,
   Plus, CheckCircle, XCircle, Stethoscope, CalendarDays, Users, Timer,
-  ShieldAlert, FileCheck, Upload
+  ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -39,7 +42,12 @@ export default function RHDashboard() {
   const [vacForm, setVacForm] = useState<any>({ ...VACATION_EMPTY });
   const [certForm, setCertForm] = useState<any>({ ...CERT_EMPTY });
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [empSearchVac, setEmpSearchVac] = useState("");
+  const [empSearchCert, setEmpSearchCert] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { uploadFile, isUploading, progress } = useUpload();
 
   const { data: dashboard, isLoading } = useRhDashboard();
   const { data: employees = [] } = useEmployees({ status: "ativo" });
@@ -48,6 +56,40 @@ export default function RHDashboard() {
   const createVacation = useCreateVacation();
   const createCert = useCreateMedicalCertificate();
   const validateCert = useValidateMedicalCertificate();
+  const { data: inboundDocs = [] } = useInboundDocumentsRH();
+
+  const filteredEmpVac = useMemo(() => {
+    if (!empSearchVac) return employees;
+    const s = empSearchVac.toLowerCase();
+    return employees.filter((e: any) => e.full_name?.toLowerCase().includes(s));
+  }, [employees, empSearchVac]);
+
+  const filteredEmpCert = useMemo(() => {
+    if (!empSearchCert) return employees;
+    const s = empSearchCert.toLowerCase();
+    return employees.filter((e: any) => e.full_name?.toLowerCase().includes(s));
+  }, [employees, empSearchCert]);
+
+  // Docs sent by the selected employee (for cert dialog)
+  const employeeInboundDocs = useMemo(() => {
+    if (!certForm.employee_id) return [];
+    return inboundDocs.filter((d: any) => d.employee_id === certForm.employee_id);
+  }, [inboundDocs, certForm.employee_id]);
+
+  const handleFileDrop = useCallback(async (file: File) => {
+    try {
+      const url = await uploadFile(file);
+      if (url) setCertForm((p: any) => ({ ...p, document_url: url }));
+    } catch (err: any) {
+      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+    }
+  }, [uploadFile, toast]);
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileDrop(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [handleFileDrop]);
 
   const summary = dashboard?.summary || {};
   const lateArrivals = dashboard?.late_arrivals || [];
@@ -432,9 +474,13 @@ export default function RHDashboard() {
             <div>
               <Label>Colaborador *</Label>
               <Select value={vacForm.employee_id} onValueChange={v => setVacField("employee_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecionar colaborador" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  <div className="p-2 sticky top-0 bg-popover">
+                    <Input placeholder="Buscar colaborador..." value={empSearchVac} onChange={e => setEmpSearchVac(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  {filteredEmpVac.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {filteredEmpVac.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhum encontrado</p>}
                 </SelectContent>
               </Select>
             </div>
@@ -486,9 +532,13 @@ export default function RHDashboard() {
             <div>
               <Label>Colaborador *</Label>
               <Select value={certForm.employee_id} onValueChange={v => setCertField("employee_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecionar colaborador" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  <div className="p-2 sticky top-0 bg-popover">
+                    <Input placeholder="Buscar colaborador..." value={empSearchCert} onChange={e => setEmpSearchCert(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  {filteredEmpCert.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {filteredEmpCert.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhum encontrado</p>}
                 </SelectContent>
               </Select>
             </div>
@@ -512,7 +562,64 @@ export default function RHDashboard() {
               <Switch checked={certForm.is_partial} onCheckedChange={v => setCertField("is_partial", v)} />
               <Label>Atestado Parcial (horas)</Label>
             </div>
-            <div><Label>URL do Documento</Label><Input value={certForm.document_url} onChange={e => setCertField("document_url", e.target.value)} placeholder="https://..." /></div>
+
+            {/* FILE UPLOAD - Drag & Drop + Select from employee docs */}
+            <div>
+              <Label>Documento do Atestado</Label>
+              <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={handleFileInput} />
+
+              {certForm.document_url ? (
+                <div className="mt-1 flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <span className="text-sm truncate flex-1">{certForm.document_url.split('/').pop()}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setCertField("document_url", "")} className="text-muted-foreground hover:text-destructive h-7 px-2">
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  className={`mt-1 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}`}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileDrop(f); }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Enviando... {progress}%</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="h-8 w-8 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">Arraste o arquivo aqui ou <span className="text-primary font-medium">clique para selecionar</span></p>
+                      <p className="text-xs text-muted-foreground">PDF, imagens ou documentos</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Select from employee's inbound documents */}
+              {certForm.employee_id && employeeInboundDocs.length > 0 && !certForm.document_url && (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1"><Paperclip className="h-3 w-3" /> Documentos enviados pelo colaborador:</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {employeeInboundDocs.map((doc: any) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        className="w-full flex items-center gap-2 p-2 rounded-md border text-left text-sm hover:bg-muted/50 transition-colors"
+                        onClick={() => doc.file_url && setCertField("document_url", doc.file_url)}
+                      >
+                        <FileUp className="h-4 w-4 text-primary shrink-0" />
+                        <span className="truncate flex-1">{doc.title || doc.category}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{format(new Date(doc.created_at), 'dd/MM')}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <div><Label>Observações</Label><Textarea value={certForm.notes} onChange={e => setCertField("notes", e.target.value)} rows={2} /></div>
             <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
               <strong>Justificativa automática:</strong> Ao registrar este atestado, os dias de falta ou atraso no período informado serão automaticamente justificados como "Atestado" no controle de ponto.
