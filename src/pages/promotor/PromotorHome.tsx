@@ -308,7 +308,7 @@ export default function PromotorHome() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Seu horário de trabalho é <b>{scheduleStatus?.schedule_start} - {scheduleStatus?.schedule_end}</b>.
+              Seu horário de trabalho é <b>{scheduleStatus?.schedule_start || scheduleStatus?.entry || '--:--'} - {scheduleStatus?.schedule_end || scheduleStatus?.exit || '--:--'}</b>.
               Para registrar ponto fora desse horário, solicite autorização.
             </p>
             <div>
