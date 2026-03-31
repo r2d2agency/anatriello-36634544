@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, ChevronLeft, ChevronRight, Plus, MapPin, Clock, User, Eye, Copy, Trash2, Edit, Filter, Repeat } from "lucide-react";
-import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBrandChecklists } from "@/hooks/use-merch-routes";
+import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBrandChecklists, useBrandPromoters } from "@/hooks/use-merch-routes";
 import { useBrands } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { useEmployees } from "@/hooks/use-rh";
@@ -271,6 +271,18 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
   const [form, setForm] = useState<any>({});
   const { data: brands = [] } = useBrands();
   const { data: checklists = [] } = useBrandChecklists(form.brand_id);
+  const { data: brandPromoters = [] } = useBrandPromoters(form.brand_id);
+
+  // Sort employees: brand-linked promoters first
+  const sortedEmployees = useMemo(() => {
+    if (!employees?.length) return [];
+    const linkedIds = new Set(brandPromoters.map((bp: any) => bp.employee_id));
+    return [...employees].sort((a: any, b: any) => {
+      const aLinked = linkedIds.has(a.id) ? 0 : 1;
+      const bLinked = linkedIds.has(b.id) ? 0 : 1;
+      return aLinked - bLinked;
+    });
+  }, [employees, brandPromoters]);
 
   const WEEKDAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -316,7 +328,10 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
               <Select value={form.promoter_id || ''} onValueChange={v => setForm({ ...form, promoter_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {(employees || []).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {(sortedEmployees || []).filter((e: any) => e?.id).map((e: any) => {
+                    const isLinked = brandPromoters.some((bp: any) => bp.employee_id === e.id);
+                    return <SelectItem key={e.id} value={e.id}>{e.full_name}{isLinked ? ' ⭐' : ''}</SelectItem>;
+                  })}
                 </SelectContent>
               </Select>
             </div>
