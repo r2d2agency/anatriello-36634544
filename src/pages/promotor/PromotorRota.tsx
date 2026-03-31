@@ -459,12 +459,13 @@ export default function PromotorRota() {
                   {/* Products list (locked or unlocked) */}
                   <div className={`space-y-1.5 ${isLocked ? 'opacity-40 pointer-events-none select-none' : ''}`}>
                     {execs.map((exec: any) => (
-                      <Card key={exec.id} className={exec.status === 'completed' ? 'border-green-500/30 bg-green-500/5' : ''}>
+                      <Card key={exec.id} className={`cursor-pointer transition-colors hover:border-primary/40 ${exec.status === 'completed' ? 'border-green-500/30 bg-green-500/5' : ''}`}
+                        onClick={() => handleOpenProduct(exec)}>
                         <CardContent className="p-3">
                           <div className="flex items-center gap-3">
-                            <button onClick={() => handleToggleExec(exec)} className="flex-shrink-0">
+                            <div className="flex-shrink-0">
                               {EXEC_STATUS_ICON[exec.status] || EXEC_STATUS_ICON.pending}
-                            </button>
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">{exec.product_name}</div>
                               {exec.exposure_point !== 'natural' && <Badge variant="secondary" className="text-[9px] mt-0.5">{exec.exposure_point}</Badge>}
@@ -477,9 +478,7 @@ export default function PromotorRota() {
                             <div className="flex items-center gap-1">
                               {exec.has_rupture && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
                               {exec.has_damage && <Archive className="h-3.5 w-3.5 text-orange-500" />}
-                              <button onClick={() => handleOpenProductActions(exec)} className="p-1 hover:bg-muted rounded">
-                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                              </button>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
                         </CardContent>
