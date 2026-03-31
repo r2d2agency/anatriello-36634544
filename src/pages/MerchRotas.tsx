@@ -57,7 +57,7 @@ export default function MerchRotas() {
     status: filterStatus || undefined,
   });
   const { data: pdvs = [] } = usePDVs();
-  const { data: employees = [] } = useRhEmployees();
+  const { data: employees = [] } = useEmployees();
   const createRoute = useCreateMerchRoute();
   const updateRoute = useUpdateMerchRoute();
   const deleteRoute = useDeleteMerchRoute();
