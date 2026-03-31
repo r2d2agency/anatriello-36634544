@@ -274,7 +274,7 @@ export default function MerchRotas() {
                     <div className="space-y-0.5">
                       {dayRoutes.slice(0, 3).map((r: any) => (
                         <div key={r.id} className={`text-[10px] px-1 py-0.5 rounded truncate ${STATUS_COLORS[r.status] || 'bg-muted'}`}
-                          onClick={(e) => { e.stopPropagation(); setSelectedRoute(r); }}>
+                          onClick={(e) => { e.stopPropagation(); setViewRoute(r); }}>
                           {r.scheduled_time?.slice(0, 5)} {r.pdv_name}
                         </div>
                       ))}
