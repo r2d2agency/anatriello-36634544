@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useLiveRoutes } from "@/hooks/use-merch-routes";
 import {
   MapPin, Users, Navigation, Layers, Eye, EyeOff, Search, Radio,
   Wifi, WifiOff, BatteryFull, BatteryLow, BatteryMedium, Clock, CheckCircle2,
-  Loader2, Building2, Shield
+  Loader2, Building2, Shield, Activity, User, Package, Store, ChevronRight
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
