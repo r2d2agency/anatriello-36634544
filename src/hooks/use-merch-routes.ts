@@ -30,6 +30,46 @@ export function useMerchRouteDetail(id?: string) {
   });
 }
 
+export function useRouteMixPreview(pdvId?: string, brandId?: string) {
+  return useQuery({
+    queryKey: ['route-mix-preview', pdvId, brandId],
+    queryFn: () => api<any[]>(`/api/merch/routes/mix-preview?pdv_id=${pdvId}&brand_id=${brandId}`),
+    enabled: !!pdvId && !!brandId,
+  });
+}
+
+export function useRouteProducts(routeId?: string) {
+  return useQuery({
+    queryKey: ['route-products', routeId],
+    queryFn: () => api<any[]>(`/api/merch/routes/${routeId}/products`),
+    enabled: !!routeId,
+  });
+}
+
+export function useAddRouteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ routeId, ...data }: any) => api<any>(`/api/merch/routes/${routeId}/products`, { method: 'POST', body: data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['route-products'] }); qc.invalidateQueries({ queryKey: ['merch-route'] }); },
+  });
+}
+
+export function useRemoveRouteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ routeId, productId }: any) => api<any>(`/api/merch/routes/${routeId}/products/${productId}`, { method: 'DELETE' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['route-products'] }); qc.invalidateQueries({ queryKey: ['merch-route'] }); },
+  });
+}
+
+export function useSyncRouteProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (routeId: string) => api<any[]>(`/api/merch/routes/${routeId}/sync-products`, { method: 'POST' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['route-products'] }); qc.invalidateQueries({ queryKey: ['merch-route'] }); },
+  });
+}
+
 export function useCreateMerchRoute() {
   const qc = useQueryClient();
   return useMutation({

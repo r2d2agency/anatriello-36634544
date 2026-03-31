@@ -132,18 +132,20 @@ router.post('/routes', authenticate, async (req, res) => {
       try {
         const mixProducts = await query(
           `SELECT pbp.product_id, p.category_id
-           FROM merch_pdv_brand_products pbp
-           JOIN merch_products p ON p.id = pbp.product_id
+           FROM pdv_brand_products pbp
+           JOIN products p ON p.id = pbp.product_id
            WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
           [pdv_id, brand_id]
         );
         for (const mp of mixProducts.rows) {
           await query(
-            `INSERT INTO route_product_executions (route_id, product_id, category_id) VALUES ($1,$2,$3)`,
+            `INSERT INTO route_product_executions (route_id, product_id, category_id) VALUES ($1,$2,$3)
+             ON CONFLICT DO NOTHING`,
             [result.rows[0].id, mp.product_id, mp.category_id]
           );
         }
-      } catch (e) { /* merchandising mix table may not exist yet */ }
+        logInfo('routes.products_hydrated', { route_id: result.rows[0].id, count: mixProducts.rows.length });
+      } catch (e) { logError('routes.hydrate_products', e); }
 
       created.push(result.rows[0]);
     }
@@ -188,6 +190,32 @@ router.put('/routes/:id', authenticate, async (req, res) => {
     updates.push(`updated_at=NOW()`);
 
     const result = await query(`UPDATE merch_routes SET ${updates.join(',')} WHERE id=$1 RETURNING *`, params);
+
+    // Re-hydrate products when pdv or brand changed
+    const newPdv = req.body.pdv_id || old.pdv_id;
+    const newBrand = req.body.brand_id || old.brand_id;
+    if (req.body.pdv_id !== undefined || req.body.brand_id !== undefined) {
+      try {
+        // Remove old non-executed products
+        await query(`DELETE FROM route_product_executions WHERE route_id=$1 AND (status IS NULL OR status='pending')`, [req.params.id]);
+        const mixProducts = await query(
+          `SELECT pbp.product_id, p.category_id
+           FROM pdv_brand_products pbp
+           JOIN products p ON p.id = pbp.product_id
+           WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
+          [newPdv, newBrand]
+        );
+        for (const mp of mixProducts.rows) {
+          await query(
+            `INSERT INTO route_product_executions (route_id, product_id, category_id) VALUES ($1,$2,$3)
+             ON CONFLICT DO NOTHING`,
+            [req.params.id, mp.product_id, mp.category_id]
+          );
+        }
+        logInfo('routes.products_rehydrated', { route_id: req.params.id, count: mixProducts.rows.length });
+      } catch (e) { logError('routes.rehydrate_products', e); }
+    }
+
     res.json(result.rows[0]);
   } catch (err) { logError('routes.update', err); res.status(500).json({ error: 'Erro ao atualizar rota' }); }
 });
@@ -200,6 +228,106 @@ router.delete('/routes/:id', authenticate, async (req, res) => {
     await query('DELETE FROM merch_routes WHERE id=$1 AND organization_id=$2', [req.params.id, orgRes.rows[0].organization_id]);
     res.json({ ok: true });
   } catch (err) { logError('routes.delete', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Get mix preview for a PDV+Brand (what products would be added)
+router.get('/routes/mix-preview', authenticate, async (req, res) => {
+  try {
+    const { pdv_id, brand_id } = req.query;
+    if (!pdv_id || !brand_id) return res.json([]);
+    const result = await query(
+      `SELECT pbp.id as mix_id, pbp.product_id, pbp.mandatory, pbp.priority,
+       p.name as product_name, p.sku, p.barcode, p.image_url,
+       pc.name as category_name, ps.name as subcategory_name
+       FROM pdv_brand_products pbp
+       JOIN products p ON p.id = pbp.product_id
+       LEFT JOIN product_categories pc ON pc.id = p.category_id
+       LEFT JOIN product_subcategories ps ON ps.id = p.subcategory_id
+       WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true
+       ORDER BY pc.name, ps.name, p.name`,
+      [pdv_id, brand_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    logError('routes.mix_preview', err); res.status(500).json({ error: 'Erro' });
+  }
+});
+
+// Get route products (executions)
+router.get('/routes/:id/products', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT rpe.*, p.name as product_name, p.sku, p.barcode, p.image_url,
+       pc.name as category_name, ps.name as subcategory_name
+       FROM route_product_executions rpe
+       JOIN products p ON p.id = rpe.product_id
+       LEFT JOIN product_categories pc ON pc.id = rpe.category_id
+       LEFT JOIN product_subcategories ps ON ps.id = p.subcategory_id
+       WHERE rpe.route_id=$1 ORDER BY pc.name, ps.name, p.name`, [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    logError('routes.products', err); res.status(500).json({ error: 'Erro' });
+  }
+});
+
+// Add product to route
+router.post('/routes/:id/products', authenticate, async (req, res) => {
+  try {
+    const { product_id, category_id } = req.body;
+    const result = await query(
+      `INSERT INTO route_product_executions (route_id, product_id, category_id)
+       VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING *`,
+      [req.params.id, product_id, category_id]
+    );
+    res.json(result.rows[0] || { ok: true });
+  } catch (err) { logError('routes.add_product', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Remove product from route
+router.delete('/routes/:id/products/:productId', authenticate, async (req, res) => {
+  try {
+    await query('DELETE FROM route_product_executions WHERE route_id=$1 AND product_id=$2', [req.params.id, req.params.productId]);
+    res.json({ ok: true });
+  } catch (err) { logError('routes.remove_product', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Sync route products from mix (re-hydrate)
+router.post('/routes/:id/sync-products', authenticate, async (req, res) => {
+  try {
+    const route = await query('SELECT pdv_id, brand_id FROM merch_routes WHERE id=$1', [req.params.id]);
+    if (!route.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
+    const { pdv_id, brand_id } = route.rows[0];
+    
+    await query(`DELETE FROM route_product_executions WHERE route_id=$1 AND (status IS NULL OR status='pending')`, [req.params.id]);
+    
+    const mixProducts = await query(
+      `SELECT pbp.product_id, p.category_id
+       FROM pdv_brand_products pbp
+       JOIN products p ON p.id = pbp.product_id
+       WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
+      [pdv_id, brand_id]
+    );
+    for (const mp of mixProducts.rows) {
+      await query(
+        `INSERT INTO route_product_executions (route_id, product_id, category_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+        [req.params.id, mp.product_id, mp.category_id]
+      );
+    }
+    
+    const result = await query(
+      `SELECT rpe.*, p.name as product_name, p.sku, p.barcode, p.image_url,
+       pc.name as category_name, ps.name as subcategory_name
+       FROM route_product_executions rpe
+       JOIN products p ON p.id = rpe.product_id
+       LEFT JOIN product_categories pc ON pc.id = rpe.category_id
+       LEFT JOIN product_subcategories ps ON ps.id = p.subcategory_id
+       WHERE rpe.route_id=$1 ORDER BY pc.name, ps.name, p.name`, [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) { logError('routes.sync_products', err); res.status(500).json({ error: 'Erro' }); }
 });
 
 // Duplicate route
