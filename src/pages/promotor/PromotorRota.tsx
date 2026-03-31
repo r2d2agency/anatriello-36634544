@@ -156,18 +156,23 @@ function CategoryPreparation({ category, routeId, pdvName, brandName, promotorNa
             <Label className="text-xs font-semibold flex items-center gap-1">
               <Camera className="h-3.5 w-3.5" /> Foto obrigatória da categoria (ANTES da execução)
             </Label>
-            <FileUploadInput
-              value={photoUrl}
-              onChange={setPhotoUrl}
-              accept="image/*,.jpg,.jpeg,.png,.webp"
-              placeholder="Tire a foto da categoria"
-              previewType="image"
-              customTokenGetter={() => localStorage.getItem('promotor_token')}
-            />
-            <Button className="w-full" onClick={handleUploadPhoto} disabled={!photoUrl || setCategoryPhoto.isPending}>
-              <ImagePlus className="h-4 w-4 mr-2" />
-              {setCategoryPhoto.isPending ? 'Enviando...' : 'Registrar foto e liberar produtos'}
-            </Button>
+            {photoUrl ? (
+              <div className="space-y-2">
+                <img src={photoUrl} alt="Foto categoria" className="w-full rounded-lg border max-h-48 object-cover" />
+                <Button className="w-full" onClick={handleUploadPhoto} disabled={setCategoryPhoto.isPending}>
+                  <ImagePlus className="h-4 w-4 mr-2" />
+                  {setCategoryPhoto.isPending ? 'Enviando...' : 'Registrar foto e liberar produtos'}
+                </Button>
+              </div>
+            ) : (
+              <CameraCapture
+                onCapture={(url) => { setPhotoUrl(url); }}
+                watermark={{ pdvName, brandName, promotorName, photoType: 'Categoria (antes)' }}
+                customTokenGetter={() => localStorage.getItem('promotor_token')}
+                buttonLabel="Tirar foto da categoria"
+                qualityConfig={qualityConfig}
+              />
+            )}
           </div>
         )}
 
