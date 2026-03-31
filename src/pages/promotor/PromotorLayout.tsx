@@ -87,8 +87,8 @@ export function PromotorLayout({ children }: PromotorLayoutProps) {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top bar with notifications */}
       {!isLoginPage && (
-        <header className="sticky top-0 z-50 bg-card border-b border-border">
-          <div className="flex items-center justify-between h-12 px-4 max-w-lg mx-auto">
+        <header className="sticky top-0 z-50 bg-card border-b border-border" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+          <div className="flex items-center justify-between h-14 px-4 max-w-lg mx-auto">
             <h2 className="text-sm font-bold text-foreground truncate">
               {navItems.find(i => location.pathname === i.path)?.label || 'Promotor'}
             </h2>
@@ -153,11 +153,11 @@ export function PromotorLayout({ children }: PromotorLayoutProps) {
         </header>
       )}
 
-      <main className="flex-1 pb-16 overflow-y-auto">{children}</main>
+      <main className="flex-1 pb-20 overflow-y-auto">{children}</main>
 
       {!isLoginPage && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-          <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
+        <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
             {navItems.map((item) => {
               const active = location.pathname === item.path;
               return (
