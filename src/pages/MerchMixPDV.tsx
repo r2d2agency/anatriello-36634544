@@ -1,59 +1,36 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useBrands, useProducts, usePdvBrands, useAddPdvBrand, useRemovePdvBrand, useMix, useAddToMix, useRemoveFromMix } from "@/hooks/use-merchandising";
+import { useBrands, useProducts, usePdvBrands, useAddPdvBrand, useRemovePdvBrand, useBrandPdvs, useMix, useAddToMix, useRemoveFromMix } from "@/hooks/use-merchandising";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Search, Plus, Trash2, Store, Building2, Package, ArrowRight, ArrowLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MerchMixPDV() {
-  const [selectedPdvId, setSelectedPdvId] = useState<string>('');
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
-  const [addBrandDialogOpen, setAddBrandDialogOpen] = useState(false);
+  const [selectedPdvId, setSelectedPdvId] = useState<string>('');
   const [productSearch, setProductSearch] = useState('');
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
   const [selectedToRemove, setSelectedToRemove] = useState<string[]>([]);
 
-  // Fetch PDVs from RH module
-  const { data: pdvs = [] } = useQuery({
-    queryKey: ['rh-pdvs-list'],
-    queryFn: () => api<any[]>('/api/promotor/rh/pdvs'),
-  });
-
   const { data: allBrands = [] } = useBrands({ status: 'active' });
-  const { data: pdvBrands = [] } = usePdvBrands(selectedPdvId || undefined);
+  const { data: brandPdvs = [] } = useBrandPdvs(selectedBrandId || undefined);
   const { data: allBrandProducts = [] } = useProducts({ brand_id: selectedBrandId || undefined });
   const { data: mixProducts = [] } = useMix(selectedPdvId || undefined, selectedBrandId || undefined);
 
-  const addPdvBrand = useAddPdvBrand();
-  const removePdvBrand = useRemovePdvBrand();
   const addToMix = useAddToMix();
   const removeFromMix = useRemoveFromMix();
 
-  const selectedPdv = pdvs.find((p: any) => p.id === selectedPdvId);
+  const selectedPdv = brandPdvs.find((bp: any) => bp.pdv_id === selectedPdvId);
   const mixProductIds = new Set(mixProducts.map((m: any) => m.product_id));
   const availableProducts = allBrandProducts.filter((p: any) => !mixProductIds.has(p.id) && p.name.toLowerCase().includes(productSearch.toLowerCase()));
-
-  const handleAddBrand = async (brandId: string) => {
-    try {
-      await addPdvBrand.mutateAsync({ pdv_id: selectedPdvId, brand_id: brandId });
-      toast.success('Marca vinculada');
-      setAddBrandDialogOpen(false);
-    } catch (e: any) { toast.error(e.message); }
-  };
-
-  const handleRemoveBrand = async (pbId: string) => {
-    if (!confirm('Desvincular marca?')) return;
-    try { await removePdvBrand.mutateAsync(pbId); toast.success('Desvinculada'); setSelectedBrandId(''); } catch (e: any) { toast.error(e.message); }
-  };
 
   const handleAddToMix = async () => {
     if (selectedToAdd.length === 0) return;
@@ -79,68 +56,76 @@ export default function MerchMixPDV() {
   return (
     <MainLayout>
       <div className="space-y-4">
-        {/* PDV Selector */}
+        {/* Brand Selector - First */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <div className="flex-1 w-full">
-                <Select value={selectedPdvId} onValueChange={v => { setSelectedPdvId(v); setSelectedBrandId(''); }}>
-                  <SelectTrigger><SelectValue placeholder="Selecione um PDV" /></SelectTrigger>
+                <Select value={selectedBrandId} onValueChange={v => { setSelectedBrandId(v); setSelectedPdvId(''); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione uma marca" /></SelectTrigger>
                   <SelectContent>
-                    {pdvs.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} {p.network ? `(${p.network})` : ''}</SelectItem>)}
+                    {allBrands.filter((b: any) => b?.id).map((b: any) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        <span className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          {b.name}
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              {selectedPdv && (
+              {selectedBrandId && (
                 <div className="text-sm text-muted-foreground">
                   <Store className="inline h-4 w-4 mr-1" />
-                  {selectedPdv.city} - {selectedPdv.state}
+                  {brandPdvs.length} PDV(s) vinculado(s)
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {selectedPdvId && (
+        {selectedBrandId && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            {/* Brands Panel */}
+            {/* PDVs Panel - only PDVs linked to the brand */}
             <Card className="lg:col-span-1">
               <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-sm">Marcas do PDV</CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => setAddBrandDialogOpen(true)}><Plus className="h-3 w-3" /></Button>
-                </div>
+                <CardTitle className="text-sm">PDVs da Marca</CardTitle>
               </CardHeader>
               <CardContent className="p-2">
                 <ScrollArea className="h-[400px]">
-                  {pdvBrands.map((pb: any) => (
+                  {brandPdvs.map((bp: any) => (
                     <div
-                      key={pb.id}
-                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedBrandId === pb.brand_id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted'}`}
-                      onClick={() => setSelectedBrandId(pb.brand_id)}
+                      key={bp.id}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedPdvId === bp.pdv_id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted'}`}
+                      onClick={() => setSelectedPdvId(bp.pdv_id)}
                     >
-                      <div className="flex items-center gap-2">
-                        {pb.logo_url ? <img src={pb.logo_url} className="h-6 w-6 rounded" /> : <Building2 className="h-4 w-4 text-muted-foreground" />}
-                        <span className="text-sm font-medium">{pb.brand_name}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Store className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium truncate block">{bp.pdv_name}</span>
+                          <span className="text-[10px] text-muted-foreground">{[bp.city, bp.state].filter(Boolean).join(' - ')}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => { e.stopPropagation(); handleRemoveBrand(pb.id); }}>
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     </div>
                   ))}
-                  {pdvBrands.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma marca vinculada</p>}
+                  {brandPdvs.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum PDV vinculado a esta marca. Vincule PDVs em Marcas.
+                    </p>
+                  )}
                 </ScrollArea>
               </CardContent>
             </Card>
 
             {/* Dual List - Mix Editor */}
-            {selectedBrandId ? (
+            {selectedPdvId ? (
               <Card className="lg:col-span-3">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Gestão de Mix</CardTitle>
+                  <CardTitle className="text-sm">
+                    Mix de Produtos — {selectedPdv?.pdv_name}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4">
@@ -195,39 +180,21 @@ export default function MerchMixPDV() {
               </Card>
             ) : (
               <Card className="lg:col-span-3 flex items-center justify-center min-h-[400px]">
-                <p className="text-muted-foreground">Selecione uma marca para gerenciar o mix</p>
+                <p className="text-muted-foreground">Selecione um PDV para gerenciar o mix</p>
               </Card>
             )}
           </div>
         )}
 
-        {!selectedPdvId && (
+        {!selectedBrandId && (
           <Card className="flex items-center justify-center min-h-[300px]">
             <div className="text-center space-y-2">
-              <Store className="h-12 w-12 mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">Selecione um PDV para gerenciar o mix de produtos</p>
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground" />
+              <p className="text-muted-foreground">Selecione uma marca para gerenciar o mix de produtos por PDV</p>
             </div>
           </Card>
         )}
       </div>
-
-      {/* Add Brand Dialog */}
-      <Dialog open={addBrandDialogOpen} onOpenChange={setAddBrandDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Vincular Marca ao PDV</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            {allBrands.filter((b: any) => !pdvBrands.some((pb: any) => pb.brand_id === b.id)).map((b: any) => (
-              <div key={b.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => handleAddBrand(b.id)}>
-                <div className="flex items-center gap-2">
-                  {b.logo_url ? <img src={b.logo_url} className="h-8 w-8 rounded" /> : <Building2 className="h-5 w-5 text-muted-foreground" />}
-                  <span className="font-medium">{b.name}</span>
-                </div>
-                <Plus className="h-4 w-4 text-primary" />
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 }

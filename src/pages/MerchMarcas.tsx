@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand } from "@/hooks/use-merchandising";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useBrandPdvs, useAddPdvBrand, useRemovePdvBrand } from "@/hooks/use-merchandising";
+import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
-import { Plus, Search, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 const emptyBrand = { name: '', razao_social: '', cnpj: '', logo_url: '', description: '', segment: '', responsible: '', phone: '', email: '', status: 'active', notes: '' };
@@ -24,11 +26,29 @@ export default function MerchMarcas() {
   const [form, setForm] = useState<any>(emptyBrand);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pdvDialogBrand, setPdvDialogBrand] = useState<any>(null);
+  const [pdvSearch, setPdvSearch] = useState('');
 
   const { data: brands = [], isLoading } = useBrands({ search, status: statusFilter });
   const createBrand = useCreateBrand();
   const updateBrand = useUpdateBrand();
   const deleteBrand = useDeleteBrand();
+
+  // PDV assignment
+  const { data: allPdvs = [] } = usePDVs();
+  const { data: brandPdvs = [] } = useBrandPdvs(pdvDialogBrand?.id);
+  const addPdvBrand = useAddPdvBrand();
+  const removePdvBrand = useRemovePdvBrand();
+
+  const linkedPdvIds = new Set(brandPdvs.map((bp: any) => bp.pdv_id));
+  const filteredAvailable = useMemo(() =>
+    allPdvs.filter((p: any) => !linkedPdvIds.has(p.id) && p.name?.toLowerCase().includes(pdvSearch.toLowerCase())),
+    [allPdvs, linkedPdvIds, pdvSearch]
+  );
+  const filteredLinked = useMemo(() =>
+    brandPdvs.filter((bp: any) => bp.pdv_name?.toLowerCase().includes(pdvSearch.toLowerCase())),
+    [brandPdvs, pdvSearch]
+  );
 
   const openNew = () => { setForm({ ...emptyBrand }); setEditingId(null); setDialogOpen(true); };
   const openEdit = (b: any) => { setForm({ ...b }); setEditingId(b.id); setDialogOpen(true); };
@@ -64,13 +84,9 @@ export default function MerchMarcas() {
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === brands.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(brands.map((b: any) => b.id)));
-    }
+    if (selectedIds.size === brands.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(brands.map((b: any) => b.id)));
   };
-
   const toggleOne = (id: string) => {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -78,6 +94,20 @@ export default function MerchMarcas() {
   };
 
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+
+  const handleLinkPdv = async (pdvId: string) => {
+    try {
+      await addPdvBrand.mutateAsync({ pdv_id: pdvId, brand_id: pdvDialogBrand.id });
+      toast.success('PDV vinculado');
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleUnlinkPdv = async (pbId: string) => {
+    try {
+      await removePdvBrand.mutateAsync(pbId);
+      toast.success('PDV desvinculado');
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   return (
     <MainLayout>
@@ -113,14 +143,12 @@ export default function MerchMarcas() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">
-                    <Checkbox
-                      checked={brands.length > 0 && selectedIds.size === brands.length}
-                      onCheckedChange={toggleAll}
-                    />
+                    <Checkbox checked={brands.length > 0 && selectedIds.size === brands.length} onCheckedChange={toggleAll} />
                   </TableHead>
                   <TableHead>Marca</TableHead>
                   <TableHead className="hidden md:table-cell">Segmento</TableHead>
                   <TableHead className="hidden md:table-cell">Responsável</TableHead>
+                  <TableHead>PDVs</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -129,10 +157,7 @@ export default function MerchMarcas() {
                 {brands.map((b: any) => (
                   <TableRow key={b.id} className={selectedIds.has(b.id) ? 'bg-primary/5' : ''}>
                     <TableCell>
-                      <Checkbox
-                        checked={selectedIds.has(b.id)}
-                        onCheckedChange={() => toggleOne(b.id)}
-                      />
+                      <Checkbox checked={selectedIds.has(b.id)} onCheckedChange={() => toggleOne(b.id)} />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -152,6 +177,11 @@ export default function MerchMarcas() {
                     <TableCell className="hidden md:table-cell">{b.segment || '-'}</TableCell>
                     <TableCell className="hidden md:table-cell">{b.responsible || '-'}</TableCell>
                     <TableCell>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setPdvDialogBrand(b); setPdvSearch(''); }}>
+                        <Store className="h-3 w-3 mr-1" /> PDVs
+                      </Button>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>
                         {b.status === 'active' ? 'Ativo' : 'Inativo'}
                       </Badge>
@@ -165,7 +195,7 @@ export default function MerchMarcas() {
                   </TableRow>
                 ))}
                 {!isLoading && brands.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma marca cadastrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma marca cadastrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -173,6 +203,7 @@ export default function MerchMarcas() {
         </Card>
       </div>
 
+      {/* Brand Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingId ? 'Editar Marca' : 'Nova Marca'}</DialogTitle></DialogHeader>
@@ -202,6 +233,71 @@ export default function MerchMarcas() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={createBrand.isPending || updateBrand.isPending}>Salvar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDV Assignment Dialog - 2 columns */}
+      <Dialog open={!!pdvDialogBrand} onOpenChange={() => setPdvDialogBrand(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-primary" />
+              PDVs da marca: {pdvDialogBrand?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar PDV..." value={pdvSearch} onChange={e => setPdvSearch(e.target.value)} className="pl-9" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3">
+            {/* Available PDVs */}
+            <div className="border rounded-lg p-3">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Disponíveis ({filteredAvailable.length})</p>
+              <ScrollArea className="h-[350px]">
+                {filteredAvailable.map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md mb-1 cursor-pointer group"
+                    onClick={() => handleLinkPdv(p.id)}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Store className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{[p.city, p.state].filter(Boolean).join(' - ')}</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+                ))}
+                {filteredAvailable.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum PDV disponível</p>}
+              </ScrollArea>
+            </div>
+
+            {/* Arrows */}
+            <div className="flex md:flex-col items-center justify-center gap-2">
+              <ArrowRight className="h-5 w-5 text-primary hidden md:block" />
+              <ArrowLeft className="h-5 w-5 text-destructive hidden md:block" />
+            </div>
+
+            {/* Linked PDVs */}
+            <div className="border rounded-lg p-3 border-primary/30 bg-primary/5">
+              <p className="text-sm font-medium mb-2">Selecionados ({filteredLinked.length})</p>
+              <ScrollArea className="h-[350px]">
+                {filteredLinked.map((bp: any) => (
+                  <div key={bp.id} className="flex items-center justify-between p-2 hover:bg-destructive/10 rounded-md mb-1 cursor-pointer group"
+                    onClick={() => handleUnlinkPdv(bp.id)}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Store className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{bp.pdv_name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{[bp.city, bp.state].filter(Boolean).join(' - ')}</p>
+                      </div>
+                    </div>
+                    <Trash2 className="h-4 w-4 text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+                ))}
+                {filteredLinked.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum PDV vinculado</p>}
+              </ScrollArea>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </MainLayout>
