@@ -3960,6 +3960,24 @@ ALTER TABLE employees ADD COLUMN IF NOT EXISTS home_longitude NUMERIC(10,7);
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS max_daily_visits INTEGER DEFAULT 10;
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS max_daily_hours NUMERIC(4,1) DEFAULT 8;
 ALTER TABLE brands ADD COLUMN IF NOT EXISTS promoter_access VARCHAR(20) DEFAULT 'open';
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS default_checklist_id UUID;
+
+CREATE TABLE IF NOT EXISTS execution_authors (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID, execution_id UUID, action VARCHAR(50) NOT NULL, performed_by UUID NOT NULL, performer_role VARCHAR(30) DEFAULT 'promotor', source VARCHAR(20) DEFAULT 'app', details JSONB, created_at TIMESTAMPTZ DEFAULT NOW());
+
+CREATE TABLE IF NOT EXISTS contingency_photo_uploads (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID NOT NULL, photo_id UUID, uploaded_by UUID NOT NULL, uploader_role VARCHAR(30) DEFAULT 'supervisor', source VARCHAR(20) DEFAULT 'web', reason TEXT, device_info TEXT, created_at TIMESTAMPTZ DEFAULT NOW());
+
+CREATE TABLE IF NOT EXISTS route_person_assignment_history (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID NOT NULL, employee_id UUID NOT NULL, action VARCHAR(20) NOT NULL, reason TEXT, changed_by UUID NOT NULL, progress_at_change NUMERIC(5,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());
+
+CREATE TABLE IF NOT EXISTS route_stock_schedule_rules (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, brand_id UUID, category_id UUID, product_id UUID, pdv_id UUID, rule_type VARCHAR(20) NOT NULL DEFAULT 'stock_count', frequency VARCHAR(20) NOT NULL DEFAULT 'every_visit', max_postponements INTEGER DEFAULT 1, active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW());
+
+CREATE TABLE IF NOT EXISTS live_photo_books (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, brand_id UUID NOT NULL, pdv_id UUID NOT NULL, route_id UUID, photo_id UUID, category_id UUID, product_id UUID, photo_type VARCHAR(30), photo_url TEXT NOT NULL, promoter_id UUID, captured_at TIMESTAMPTZ DEFAULT NOW(), created_at TIMESTAMPTZ DEFAULT NOW());
+CREATE INDEX IF NOT EXISTS idx_live_photo_books_brand ON live_photo_books(brand_id, pdv_id);
+
+CREATE TABLE IF NOT EXISTS route_report_snapshots (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID NOT NULL, snapshot_type VARCHAR(30) DEFAULT 'progress', data JSONB, created_at TIMESTAMPTZ DEFAULT NOW());
+
+ALTER TABLE route_product_executions ADD COLUMN IF NOT EXISTS executed_source VARCHAR(20) DEFAULT 'app';
+ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS contingency_uploaded_by UUID;
+ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS contingency_device TEXT;
 `;
 
 const migrationSteps = [
