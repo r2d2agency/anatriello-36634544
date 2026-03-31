@@ -287,6 +287,117 @@ export default function MerchRotas() {
           </CardContent>
         </Card>
 
+        {/* Route Detail Summary Popup */}
+        <Dialog open={!!viewRoute} onOpenChange={() => setViewRoute(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Store className="h-5 w-5 text-primary" />
+                {viewRoute?.pdv_name}
+              </DialogTitle>
+            </DialogHeader>
+            {viewRoute && (
+              <div className="space-y-4">
+                {/* Status badge */}
+                <div className="flex items-center justify-between">
+                  <Badge className={`${STATUS_COLORS[viewRoute.status] || 'bg-muted'}`}>
+                    {STATUS_LABELS[viewRoute.status] || viewRoute.status}
+                  </Badge>
+                  {viewRoute.visit_date && (
+                    <span className="text-xs text-muted-foreground">
+                      {format(parseISO(viewRoute.visit_date.split('T')[0]), "dd/MM/yyyy")} • {viewRoute.scheduled_time?.slice(0, 5) || '--:--'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Info grid */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-[10px] text-muted-foreground">Promotor</div>
+                      <div className="font-medium">{viewRoute.promoter_name || '—'}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-[10px] text-muted-foreground">Marca</div>
+                      <div className="font-medium">{viewRoute.brand_name || '—'}</div>
+                    </div>
+                  </div>
+                  {viewRoute.checklist_name && (
+                    <div className="flex items-center gap-2 col-span-2">
+                      <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">Checklist</div>
+                        <div className="font-medium">{viewRoute.checklist_name}</div>
+                      </div>
+                    </div>
+                  )}
+                  {viewRoute.pdv_city && (
+                    <div className="flex items-center gap-2 col-span-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{viewRoute.pdv_city}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Execution progress */}
+                {(viewRoute.status === 'in_progress' || viewRoute.status === 'completed') && (
+                  <Card className={viewRoute.status === 'in_progress' ? 'border-orange-500/30 bg-orange-500/5' : 'border-green-500/30 bg-green-500/5'}>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5">
+                          <Activity className="h-4 w-4" />
+                          {viewRoute.status === 'in_progress' ? 'Em execução' : 'Execução concluída'}
+                        </span>
+                        <span className="font-mono font-bold">{Math.round(viewRoute.progress_pct || 0)}%</span>
+                      </div>
+                      <Progress value={viewRoute.progress_pct || 0} className="h-2" />
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>Produtos: {viewRoute.completed_products || 0}/{viewRoute.total_products || 0}</span>
+                        {viewRoute.checkin_at && (
+                          <span>Check-in: {new Date(viewRoute.checkin_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        )}
+                        {viewRoute.completed_at && (
+                          <span>Concluída: {new Date(viewRoute.completed_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Notes */}
+                {viewRoute.notes && (
+                  <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">{viewRoute.notes}</div>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" className="flex-1" onClick={() => { setSelectedRoute(viewRoute); setViewRoute(null); }}>
+                    <Edit className="h-4 w-4 mr-1" /> Editar
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    duplicateRoute.mutate({ id: viewRoute.id }, {
+                      onSuccess: () => { toast.success('Rota duplicada'); setViewRoute(null); }
+                    });
+                  }}>
+                    <Copy className="h-4 w-4 mr-1" /> Duplicar
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => {
+                    setSelectedRoute(viewRoute);
+                    setViewRoute(null);
+                    setTimeout(() => handleDeleteIntent(), 100);
+                  }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Route Detail / Edit Dialog */}
         <RouteFormDialog
           open={showCreate || !!selectedRoute}
