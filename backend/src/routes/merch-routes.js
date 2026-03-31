@@ -1167,31 +1167,202 @@ router.post('/promotor/routes/:id/photos', promotorAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erro' }); }
 });
 
-// Promotor: Finalize route
+// Promotor: Complete route (separate from PDV checkout)
 router.post('/promotor/routes/:id/checkout', promotorAuth, async (req, res) => {
   try {
     const { latitude, longitude, photo_url, notes } = req.body;
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const todayStr = `${nowBR.getFullYear()}-${String(nowBR.getMonth()+1).padStart(2,'0')}-${String(nowBR.getDate()).padStart(2,'0')}`;
 
-    // Check all mandatory items
+    // Get route info
+    const routeRes = await query('SELECT * FROM merch_routes WHERE id=$1 AND promoter_id=$2', [req.params.id, req.employeeId]);
+    if (!routeRes.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
+    const route = routeRes.rows[0];
+
+    // Check pending items
     const pending = await query(
       `SELECT COUNT(*) as cnt FROM route_product_executions WHERE route_id=$1 AND status != 'completed'`, [req.params.id]
     );
 
+    // Complete the route
     const result = await query(
       `UPDATE merch_routes SET status='completed', checkout_at=NOW(), checkout_latitude=$2,
-       checkout_longitude=$3, checkout_photo_url=$4, completion_notes=$5, progress_pct=100,
-       completed_at=NOW(), updated_at=NOW() WHERE id=$1 AND promoter_id=$6 RETURNING *`,
-      [req.params.id, latitude, longitude, photo_url, notes, req.employeeId]
+       checkout_longitude=$3, completion_notes=$4, progress_pct=100,
+       completed_at=NOW(), updated_at=NOW() WHERE id=$1 AND promoter_id=$5 RETURNING *`,
+      [req.params.id, latitude, longitude, notes, req.employeeId]
     );
+
+    // Timeline: route completed
+    try {
+      const visitRes = await query(
+        `SELECT visit_id FROM pdv_visit_routes WHERE route_id=$1`, [req.params.id]
+      );
+      if (visitRes.rows.length) {
+        const visitId = visitRes.rows[0].visit_id;
+        await query(
+          `UPDATE pdv_visit_routes SET completed_at=NOW() WHERE route_id=$1`, [req.params.id]
+        );
+        await query(
+          `INSERT INTO pdv_visit_timeline (visit_id, route_id, event_type, event_data, performed_by)
+           VALUES ($1,$2,'route_completed',$3,$4)`,
+          [visitId, req.params.id, JSON.stringify({ pending_items: parseInt(pending.rows[0].cnt) }), req.employeeId]
+        );
+      }
+    } catch (e) { if (e.code !== '42P01') logError('promotor.checkout.timeline', e); }
+
+    // Check if there are remaining routes at same PDV today
+    let remainingRoutesAtPdv = 0;
+    let canCheckoutPdv = false;
+    try {
+      const remaining = await query(
+        `SELECT COUNT(*) as cnt FROM merch_routes
+         WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3 AND status IN ('scheduled','confirmed','in_progress') AND id != $4`,
+        [req.employeeId, route.pdv_id, todayStr, req.params.id]
+      );
+      remainingRoutesAtPdv = parseInt(remaining.rows[0].cnt);
+      canCheckoutPdv = remainingRoutesAtPdv === 0;
+    } catch { canCheckoutPdv = true; }
 
     await query(
       `INSERT INTO route_execution_logs (route_id, action, details, performed_by, source)
-       VALUES ($1,'checkout',$2,$3,'app')`,
-      [req.params.id, JSON.stringify({ latitude, longitude, pending: pending.rows[0].cnt }), req.employeeId]
+       VALUES ($1,'route_completed',$2,$3,'app')`,
+      [req.params.id, JSON.stringify({ latitude, longitude, pending: pending.rows[0].cnt, remaining_at_pdv: remainingRoutesAtPdv }), req.employeeId]
     );
 
-    res.json(result.rows[0]);
+    res.json({
+      ...result.rows[0],
+      remaining_routes_at_pdv: remainingRoutesAtPdv,
+      can_checkout_pdv: canCheckoutPdv,
+      pdv_checkout_message: canCheckoutPdv
+        ? 'Esta era a última rota neste PDV. Você pode fazer o checkout da loja.'
+        : `Ainda existem ${remainingRoutesAtPdv} rota(s) neste PDV para hoje. O checkout da loja será liberado após a última rota.`,
+    });
   } catch (err) { logError('promotor.checkout', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Promotor: PDV Checkout (physical exit from store)
+router.post('/promotor/pdv-checkout', promotorAuth, async (req, res) => {
+  try {
+    const { pdv_id, latitude, longitude, photo_url, notes } = req.body;
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const todayStr = `${nowBR.getFullYear()}-${String(nowBR.getMonth()+1).padStart(2,'0')}-${String(nowBR.getDate()).padStart(2,'0')}`;
+
+    // Check if there are still pending routes at this PDV
+    const pendingRoutes = await query(
+      `SELECT COUNT(*) as cnt FROM merch_routes
+       WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3 AND status IN ('scheduled','confirmed','in_progress')`,
+      [req.employeeId, pdv_id, todayStr]
+    );
+    if (parseInt(pendingRoutes.rows[0].cnt) > 0) {
+      return res.status(400).json({
+        error: 'Ainda existem rotas pendentes neste PDV para hoje. Conclua todas as rotas antes de fazer o checkout.',
+        remaining: parseInt(pendingRoutes.rows[0].cnt),
+      });
+    }
+
+    // Update PDV visit
+    try {
+      const result = await query(
+        `UPDATE pdv_visits SET checkout_at=NOW(), checkout_latitude=$3, checkout_longitude=$4,
+         checkout_photo_url=$5, status='completed', notes=$6, updated_at=NOW()
+         WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$7 RETURNING *`,
+        [req.employeeId, pdv_id, latitude, longitude, photo_url, notes, todayStr]
+      );
+
+      if (result.rows.length) {
+        // Timeline: PDV checkout
+        await query(
+          `INSERT INTO pdv_visit_timeline (visit_id, event_type, event_data, performed_by)
+           VALUES ($1,'pdv_checkout',$2,$3)`,
+          [result.rows[0].id, JSON.stringify({ latitude, longitude, has_photo: !!photo_url }), req.employeeId]
+        );
+
+        if (photo_url) {
+          // Save checkout photo linked to last route at PDV
+          const lastRoute = await query(
+            `SELECT id FROM merch_routes WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3
+             ORDER BY checkout_at DESC NULLS LAST LIMIT 1`,
+            [req.employeeId, pdv_id, todayStr]
+          );
+          if (lastRoute.rows.length) {
+            await query(
+              `INSERT INTO route_photos (route_id, photo_type, photo_url, latitude, longitude, upload_source, uploaded_by)
+               VALUES ($1,'checkout',$2,$3,$4,'app',$5)`,
+              [lastRoute.rows[0].id, photo_url, latitude, longitude, req.employeeId]
+            );
+          }
+        }
+
+        res.json(result.rows[0]);
+      } else {
+        res.json({ ok: true, message: 'PDV visit not found but checkout registered' });
+      }
+    } catch (e) {
+      if (e.code === '42P01') {
+        res.json({ ok: true, message: 'PDV visits table not created yet' });
+      } else throw e;
+    }
+  } catch (err) { logError('promotor.pdv_checkout', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Promotor: Check remaining routes at PDV
+router.get('/promotor/pdv-status', promotorAuth, async (req, res) => {
+  try {
+    const { pdv_id } = req.query;
+    if (!pdv_id) return res.status(400).json({ error: 'pdv_id obrigatório' });
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const todayStr = `${nowBR.getFullYear()}-${String(nowBR.getMonth()+1).padStart(2,'0')}-${String(nowBR.getDate()).padStart(2,'0')}`;
+
+    const routes = await query(
+      `SELECT id, brand_id, status, scheduled_time FROM merch_routes
+       WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3 ORDER BY scheduled_time`,
+      [req.employeeId, pdv_id, todayStr]
+    );
+
+    const total = routes.rows.length;
+    const completed = routes.rows.filter(r => r.status === 'completed').length;
+    const pending = routes.rows.filter(r => ['scheduled','confirmed','in_progress'].includes(r.status)).length;
+    const canCheckout = pending === 0 && total > 0;
+
+    let visit = null;
+    try {
+      const v = await query(
+        `SELECT * FROM pdv_visits WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3`,
+        [req.employeeId, pdv_id, todayStr]
+      );
+      visit = v.rows[0] || null;
+    } catch { /* table may not exist */ }
+
+    res.json({ routes: routes.rows, total, completed, pending, can_checkout: canCheckout, visit });
+  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
+
+// Promotor: PDV visit timeline
+router.get('/promotor/pdv-timeline', promotorAuth, async (req, res) => {
+  try {
+    const { pdv_id, visit_date } = req.query;
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const dateStr = visit_date || `${nowBR.getFullYear()}-${String(nowBR.getMonth()+1).padStart(2,'0')}-${String(nowBR.getDate()).padStart(2,'0')}`;
+
+    const visit = await query(
+      `SELECT id FROM pdv_visits WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3`,
+      [req.employeeId, pdv_id, dateStr]
+    );
+    if (!visit.rows.length) return res.json([]);
+
+    const timeline = await query(
+      `SELECT t.*, r.brand_id, b.name as brand_name
+       FROM pdv_visit_timeline t
+       LEFT JOIN merch_routes r ON r.id = t.route_id
+       LEFT JOIN merch_brands b ON b.id = r.brand_id
+       WHERE t.visit_id=$1 ORDER BY t.created_at`,
+      [visit.rows[0].id]
+    );
+    res.json(timeline.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
 });
 
 // Promotor: My damages
