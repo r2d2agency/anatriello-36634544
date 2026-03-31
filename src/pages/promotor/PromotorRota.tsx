@@ -276,11 +276,18 @@ export default function PromotorRota() {
 
   const groupedExecs = useMemo(() => {
     if (!route?.executions) return {};
-    const groups: Record<string, { catId: string; execs: any[] }> = {};
+    const groups: Record<string, { catId: string; execs: any[]; isExtraGroup?: boolean }> = {};
     route.executions.forEach((e: any) => {
-      const cat = e.category_name || 'Sem Categoria';
-      if (!groups[cat]) groups[cat] = { catId: e.category_id, execs: [] };
-      groups[cat].execs.push(e);
+      const baseCat = e.category_name || 'Sem Categoria';
+      // Separate extra-point products into their own group
+      if (e.exposure_point === 'extra') {
+        const extraKey = `${baseCat} (Ponto Extra)`;
+        if (!groups[extraKey]) groups[extraKey] = { catId: e.category_id, execs: [], isExtraGroup: true };
+        groups[extraKey].execs.push(e);
+      } else {
+        if (!groups[baseCat]) groups[baseCat] = { catId: e.category_id, execs: [] };
+        groups[baseCat].execs.push(e);
+      }
     });
     return groups;
   }, [route?.executions]);
