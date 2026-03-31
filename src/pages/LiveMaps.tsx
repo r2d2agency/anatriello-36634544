@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useLiveRoutes } from "@/hooks/use-merch-routes";
 import {
   MapPin, Users, Navigation, Layers, Eye, EyeOff, Search, Radio,
   Wifi, WifiOff, BatteryFull, BatteryLow, BatteryMedium, Clock, CheckCircle2,
-  Loader2, Building2, Shield
+  Loader2, Building2, Shield, Activity, User, Package, Store, ChevronRight
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -204,12 +207,24 @@ function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, s
 
 export default function LiveMaps() {
   const { data, isLoading } = useLiveMapData();
+  const { data: liveRoutes = [] } = useLiveRoutes();
   const [showPDVs, setShowPDVs] = useState(true);
   const [showPromoters, setShowPromoters] = useState(true);
   const [showSupervisors, setShowSupervisors] = useState(true);
   const [showRegions, setShowRegions] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+
+  // Build a map of promoter_id -> their routes
+  const routesByPromoter = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    liveRoutes.forEach((r: any) => {
+      if (!r.promoter_id) return;
+      if (!map[r.promoter_id]) map[r.promoter_id] = [];
+      map[r.promoter_id].push(r);
+    });
+    return map;
+  }, [liveRoutes]);
 
   const employees = data?.employees || [];
   const pdvs = data?.pdvs || [];
@@ -336,20 +351,35 @@ export default function LiveMaps() {
                             isOnline ? 'bg-green-500' : 'bg-muted-foreground'
                           }`} />
                         </div>
-                        <div className="flex-1 min-w-0">
+                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium truncate">{e.full_name}</p>
                           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                             {isSupervisor && <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5">SUP</Badge>}
-                            {hasCheckedIn ? (
-                              <span className="text-green-600 flex items-center gap-0.5">
-                                <CheckCircle2 className="h-2.5 w-2.5" /> {e.last_pdv_name || 'Check-in'}
-                              </span>
-                            ) : (
-                              <span className="text-destructive">Sem check-in</span>
-                            )}
-                            {e.current_brands && (
-                              <span className="text-yellow-600 text-[9px] truncate block">🏷️ {e.current_brands}</span>
-                            )}
+                            {(() => {
+                              const empRoutes = routesByPromoter[e.id] || [];
+                              const activeRoute = empRoutes.find((r: any) => r.status === 'in_progress');
+                              if (activeRoute) {
+                                return (
+                                  <span className="text-orange-600 flex items-center gap-0.5 truncate">
+                                    <Activity className="h-2.5 w-2.5 animate-pulse" />
+                                    {activeRoute.pdv_name} • {Math.round(activeRoute.progress_pct || 0)}%
+                                  </span>
+                                );
+                              }
+                              const doneCount = empRoutes.filter((r: any) => r.status === 'completed').length;
+                              const totalCount = empRoutes.length;
+                              if (totalCount > 0) {
+                                return <span className="text-green-600">{doneCount}/{totalCount} rotas</span>;
+                              }
+                              if (hasCheckedIn) {
+                                return (
+                                  <span className="text-green-600 flex items-center gap-0.5">
+                                    <CheckCircle2 className="h-2.5 w-2.5" /> {e.last_pdv_name || 'Check-in'}
+                                  </span>
+                                );
+                              }
+                              return <span className="text-destructive">Sem check-in</span>;
+                            })()}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-0.5">
@@ -378,6 +408,97 @@ export default function LiveMaps() {
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> PDV</span>
           <span className="text-muted-foreground">• GPS desativado fora do horário de trabalho</span>
         </div>
+
+        {/* Employee Detail Dialog */}
+        <Dialog open={!!selectedEmployee} onOpenChange={() => setSelectedEmployee(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                {selectedEmployee?.full_name}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedEmployee && (() => {
+              const empRoutes = routesByPromoter[selectedEmployee.id] || [];
+              const isOnline = selectedEmployee.live_status === 'online';
+              const hasCheckedIn = parseInt(selectedEmployee.punch_count) > 0;
+
+              return (
+                <div className="space-y-4">
+                  {/* Status */}
+                  <div className="flex items-center gap-2">
+                    <Badge variant={isOnline ? 'default' : 'secondary'}>
+                      {isOnline ? '🟢 Online' : '⚫ Offline'}
+                    </Badge>
+                    {hasCheckedIn && <Badge variant="outline" className="text-green-600">✅ Check-in</Badge>}
+                    {selectedEmployee.worker_profile && (
+                      <Badge variant="outline">{selectedEmployee.position || selectedEmployee.worker_profile}</Badge>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {selectedEmployee.location_updated_at && (
+                      <div className="col-span-2 text-xs text-muted-foreground">
+                        📡 Última atualização: {formatDistanceToNow(new Date(selectedEmployee.location_updated_at), { addSuffix: true, locale: ptBR })}
+                      </div>
+                    )}
+                    {selectedEmployee.battery_level != null && (
+                      <div className="text-xs">🔋 Bateria: {selectedEmployee.battery_level}%</div>
+                    )}
+                    {selectedEmployee.current_brands && (
+                      <div className="text-xs">🏷️ Marcas: {selectedEmployee.current_brands}</div>
+                    )}
+                  </div>
+
+                  {/* Routes today */}
+                  {empRoutes.length > 0 ? (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-semibold flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" /> Rotas de hoje ({empRoutes.length})
+                      </h4>
+                      {empRoutes.map((r: any) => (
+                        <Card key={r.id} className={r.status === 'in_progress' ? 'border-orange-500/30 bg-orange-500/5' : r.status === 'completed' ? 'border-green-500/20 bg-green-500/5' : ''}>
+                          <CardContent className="p-2.5">
+                            <div className="flex items-center justify-between mb-1">
+                              <div>
+                                <div className="text-sm font-medium">{r.pdv_name}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {r.scheduled_time?.slice(0, 5)} • {r.brand_name}
+                                  {r.checklist_name && ` • ${r.checklist_name}`}
+                                </div>
+                              </div>
+                              <Badge className={`text-[9px] ${
+                                r.status === 'in_progress' ? 'bg-orange-500/20 text-orange-700' :
+                                r.status === 'completed' ? 'bg-green-500/20 text-green-700' :
+                                'bg-blue-500/20 text-blue-700'
+                              }`}>
+                                {r.status === 'in_progress' ? 'Executando' : r.status === 'completed' ? 'Concluída' : 'Pendente'}
+                              </Badge>
+                            </div>
+                            {(r.status === 'in_progress' || r.status === 'completed') && (
+                              <div className="space-y-1">
+                                <Progress value={r.progress_pct || 0} className="h-1" />
+                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                  <span>{r.completed_products || 0}/{r.total_products || 0} produtos</span>
+                                  <span>{Math.round(r.progress_pct || 0)}%</span>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-md">
+                      Nenhuma rota agendada para hoje
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );

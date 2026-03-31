@@ -15,8 +15,11 @@ router.get('/routes', authenticate, async (req, res) => {
     const orgId = orgRes.rows[0].organization_id;
 
     const { promoter_id, brand_id, pdv_id, status, date_from, date_to, supervisor_id } = req.query;
-    let sql = `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, b.name as brand_name,
-               sv.full_name as supervisor_name, bc.name as checklist_name
+    let sql = `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, p.city as pdv_city, b.name as brand_name,
+               sv.full_name as supervisor_name, bc.name as checklist_name,
+               r.checkin_at, r.checkout_at, r.completed_at, r.progress_pct,
+               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as total_products,
+               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as completed_products
                FROM merch_routes r
                LEFT JOIN employees e ON e.id = r.promoter_id
                LEFT JOIN pdvs p ON p.id = r.pdv_id
@@ -458,16 +461,32 @@ router.get('/routes/live', authenticate, async (req, res) => {
     const orgId = orgRes.rows[0].organization_id;
 
     const result = await query(
-      `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, b.name as brand_name
+      `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, p.city as pdv_city, b.name as brand_name,
+              bc.name as checklist_name,
+              r.checkin_at, r.checkout_at, r.completed_at, r.progress_pct,
+              (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as total_products,
+              (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as completed_products,
+              (SELECT json_agg(json_build_object(
+                'category_id', mec.category_id,
+                'category_name', mec.category_name,
+                'point_type', mec.point_type,
+                'products_unlocked', mec.products_unlocked,
+                'completed', mec.completed
+              )) FROM merch_execution_categories mec WHERE mec.route_id = r.id) as category_progress
        FROM merch_routes r
        LEFT JOIN employees e ON e.id = r.promoter_id
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN merch_brands b ON b.id = r.brand_id
+       LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
        WHERE r.organization_id=$1 AND r.visit_date = CURRENT_DATE
-       ORDER BY r.scheduled_time`, [orgId]
+       ORDER BY CASE r.status WHEN 'in_progress' THEN 0 WHEN 'scheduled' THEN 1 WHEN 'confirmed' THEN 2 ELSE 3 END, r.scheduled_time`, [orgId]
     );
     res.json(result.rows);
-  } catch (err) { logError('routes.live', err); res.status(500).json({ error: 'Erro' }); }
+  } catch (err) {
+    logError('routes.live', err);
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
 });
 
 // ===== BRAND CHECKLISTS =====
