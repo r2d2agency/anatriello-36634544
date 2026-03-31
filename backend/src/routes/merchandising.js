@@ -570,13 +570,18 @@ router.get('/brand-pdvs/:brandId', async (req, res) => {
   try {
     await ensureMerchandisingInfra();
     const r = await query(
-      `SELECT pb.*, p.name as pdv_name, p.address, p.city, p.state, p.network
-       FROM merch_pdv_brands pb JOIN pdvs p ON p.id = pb.pdv_id
-       WHERE pb.brand_id=$1 AND pb.organization_id=$2 AND pb.active=true ORDER BY p.name`,
+      `SELECT pb.*, p.id as pdv_id, p.name as pdv_name, p.client_name as network, p.address, p.city, p.state
+       FROM merch_pdv_brands pb
+       JOIN pdvs p ON p.id = pb.pdv_id
+       WHERE pb.brand_id=$1 AND pb.organization_id=$2 AND pb.active=true
+       ORDER BY p.name`,
       [req.params.brandId, req.orgId]
     );
     res.json(r.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    logError('merch.brand_pdvs', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 router.get('/pdv-brands/:pdvId', async (req, res) => {
   try {
