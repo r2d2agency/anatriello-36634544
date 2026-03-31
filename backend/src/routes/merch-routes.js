@@ -38,7 +38,12 @@ router.get('/routes', authenticate, async (req, res) => {
     sql += ' ORDER BY r.visit_date, r.scheduled_time';
     const result = await query(sql, params);
     res.json(result.rows);
-  } catch (err) { logError('routes.list', err); res.status(500).json({ error: 'Erro ao listar rotas' }); }
+  } catch (err) {
+    logError('routes.list', err);
+    // If table doesn't exist yet, return empty
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro ao listar rotas' });
+  }
 });
 
 // Create route (with recurrence support)
@@ -283,11 +288,16 @@ router.get('/routes/live', authenticate, async (req, res) => {
 router.get('/brand-checklists', authenticate, async (req, res) => {
   try {
     const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    if (!orgRes.rows.length) return res.json([]);
     const orgId = orgRes.rows[0].organization_id;
     const { brand_id } = req.query;
+    if (!brand_id) return res.json([]);
+    // Check if table exists first
+    const tableCheck = await query("SELECT to_regclass('public.brand_checklists') as t");
+    if (!tableCheck.rows[0].t) return res.json([]);
     let sql = 'SELECT bc.*, b.name as brand_name FROM brand_checklists bc JOIN brands b ON b.id=bc.brand_id WHERE bc.organization_id=$1';
     const params = [orgId];
-    if (brand_id) { sql += ' AND bc.brand_id=$2'; params.push(brand_id); }
+    sql += ' AND bc.brand_id=$2'; params.push(brand_id);
     sql += ' ORDER BY b.name, bc.name';
     res.json((await query(sql, params)).rows);
   } catch (err) { logError('checklists.list', err); res.status(500).json({ error: 'Erro' }); }
