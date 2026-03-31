@@ -77,6 +77,9 @@ import MerchMixPDV from "./pages/MerchMixPDV";
 import MerchRelatorios from "./pages/MerchRelatorios";
 import MerchRotas from "./pages/MerchRotas";
 import MerchExecucao from "./pages/MerchExecucao";
+import MerchChecklists from "./pages/MerchChecklists";
+import MerchBookFotos from "./pages/MerchBookFotos";
+import MerchAuditoria from "./pages/MerchAuditoria";
 import PromotorLogin from "./pages/promotor/PromotorLogin";
 import PromotorHome from "./pages/promotor/PromotorHome";
 import PromotorAgenda from "./pages/promotor/PromotorAgenda";
@@ -205,6 +208,9 @@ const App = () => (
             <Route path="/merch/relatorios" element={<ProtectedRoute><MerchRelatorios /></ProtectedRoute>} />
             <Route path="/merch/rotas" element={<ProtectedRoute><MerchRotas /></ProtectedRoute>} />
             <Route path="/merch/execucao" element={<ProtectedRoute><MerchExecucao /></ProtectedRoute>} />
+            <Route path="/merch/checklists" element={<ProtectedRoute><MerchChecklists /></ProtectedRoute>} />
+            <Route path="/merch/book-fotos" element={<ProtectedRoute><MerchBookFotos /></ProtectedRoute>} />
+            <Route path="/merch/auditoria" element={<ProtectedRoute><MerchAuditoria /></ProtectedRoute>} />
             {/* Promotor App */}
             <Route path="/promotor/login" element={<PromotorLogin />} />
             <Route path="/promotor/home" element={<PromotorHome />} />

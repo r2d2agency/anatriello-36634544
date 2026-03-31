@@ -579,6 +579,23 @@ router.get('/routes/:id/authors', authenticate, async (req, res) => {
   }
 });
 
+// ===== ROUTE ASSIGNMENT HISTORY =====
+router.get('/routes/:id/assignment-history', authenticate, async (req, res) => {
+  try {
+    const history = await query(
+      `SELECT rpah.*, e.full_name as employee_name, u.name as changed_by_name
+       FROM route_person_assignment_history rpah
+       LEFT JOIN employees e ON e.id=rpah.employee_id
+       LEFT JOIN users u ON u.id=rpah.changed_by
+       WHERE rpah.route_id=$1 ORDER BY rpah.created_at DESC`, [req.params.id]
+    );
+    res.json(history.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
 // ===== LIVE PHOTO BOOK =====
 router.get('/photo-book', authenticate, async (req, res) => {
   try {

@@ -47,6 +47,7 @@ import {
   Tags as TagsIcon,
   Boxes,
   Store,
+  Camera,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import ayratechLogo from "@/assets/ayratech_logo.jpg";
@@ -136,7 +137,10 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Produtos", href: "/merch/produtos", icon: Boxes, pageKey: 'merch_produtos' },
       { name: "Mix por PDV", href: "/merch/mix", icon: Store, pageKey: 'merch_mix' },
       { name: "Rotas & Agenda", href: "/merch/rotas", icon: MapPin, pageKey: 'merch_rotas' },
+      { name: "Checklists", href: "/merch/checklists", icon: ClipboardList, pageKey: 'merch_checklists' },
       { name: "Execução Campo", href: "/merch/execucao", icon: Radio, pageKey: 'merch_execucao' },
+      { name: "Book de Fotos", href: "/merch/book-fotos", icon: Camera, pageKey: 'merch_book_fotos' },
+      { name: "Auditoria", href: "/merch/auditoria", icon: Shield, pageKey: 'merch_auditoria' },
       { name: "Relatórios", href: "/merch/relatorios", icon: BarChart3, pageKey: 'merch_relatorios' },
     ],
   },
