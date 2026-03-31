@@ -23,7 +23,8 @@ export default function MerchCategorias() {
   const [subForm, setSubForm] = useState<any>({ name: '', category_id: '', description: '', status: 'active' });
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-
+  const [selectedCatIds, setSelectedCatIds] = useState<Set<string>>(new Set());
+  const [selectedSubIds, setSelectedSubIds] = useState<Set<string>>(new Set());
   const { data: categories = [] } = useCategories();
   const { data: subcategories = [] } = useSubcategories();
   const createCat = useCreateCategory();
