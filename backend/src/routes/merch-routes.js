@@ -954,12 +954,12 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
   } catch (err) { logError('promotor.route_detail', err); res.status(500).json({ error: 'Erro' }); }
 });
 
-// Promotor: Check-in
+// Promotor: Check-in (also handles PDV visit creation)
 router.post('/promotor/routes/:id/checkin', promotorAuth, async (req, res) => {
   try {
     const { latitude, longitude, device, photo_url } = req.body;
     const route = await query(
-      `SELECT r.*, bc.require_checkin_photo
+      `SELECT r.*, bc.require_checkin_photo, r.pdv_id, r.visit_date
        FROM merch_routes r
        LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
        WHERE r.id=$1 AND r.promoter_id=$2`,
@@ -971,6 +971,54 @@ router.post('/promotor/routes/:id/checkin', promotorAuth, async (req, res) => {
     }
     if (route.rows[0].require_checkin_photo && !photo_url) {
       return res.status(400).json({ error: 'Esta rota exige foto obrigatória no check-in' });
+    }
+
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const todayStr = `${nowBR.getFullYear()}-${String(nowBR.getMonth()+1).padStart(2,'0')}-${String(nowBR.getDate()).padStart(2,'0')}`;
+    const pdvId = route.rows[0].pdv_id;
+
+    // Create or find PDV visit for this PDV + date
+    let visitId = null;
+    let isFirstRouteAtPdv = false;
+    try {
+      const existingVisit = await query(
+        `SELECT id FROM pdv_visits WHERE promoter_id=$1 AND pdv_id=$2 AND visit_date=$3`,
+        [req.employeeId, pdvId, todayStr]
+      );
+      if (existingVisit.rows.length) {
+        visitId = existingVisit.rows[0].id;
+      } else {
+        isFirstRouteAtPdv = true;
+        const visitRes = await query(
+          `INSERT INTO pdv_visits (organization_id, promoter_id, pdv_id, visit_date, checkin_at, checkin_latitude, checkin_longitude, checkin_photo_url, checkin_device, status)
+           VALUES ($1,$2,$3,$4,NOW(),$5,$6,$7,$8,'active') RETURNING id`,
+          [req.orgId, req.employeeId, pdvId, todayStr, latitude, longitude, photo_url, device]
+        );
+        visitId = visitRes.rows[0].id;
+
+        // Timeline: PDV check-in
+        await query(
+          `INSERT INTO pdv_visit_timeline (visit_id, event_type, event_data, performed_by)
+           VALUES ($1,'pdv_checkin',$2,$3)`,
+          [visitId, JSON.stringify({ latitude, longitude, has_photo: !!photo_url }), req.employeeId]
+        );
+      }
+
+      // Link route to visit
+      await query(
+        `INSERT INTO pdv_visit_routes (visit_id, route_id, started_at) VALUES ($1,$2,NOW()) ON CONFLICT DO NOTHING`,
+        [visitId, req.params.id]
+      );
+
+      // Timeline: route started
+      await query(
+        `INSERT INTO pdv_visit_timeline (visit_id, route_id, event_type, event_data, performed_by)
+         VALUES ($1,$2,'route_started',$3,$4)`,
+        [visitId, req.params.id, JSON.stringify({ brand: route.rows[0].brand_name }), req.employeeId]
+      );
+    } catch (e) {
+      // Tables may not exist yet, continue without visit tracking
+      if (e.code !== '42P01') logError('promotor.checkin.visit', e);
     }
 
     const result = await query(
@@ -991,10 +1039,10 @@ router.post('/promotor/routes/:id/checkin', promotorAuth, async (req, res) => {
     await query(
       `INSERT INTO route_execution_logs (route_id, action, details, performed_by, source)
        VALUES ($1,'checkin',$2,$3,'app')`,
-      [req.params.id, JSON.stringify({ latitude, longitude, has_photo: !!photo_url }), req.employeeId]
+      [req.params.id, JSON.stringify({ latitude, longitude, has_photo: !!photo_url, is_first_at_pdv: isFirstRouteAtPdv, visit_id: visitId }), req.employeeId]
     );
 
-    res.json(result.rows[0]);
+    res.json({ ...result.rows[0], visit_id: visitId, is_first_at_pdv: isFirstRouteAtPdv });
   } catch (err) { logError('promotor.checkin', err); res.status(500).json({ error: 'Erro' }); }
 });
 
