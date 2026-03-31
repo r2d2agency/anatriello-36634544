@@ -328,7 +328,10 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
               <Select value={form.promoter_id || ''} onValueChange={v => setForm({ ...form, promoter_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {(employees || []).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                  {(sortedEmployees || []).filter((e: any) => e?.id).map((e: any) => {
+                    const isLinked = brandPromoters.some((bp: any) => bp.employee_id === e.id);
+                    return <SelectItem key={e.id} value={e.id}>{e.full_name}{isLinked ? ' ⭐' : ''}</SelectItem>;
+                  })}
                 </SelectContent>
               </Select>
             </div>
