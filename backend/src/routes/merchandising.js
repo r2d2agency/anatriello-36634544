@@ -32,6 +32,16 @@ let infraDone = false;
 
 const normalizeMerchText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 const normalizeMerchKey = (value) => normalizeMerchText(value).toLowerCase();
+const buildProductImportError = (item, index, error) => ({
+  line: Number(item?.__line) || index + 2,
+  row: Number(item?.__line) || index + 2,
+  sku: normalizeMerchText(item?.sku || item?.codigo),
+  name: normalizeMerchText(item?.name || item?.descricao || item?.product_name),
+  brand_name: normalizeMerchText(item?.brand_name || item?.brand || item?.marca),
+  category_name: normalizeMerchText(item?.category_name || item?.category || item?.categoria),
+  subcategory_name: normalizeMerchText(item?.subcategory_name || item?.subcategory || item?.subcategoria),
+  error,
+});
 
 async function ensureMerchandisingInfra() {
   if (infraDone) return;
@@ -416,7 +426,7 @@ router.post('/products/import', async (req, res) => {
       return res.status(400).json({ error: 'Nenhum item enviado' });
     }
 
-    const results = { success: 0, errors: [] };
+    const results = { total: items.length, success: 0, errors: [] };
 
     await client.query('BEGIN');
 
@@ -436,7 +446,7 @@ router.post('/products/import', async (req, res) => {
       productRows.rows.map((row) => `${row.brand_id}:${normalizeMerchKey(row.name)}`)
     );
 
-    for (const item of items) {
+    for (const [index, item] of items.entries()) {
       try {
         const name = normalizeMerchText(item.name || item.descricao || item.product_name);
         const brandName = normalizeMerchText(item.brand_name || item.brand || item.marca);
@@ -453,14 +463,14 @@ router.post('/products/import', async (req, res) => {
         const status = normalizeMerchText(item.status) || 'active';
 
         if (!name) {
-          results.errors.push({ row: item.name || item.descricao || 'linha sem nome', error: 'Nome do produto não informado' });
+          results.errors.push(buildProductImportError(item, index, 'Nome do produto não informado'));
           continue;
         }
 
         let brandId = item.brand_id || null;
         if (!brandId) {
           if (!brandName) {
-            results.errors.push({ row: name, error: 'Marca não informada' });
+            results.errors.push(buildProductImportError(item, index, 'Marca não informada'));
             continue;
           }
 
@@ -476,14 +486,14 @@ router.post('/products/import', async (req, res) => {
           }
         }
         if (!brandId) {
-          results.errors.push({ row: name, error: `Marca "${brandName}" não encontrada` });
+          results.errors.push(buildProductImportError(item, index, `Marca "${brandName}" não encontrada`));
           continue;
         }
 
         let categoryId = item.category_id || null;
         if (!categoryId) {
           if (!categoryName) {
-            results.errors.push({ row: name, error: 'Categoria não informada' });
+            results.errors.push(buildProductImportError(item, index, 'Categoria não informada'));
             continue;
           }
 
@@ -499,14 +509,14 @@ router.post('/products/import', async (req, res) => {
           }
         }
         if (!categoryId) {
-          results.errors.push({ row: name, error: `Categoria "${categoryName}" não encontrada` });
+          results.errors.push(buildProductImportError(item, index, `Categoria "${categoryName}" não encontrada`));
           continue;
         }
 
         let subcategoryId = item.subcategory_id || null;
         if (!subcategoryId) {
           if (!subcategoryName) {
-            results.errors.push({ row: name, error: 'Subcategoria não informada' });
+            results.errors.push(buildProductImportError(item, index, 'Subcategoria não informada'));
             continue;
           }
 
@@ -522,13 +532,13 @@ router.post('/products/import', async (req, res) => {
           }
         }
         if (!subcategoryId) {
-          results.errors.push({ row: name, error: `Subcategoria "${subcategoryName}" não encontrada` });
+          results.errors.push(buildProductImportError(item, index, `Subcategoria "${subcategoryName}" não encontrada`));
           continue;
         }
 
         const productKey = `${brandId}:${normalizeMerchKey(name)}`;
         if (productKeySet.has(productKey)) {
-          results.errors.push({ row: name, error: 'Produto duplicado' });
+          results.errors.push(buildProductImportError(item, index, 'Produto duplicado'));
           continue;
         }
 
@@ -540,12 +550,12 @@ router.post('/products/import', async (req, res) => {
         productKeySet.add(productKey);
         results.success++;
       } catch (itemErr) {
-        results.errors.push({ row: item.name, error: itemErr.message });
+        results.errors.push(buildProductImportError(item, index, itemErr.message || 'Erro desconhecido'));
       }
     }
 
     await client.query('COMMIT');
-    res.json(results);
+    res.json({ ...results, imported: results.success, failed: results.errors.length });
   } catch (e) {
     await client.query('ROLLBACK');
     logError('import products', e);
