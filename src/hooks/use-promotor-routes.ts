@@ -11,8 +11,8 @@ const promotorApi = async <T>(endpoint: string, options: any = {}): Promise<T> =
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error || 'Erro');
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || `${response.status}`);
   return data as T;
 };
 
