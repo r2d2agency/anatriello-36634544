@@ -2111,6 +2111,11 @@ export default function Admin() {
 
           {/* Branding Tab */}
           <BrandingTab />
+
+          {/* Merch Import Tab */}
+          <TabsContent value="merch-import">
+            <MerchImportTab />
+          </TabsContent>
         </Tabs>
       </div>
 
