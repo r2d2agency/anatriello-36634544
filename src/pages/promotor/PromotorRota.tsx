@@ -802,7 +802,7 @@ export default function PromotorRota() {
           <DialogContent className="max-w-sm">
             <DialogHeader><DialogTitle className="text-sm">Selecione a Categoria</DialogTitle></DialogHeader>
             <div className="space-y-2">
-              {Object.entries(groupedExecs).map(([category, { catId }]) => (
+              {Object.entries(groupedExecs).filter(([, v]) => !v.isExtraGroup).map(([category, { catId }]) => (
                 <Button key={catId} variant="outline" className="w-full justify-start" onClick={() => {
                   setShowExtraPointCategoryPicker(false);
                   setShowExtraPointDialog({ catId, categoryName: category });
