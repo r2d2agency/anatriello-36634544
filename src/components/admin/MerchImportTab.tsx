@@ -25,8 +25,20 @@ interface ImportResult {
   skipped?: number;
   categories_created?: number;
   subcategories_created?: number;
+  total?: number;
+  imported?: number;
+  failed?: number;
   success?: number;
-  errors?: { row: string; error: string }[];
+  errors?: {
+    row?: string | number;
+    line?: number;
+    sku?: string;
+    name?: string;
+    brand_name?: string;
+    category_name?: string;
+    subcategory_name?: string;
+    error: string;
+  }[];
 }
 
 export function MerchImportTab() {
@@ -116,7 +128,7 @@ export function MerchImportTab() {
           break;
       }
       setResult(res);
-      const total = res.created ?? res.success ?? ((res.categories_created || 0) + (res.subcategories_created || 0));
+      const total = res.created ?? res.imported ?? res.success ?? ((res.categories_created || 0) + (res.subcategories_created || 0));
       if (total > 0) toast.success(`Importação concluída: ${total} registros criados`);
       else toast.error("Nenhum item novo foi importado");
     } catch (err: any) {
@@ -264,7 +276,7 @@ export function MerchImportTab() {
                 <AlertDescription>
                   {importType === "brands" && `${result.created} marcas criadas, ${result.skipped} já existiam`}
                   {importType === "categories" && `${result.categories_created} categorias e ${result.subcategories_created} subcategorias criadas`}
-                  {importType === "products" && `${result.success} produtos importados`}
+                  {importType === "products" && `${result.imported ?? result.success ?? 0} produtos importados${result.failed ? `, ${result.failed} com erro` : ""}`}
                 </AlertDescription>
               </Alert>
 
@@ -273,10 +285,31 @@ export function MerchImportTab() {
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   <AlertDescription>
                     <p className="font-medium mb-2">{result.errors.length} erros:</p>
-                    <ScrollArea className="max-h-32">
-                      {result.errors.map((e, i) => (
-                        <p key={i} className="text-xs text-muted-foreground">{e.row}: {e.error}</p>
-                      ))}
+                    <ScrollArea className="max-h-72 rounded-md border bg-background">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Linha</TableHead>
+                            <TableHead className="text-xs">SKU</TableHead>
+                            <TableHead className="text-xs">Produto</TableHead>
+                            <TableHead className="text-xs">Marca</TableHead>
+                            <TableHead className="text-xs">Categoria</TableHead>
+                            <TableHead className="text-xs">Erro</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {result.errors.map((e, i) => (
+                            <TableRow key={`${e.line || e.row || i}-${i}`}>
+                              <TableCell className="text-xs">{e.line || e.row || '-'}</TableCell>
+                              <TableCell className="text-xs">{e.sku || '-'}</TableCell>
+                              <TableCell className="text-xs">{e.name || '-'}</TableCell>
+                              <TableCell className="text-xs">{e.brand_name || '-'}</TableCell>
+                              <TableCell className="text-xs">{e.category_name || e.subcategory_name || '-'}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{e.error}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </ScrollArea>
                   </AlertDescription>
                 </Alert>

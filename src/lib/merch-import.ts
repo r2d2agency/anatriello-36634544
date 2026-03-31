@@ -38,7 +38,7 @@ export async function parseImportFile(file: File): Promise<ImportParsedRow[]> {
 
   return XLSX.utils
     .sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" })
-    .map(stringifyRow)
+    .map((row, index) => ({ ...stringifyRow(row), __line: String(index + 2) }))
     .filter(hasRowData);
 }
 
@@ -87,6 +87,7 @@ export function mapProductImportRow(row: ImportParsedRow) {
     getImportValue(row, ["subcategory_name", "subcategoria", "subcategory", "linha", "segmento"]) || categoryName;
 
   return {
+    __line: getImportValue(row, ["__line"]),
     brand_name: getImportValue(row, ["brand_name", "marca", "brand", "familia", "família", "family", "cliente"]),
     name: getImportValue(row, ["name", "nome", "produto", "descricao", "descrição", "product", "product_name"]),
     sku: getImportValue(row, ["sku", "codigo", "código", "internal_code", "codigo_interno"]),

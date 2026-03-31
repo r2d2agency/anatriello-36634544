@@ -99,7 +99,10 @@ export default function MerchProdutos() {
       }
       const result = await importProducts.mutateAsync({ items, auto_create: true });
       if (result.success > 0) toast.success(`${result.success} produtos importados`);
-      if (result.errors?.length > 0) toast.error(`${result.errors.length} erro(s) na importação`);
+      if (result.errors?.length > 0) {
+        const firstError = result.errors[0];
+        toast.error(`${result.errors.length} erro(s). Linha ${firstError.line || firstError.row || '-'}: ${firstError.error}`);
+      }
     } catch (err: any) { toast.error(err.message); }
     if (fileRef.current) fileRef.current.value = '';
   };
