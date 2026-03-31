@@ -174,3 +174,35 @@ export function useAssignPromoter() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['merch-routes'] }); qc.invalidateQueries({ queryKey: ['merch-route'] }); },
   });
 }
+
+// Photo Book
+export function usePhotoBook(filters?: { brand_id?: string; pdv_id?: string; date_from?: string; date_to?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.brand_id) params.set('brand_id', filters.brand_id);
+  if (filters?.pdv_id) params.set('pdv_id', filters.pdv_id);
+  if (filters?.date_from) params.set('date_from', filters.date_from);
+  if (filters?.date_to) params.set('date_to', filters.date_to);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ['photo-book', qs],
+    queryFn: () => api<any[]>(`/api/merch/photo-book${qs ? `?${qs}` : ''}`),
+  });
+}
+
+// Route Authors
+export function useRouteAuthors(routeId?: string) {
+  return useQuery({
+    queryKey: ['route-authors', routeId],
+    queryFn: () => api<any[]>(`/api/merch/routes/${routeId}/authors`),
+    enabled: !!routeId,
+  });
+}
+
+// Route Assignment History
+export function useRouteAssignmentHistory(routeId?: string) {
+  return useQuery({
+    queryKey: ['route-assign-history', routeId],
+    queryFn: () => api<any[]>(`/api/merch/routes/${routeId}/assignment-history`),
+    enabled: !!routeId,
+  });
+}
