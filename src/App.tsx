@@ -75,6 +75,8 @@ import MerchCategorias from "./pages/MerchCategorias";
 import MerchProdutos from "./pages/MerchProdutos";
 import MerchMixPDV from "./pages/MerchMixPDV";
 import MerchRelatorios from "./pages/MerchRelatorios";
+import MerchRotas from "./pages/MerchRotas";
+import MerchExecucao from "./pages/MerchExecucao";
 import PromotorLogin from "./pages/promotor/PromotorLogin";
 import PromotorHome from "./pages/promotor/PromotorHome";
 import PromotorDocumentos from "./pages/promotor/PromotorDocumentos";
