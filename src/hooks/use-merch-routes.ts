@@ -139,5 +139,38 @@ export function useBrandPromoters(brandId?: string) {
   return useQuery({
     queryKey: ['brand-promoters', brandId],
     queryFn: () => api<any[]>(`/api/merch/brand-promoters${qs}`),
+    enabled: !!brandId,
+  });
+}
+
+export function useCreateBrandPromoter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api<any>('/api/merch/brand-promoters', { method: 'POST', body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['brand-promoters'] }),
+  });
+}
+
+export function useRouteAuditLogs(routeId?: string) {
+  return useQuery({
+    queryKey: ['route-audit', routeId],
+    queryFn: () => api<any[]>(`/api/merch/routes/${routeId}/audit`),
+    enabled: !!routeId,
+  });
+}
+
+export function useContingencyPhotoUpload() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ routeId, ...data }: any) => api<any>(`/api/merch/routes/${routeId}/contingency-photos`, { method: 'POST', body: data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['merch-route'] }); qc.invalidateQueries({ queryKey: ['merch-routes'] }); },
+  });
+}
+
+export function useAssignPromoter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ routeId, ...data }: any) => api<any>(`/api/merch/routes/${routeId}/assign-promoter`, { method: 'POST', body: data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['merch-routes'] }); qc.invalidateQueries({ queryKey: ['merch-route'] }); },
   });
 }
