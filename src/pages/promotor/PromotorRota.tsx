@@ -311,25 +311,15 @@ export default function PromotorRota() {
     }
   }, [route?.pdv_id, pdvCheckout, pdvCheckoutPhoto, actionForm, navigate]);
 
-  const handleToggleExec = useCallback((exec: any) => {
-    // Check if category is unlocked before allowing product interaction
+  const handleOpenProduct = useCallback((exec: any) => {
     const catStatus = categoryStatusMap[exec.category_id];
     if (catStatus && !catStatus.products_unlocked) {
       toast.error('Finalize a etapa de preparação da categoria antes de executar produtos.');
       return;
     }
-    const newStatus = exec.status === 'completed' ? 'pending' : 'completed';
-    updateExec.mutate({ id: exec.id, status: newStatus, checked: newStatus === 'completed' });
-  }, [updateExec, categoryStatusMap]);
-
-  const handleOpenProductActions = useCallback((exec: any) => {
-    const catStatus = categoryStatusMap[exec.category_id];
-    if (catStatus && !catStatus.products_unlocked) {
-      toast.error('Antes de iniciar, registre o ponto da categoria e tire a foto.');
-      return;
-    }
     setSelectedExec(exec);
-    setActionForm({});
+    setActionForm({ qty_store: exec.qty_store || 0, qty_stock: exec.qty_stock || 0 });
+    setActiveAction(null);
   }, [categoryStatusMap]);
 
   const handleSubmitAction = useCallback(() => {
