@@ -63,6 +63,7 @@ export default function PromotorHome() {
   const hasRoutesToday = data?.has_routes_today || false;
   const completedRoutesCount = data?.completed_routes_count || 0;
   const pendingRoutesCount = data?.pending_routes_count || 0;
+  const pdvVisits = data?.pdv_visits || [];
 
   // Detect PDVs where all routes are completed but no checkout was done
   const pdvsNeedingCheckout = useMemo(() => {
@@ -72,12 +73,12 @@ export default function PromotorHome() {
       if (!pdvMap[r.pdv_id]) pdvMap[r.pdv_id] = { pdv_id: r.pdv_id, pdv_name: r.pdv_name, routes: [] };
       pdvMap[r.pdv_id].routes.push(r);
     });
-    return Object.values(pdvMap).filter(p =>
-      p.routes.length > 0 &&
-      p.routes.every((r: any) => r.status === 'completed') &&
-      !p.routes.some((r: any) => r.pdv_checkout_done)
-    );
-  }, [todayRoutes]);
+    return Object.values(pdvMap).filter(p => {
+      const allCompleted = p.routes.length > 0 && p.routes.every((r: any) => r.status === 'completed');
+      const hasCheckout = pdvVisits.some((v: any) => v.pdv_id === p.pdv_id && v.checkout_at);
+      return allCompleted && !hasCheckout;
+    });
+  }, [todayRoutes, pdvVisits]);
 
   const handlePdvCheckout = useCallback(async (pdvId: string) => {
     setPdvCheckoutLoading(true);
