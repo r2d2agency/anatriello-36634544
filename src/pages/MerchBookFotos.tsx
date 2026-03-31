@@ -14,6 +14,7 @@ import { Camera, Image, Download, Eye, Filter, Calendar, MapPin, Tag, User, Zoom
 
 const PHOTO_TYPES: Record<string, string> = {
   checkin: 'Check-in', checkout: 'Check-out', before: 'Antes', after: 'Depois',
+  category_before: 'Antes (Categoria)', category_after: 'Depois (Categoria)',
   stock: 'Estoque', shelf: 'Prateleira', extra_point: 'Ponto Extra',
   damage: 'Avaria', expiry: 'Validade', contingency: 'Contingência',
 };
