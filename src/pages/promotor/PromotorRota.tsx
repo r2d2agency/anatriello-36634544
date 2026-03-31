@@ -457,13 +457,16 @@ export default function PromotorRota() {
           <div className="space-y-4">
             {Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
               const catStatus = categoryStatusMap[catId];
-              // Extra groups are always unlocked (already pre-configured)
-              const isLocked = isExtraGroup ? false : !catStatus?.products_unlocked;
+              // For extra groups: need photo but NOT point type — check if extra photo exists
+              // We track extra photos via a simple state since they don't have a separate category entry
+              const extraPhotoKey = `extra_${catId}`;
+              const hasExtraPhoto = extraGroupPhotos[extraPhotoKey];
+              const isLocked = isExtraGroup ? !hasExtraPhoto : !catStatus?.products_unlocked;
               const doneCount = execs.filter((e: any) => e.status === 'completed').length;
 
               return (
                 <div key={category}>
-                  {/* Category preparation (if locked) - skip for extra groups */}
+                  {/* Category preparation for normal groups */}
                   {isLocked && !isExtraGroup && (
                     <CategoryPreparation
                       category={catStatus}
@@ -475,6 +478,20 @@ export default function PromotorRota() {
                       promotorName={route.promotor_name}
                       qualityConfig={photoQualityConfig}
                       onUnlocked={() => refetch()}
+                    />
+                  )}
+
+                  {/* Extra group: only needs photo, no point type */}
+                  {isExtraGroup && !hasExtraPhoto && (
+                    <ExtraPointPhotoGate
+                      catId={catId}
+                      categoryName={category}
+                      routeId={id!}
+                      pdvName={route.pdv_name}
+                      brandName={route.brand_name}
+                      promotorName={route.promotor_name}
+                      qualityConfig={photoQualityConfig}
+                      onPhotoTaken={() => setExtraGroupPhotos(prev => ({ ...prev, [extraPhotoKey]: true }))}
                     />
                   )}
 
