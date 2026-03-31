@@ -235,7 +235,7 @@ export default function MerchRotas() {
                       {dayRoutes.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-8">Nenhuma rota para este dia</p>
                       ) : dayRoutes.map((r: any) => (
-                        <Card key={r.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedRoute(r)}>
+                        <Card key={r.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setViewRoute(r)}>
                           <CardContent className="p-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
