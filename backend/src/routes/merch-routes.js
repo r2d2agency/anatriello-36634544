@@ -291,13 +291,29 @@ router.get('/brand-checklists', authenticate, async (req, res) => {
     if (!orgRes.rows.length) return res.json([]);
     const orgId = orgRes.rows[0].organization_id;
     const { brand_id } = req.query;
-    if (!brand_id) return res.json([]);
-    // Check if table exists first
-    const tableCheck = await query("SELECT to_regclass('public.brand_checklists') as t");
-    if (!tableCheck.rows[0].t) return res.json([]);
-    let sql = 'SELECT bc.*, b.name as brand_name FROM brand_checklists bc JOIN brands b ON b.id=bc.brand_id WHERE bc.organization_id=$1';
+
+    // Ensure table exists
+    await query(`CREATE TABLE IF NOT EXISTS brand_checklists (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      brand_id UUID NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      require_checkin_photo BOOLEAN DEFAULT true,
+      require_checkout_photo BOOLEAN DEFAULT false,
+      require_stock_count BOOLEAN DEFAULT false,
+      require_validity_check BOOLEAN DEFAULT false,
+      require_extra_point BOOLEAN DEFAULT false,
+      stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
+      validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
+    let sql = 'SELECT bc.*, b.name as brand_name FROM brand_checklists bc LEFT JOIN brands b ON b.id=bc.brand_id WHERE bc.organization_id=$1';
     const params = [orgId];
-    sql += ' AND bc.brand_id=$2'; params.push(brand_id);
+    if (brand_id) { sql += ' AND bc.brand_id=$2'; params.push(brand_id); }
     sql += ' ORDER BY b.name, bc.name';
     res.json((await query(sql, params)).rows);
   } catch (err) { logError('checklists.list', err); res.status(500).json({ error: 'Erro' }); }
@@ -309,6 +325,26 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
     const orgId = orgRes.rows[0].organization_id;
     const { brand_id, name, description, require_checkin_photo, require_checkout_photo, require_stock_count,
             require_validity_check, require_extra_point, stock_count_frequency, validity_check_frequency } = req.body;
+
+    // Ensure table exists
+    await query(`CREATE TABLE IF NOT EXISTS brand_checklists (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      brand_id UUID NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      require_checkin_photo BOOLEAN DEFAULT true,
+      require_checkout_photo BOOLEAN DEFAULT false,
+      require_stock_count BOOLEAN DEFAULT false,
+      require_validity_check BOOLEAN DEFAULT false,
+      require_extra_point BOOLEAN DEFAULT false,
+      stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
+      validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+
     const result = await query(
       `INSERT INTO brand_checklists (organization_id, brand_id, name, description, require_checkin_photo,
        require_checkout_photo, require_stock_count, require_validity_check, require_extra_point,
