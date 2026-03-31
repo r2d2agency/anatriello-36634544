@@ -62,6 +62,31 @@ async function autoGeocode(address, city, state, zip_code, neighborhood, address
   return null;
 }
 
+async function resolveOrganizationId(req) {
+  const orgIdFromRequest =
+    req.query?.org_id ||
+    req.body?.organization_id ||
+    req.organizationId ||
+    req.user?.organization_id ||
+    req.profile?.organization_id ||
+    req.headers['x-organization-id'];
+
+  if (orgIdFromRequest) return orgIdFromRequest;
+  if (!req.userId) return null;
+
+  const orgResult = await query(
+    `SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`,
+    [req.userId]
+  );
+
+  return orgResult.rows[0]?.organization_id || null;
+}
+
+async function tableExists(tableName) {
+  const result = await query(`SELECT to_regclass($1) as table_name`, [tableName]);
+  return Boolean(result.rows[0]?.table_name);
+}
+
 // ===== MIDDLEWARE: Promotor Auth =====
 const authenticatePromotor = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -1110,31 +1135,61 @@ router.post('/location-update', authenticatePromotor, async (req, res) => {
 // =============================================
 router.get('/rh/live-map', async (req, res) => {
   try {
-    const orgId = req.query.org_id || (await query(`SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`, [req.userId])).rows[0]?.organization_id;
-    if (!orgId) return res.json({ employees: [], pdvs: [], regions: [] });
+    const orgId = await resolveOrganizationId(req);
+    if (!orgId) {
+      return res.status(401).json({ error: 'organization_id missing', employees: [], pdvs: [], regions: [] });
+    }
 
     const today = new Date().toISOString().slice(0, 10);
+    const [hasLiveLocations, hasServiceRegions, hasMerchBrands, hasMerchPdvBrands] = await Promise.all([
+      tableExists('public.employee_live_locations'),
+      tableExists('public.service_regions'),
+      tableExists('public.merch_brands'),
+      tableExists('public.merch_pdv_brands'),
+    ]);
+
+    const liveLocationSelect = hasLiveLocations
+      ? `ll.latitude as live_lat, ll.longitude as live_lng, ll.accuracy_meters as live_accuracy,
+          ll.battery_level, ll.is_moving, ll.updated_at as location_updated_at,
+          CASE WHEN ll.updated_at > NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END as live_status,`
+      : `NULL::numeric as live_lat, NULL::numeric as live_lng, NULL::numeric as live_accuracy,
+          NULL::integer as battery_level, false as is_moving, NULL::timestamptz as location_updated_at,
+          'offline' as live_status,`;
+
+    const liveLocationJoin = hasLiveLocations
+      ? `LEFT JOIN employee_live_locations ll ON ll.employee_id = e.id`
+      : '';
+
+    const currentBrandsSelect = hasMerchBrands && hasMerchPdvBrands
+      ? `(SELECT string_agg(DISTINCT mb.name, ', ')
+           FROM merch_pdv_brands mpb
+           JOIN merch_brands mb ON mb.id = mpb.brand_id
+           JOIN time_punches tp2 ON tp2.pdv_id = mpb.pdv_id
+           WHERE tp2.employee_id = e.id
+             AND tp2.punched_at::date = $2
+             AND mpb.active = true) as current_brands`
+      : `NULL::text as current_brands`;
 
     const [employees, pdvs, regions] = await Promise.all([
       query(`
         SELECT e.id, e.full_name, e.position, e.worker_profile, e.work_schedule, e.photo_url,
           e.home_latitude, e.home_longitude,
-          ll.latitude as live_lat, ll.longitude as live_lng, ll.accuracy_meters as live_accuracy,
-          ll.battery_level, ll.is_moving, ll.updated_at as location_updated_at,
-          CASE WHEN ll.updated_at > NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END as live_status,
+          ${liveLocationSelect}
           (SELECT COUNT(*) FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2) as punch_count,
           (SELECT tp.punch_type FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_punch_type,
           (SELECT tp.punched_at FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_punch_at,
           (SELECT tp.pdv_id FROM time_punches tp WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_pdv_id,
           (SELECT p.name FROM time_punches tp JOIN pdvs p ON p.id = tp.pdv_id WHERE tp.employee_id = e.id AND tp.punched_at::date = $2 ORDER BY tp.punched_at DESC LIMIT 1) as last_pdv_name,
-          (SELECT string_agg(DISTINCT mb.name, ', ') FROM merch_pdv_brands mpb JOIN merch_brands mb ON mb.id = mpb.brand_id JOIN time_punches tp2 ON tp2.pdv_id = mpb.pdv_id WHERE tp2.employee_id = e.id AND tp2.punched_at::date = $2 AND mpb.active = true LIMIT 1) as current_brands
+          ${currentBrandsSelect}
         FROM employees e
-        LEFT JOIN employee_live_locations ll ON ll.employee_id = e.id
+        ${liveLocationJoin}
         WHERE e.organization_id = $1 AND e.status = 'ativo'
         ORDER BY e.full_name
       `, [orgId, today]),
       query(`SELECT id, name, client_name, address, city, state, latitude, longitude, radius_meters, active FROM pdvs WHERE organization_id = $1 AND active = true`, [orgId]),
-      query(`SELECT sr.*, e.full_name as supervisor_name FROM service_regions sr LEFT JOIN employees e ON e.id = sr.supervisor_id WHERE sr.organization_id = $1 AND sr.active = true`, [orgId]),
+      hasServiceRegions
+        ? query(`SELECT sr.*, e.full_name as supervisor_name FROM service_regions sr LEFT JOIN employees e ON e.id = sr.supervisor_id WHERE sr.organization_id = $1 AND sr.active = true`, [orgId])
+        : Promise.resolve({ rows: [] }),
     ]);
 
     res.json({
