@@ -80,6 +80,7 @@ import MerchExecucao from "./pages/MerchExecucao";
 import MerchChecklists from "./pages/MerchChecklists";
 import MerchBookFotos from "./pages/MerchBookFotos";
 import MerchAuditoria from "./pages/MerchAuditoria";
+import MerchEquipe from "./pages/MerchEquipe";
 import PromotorLogin from "./pages/promotor/PromotorLogin";
 import PromotorHome from "./pages/promotor/PromotorHome";
 import PromotorAgenda from "./pages/promotor/PromotorAgenda";
