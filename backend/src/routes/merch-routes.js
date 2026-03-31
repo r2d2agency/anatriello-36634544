@@ -464,7 +464,11 @@ router.get('/promotor/agenda', promotorAuth, async (req, res) => {
     if (date_to) { sql += ` AND r.visit_date <= $${idx++}`; params.push(date_to); }
     sql += ' ORDER BY r.visit_date, r.scheduled_time';
     res.json((await query(sql, params)).rows);
-  } catch (err) { logError('promotor.agenda', err); res.status(500).json({ error: 'Erro' }); }
+  } catch (err) {
+    logError('promotor.agenda', err);
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
 });
 
 // Promotor: Route detail with products
@@ -555,13 +559,17 @@ router.post('/promotor/routes/:id/checkin', promotorAuth, async (req, res) => {
 router.put('/promotor/executions/:id', promotorAuth, async (req, res) => {
   try {
     const { checked, qty_store, qty_stock, exposure_point, observation, status } = req.body;
+    // Calculate qty_total
+    const currentExec = await query('SELECT * FROM route_product_executions WHERE id=$1', [req.params.id]);
+    const newStore = qty_store !== undefined ? qty_store : (currentExec.rows[0]?.qty_store || 0);
+    const newStock = qty_stock !== undefined ? qty_stock : (currentExec.rows[0]?.qty_stock || 0);
     const result = await query(
       `UPDATE route_product_executions SET checked=COALESCE($2,checked), qty_store=COALESCE($3,qty_store),
-       qty_stock=COALESCE($4,qty_stock), exposure_point=COALESCE($5,exposure_point),
+       qty_stock=COALESCE($4,qty_stock), qty_total=$9, exposure_point=COALESCE($5,exposure_point),
        observation=COALESCE($6,observation), status=COALESCE($7,status),
        executed_by=$8, executed_at=NOW(), updated_at=NOW()
        WHERE id=$1 RETURNING *`,
-      [req.params.id, checked, qty_store, qty_stock, exposure_point, observation, status, req.employeeId]
+      [req.params.id, checked, qty_store, qty_stock, exposure_point, observation, status, req.employeeId, newStore + newStock]
     );
 
     // Update route progress
