@@ -266,6 +266,9 @@ export default function MerchRotas() {
             duplicateRoute.mutate({ id: selectedRoute.id }, { onSuccess: () => { toast.success('Rota duplicada'); setSelectedRoute(null); } });
           } : undefined}
         />
+
+        {/* AI Route Planner */}
+        <AIRoutePlanner open={showAIPlanner} onClose={() => setShowAIPlanner(false)} />
       </div>
     </MainLayout>
   );
