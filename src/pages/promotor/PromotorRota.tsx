@@ -636,9 +636,30 @@ export default function PromotorRota() {
             })}
 
             {/* Complete Route button */}
-            <Button className="w-full h-12" onClick={() => setShowCompleteRoute(true)} disabled={checkout.isPending}>
-              <Check className="h-5 w-5 mr-2" /> Concluir Rota
-            </Button>
+            {(() => {
+              const allExecs = route?.executions || [];
+              const totalExecs = allExecs.length;
+              const completedExecs = allExecs.filter((e: any) => e.status === 'completed').length;
+              const allDone = totalExecs > 0 && completedExecs === totalExecs;
+              return (
+                <>
+                  <Button className="w-full h-12" onClick={() => {
+                    if (!allDone) {
+                      toast.error(`Ainda faltam ${totalExecs - completedExecs} produto(s) para concluir. Todos devem estar 100% executados.`);
+                      return;
+                    }
+                    setShowCompleteRoute(true);
+                  }} disabled={checkout.isPending} variant={allDone ? 'default' : 'secondary'}>
+                    <Check className="h-5 w-5 mr-2" /> Concluir Rota ({completedExecs}/{totalExecs})
+                  </Button>
+                  {!allDone && (
+                    <p className="text-[10px] text-center text-destructive">
+                      ⚠️ Todos os produtos devem estar executados (100%) para concluir a rota.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Extra Point button */}
             <Button variant="outline" className="w-full h-10 border-dashed border-orange-400/50 text-orange-600 hover:bg-orange-50"
