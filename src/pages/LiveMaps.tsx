@@ -169,7 +169,7 @@ function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, s
           ${e.current_brands ? `<br/><span style="font-size:11px;color:#f59e0b;">🏷️ ${e.current_brands}</span>` : ''}
           ${lastUpdate}
           ${batteryHtml}
-          <br/><span style="font-size:11px;color:#888;">⏰ Jornada: ${e.work_schedule || '—'}</span>
+          <br/><span style="font-size:11px;color:#888;">⏰ Jornada: ${formatWorkSchedule(e.work_schedule)}</span>
         </div>
       `);
 
