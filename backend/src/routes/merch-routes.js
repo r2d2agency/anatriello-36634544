@@ -650,8 +650,8 @@ function promotorAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Token obrigatório' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    req.employeeId = decoded.employee_id;
-    req.orgId = decoded.organization_id;
+    req.employeeId = decoded.employeeId || decoded.employee_id;
+    req.orgId = decoded.organizationId || decoded.organization_id;
     next();
   } catch { return res.status(401).json({ error: 'Token inválido' }); }
 }
