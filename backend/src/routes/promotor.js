@@ -193,7 +193,9 @@ router.post('/change-password', authenticatePromotor, async (req, res) => {
 // =============================================
 router.get('/home', authenticatePromotor, async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // Use America/Sao_Paulo timezone
+    const nowBR = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const today = `${nowBR.getFullYear()}-${String(nowBR.getMonth()+1).padStart(2,'0')}-${String(nowBR.getDate()).padStart(2,'0')}`;
     const empId = req.employeeId;
 
     // Helper to run a query safely – returns empty result on missing-table errors
@@ -220,7 +222,38 @@ router.get('/home', authenticatePromotor, async (req, res) => {
       pdvs = pdvRes.rows;
     }
 
-    // Check schedule status — work_schedule can be "HH:MM-HH:MM" or JSON {"days":{...},"entry":"HH:MM","exit":"HH:MM"}
+    // ===== TODAY'S ROUTES =====
+    let todayRoutes = [];
+    try {
+      const routesRes = await query(
+        `SELECT r.*, p.name as pdv_name, p.address as pdv_address, p.city as pdv_city,
+         p.latitude as pdv_lat, p.longitude as pdv_lng,
+         b.name as brand_name, b.logo_url as brand_logo,
+         bc.name as checklist_name,
+         (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as product_count,
+         (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as products_done
+         FROM merch_routes r
+         LEFT JOIN pdvs p ON p.id = r.pdv_id
+         LEFT JOIN merch_brands b ON b.id = r.brand_id
+         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
+         WHERE r.promoter_id = $1 AND r.visit_date = $2
+         ORDER BY r.scheduled_time, r.created_at`,
+        [empId, today]
+      );
+      todayRoutes = routesRes.rows;
+    } catch (e) { if (e.code !== '42P01') logError('promotor.home.routes', e); }
+
+    // ===== PDV VISIT STATUS (group routes by PDV) =====
+    let pdvVisits = [];
+    try {
+      const visitRes = await safeQuery(
+        `SELECT * FROM pdv_visits WHERE promoter_id = $1 AND visit_date = $2 ORDER BY checkin_at`,
+        [empId, today]
+      );
+      pdvVisits = visitRes.rows;
+    } catch { /* table may not exist */ }
+
+    // Check schedule status
     const wsRaw = employee.rows[0]?.work_schedule || '08:00-17:00';
     let scheduleStart = '08:00';
     let scheduleEnd = '17:00';
@@ -238,7 +271,7 @@ router.get('/home', authenticatePromotor, async (req, res) => {
       if (parts.length >= 2) { scheduleStart = parts[0].trim(); scheduleEnd = parts[1].trim(); }
     }
     const now = new Date();
-    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const currentMin = nowBR.getHours() * 60 + nowBR.getMinutes();
     const startMin = scheduleStart.split(':').reduce((h, m) => parseInt(h) * 60 + parseInt(m), 0) || 480;
     const endMin = scheduleEnd.split(':').reduce((h, m) => parseInt(h) * 60 + parseInt(m), 0) || 1020;
     const isWithinSchedule = currentMin >= (startMin - 30) && currentMin <= (endMin + 15);
@@ -255,6 +288,13 @@ router.get('/home', authenticatePromotor, async (req, res) => {
       hasOvertimeApproval = overtimeRequest?.status === 'aprovado';
     } catch (e) { if (e.code !== '42P01' && e.code !== '42703') throw e; }
 
+    // Determine active/next route
+    const activeRoute = todayRoutes.find(r => r.status === 'in_progress');
+    const nextRoute = !activeRoute ? todayRoutes.find(r => r.status === 'scheduled' || r.status === 'confirmed') : null;
+    const completedRoutes = todayRoutes.filter(r => r.status === 'completed');
+    const pendingRoutes = todayRoutes.filter(r => r.status === 'scheduled' || r.status === 'confirmed');
+    const hasRoutesToday = todayRoutes.length > 0;
+
     res.json({
       employee: employee.rows[0],
       today_punches: punches.rows,
@@ -263,6 +303,14 @@ router.get('/home', authenticatePromotor, async (req, res) => {
       daily_assignment: assignment.rows[0] || null,
       available_pdvs: pdvs,
       settings: settings.rows[0] || { theme: 'auto' },
+      // Route data
+      today_routes: todayRoutes,
+      active_route: activeRoute || null,
+      next_route: nextRoute || null,
+      completed_routes_count: completedRoutes.length,
+      pending_routes_count: pendingRoutes.length,
+      has_routes_today: hasRoutesToday,
+      pdv_visits: pdvVisits,
       schedule_status: {
         work_schedule: `${scheduleStart}-${scheduleEnd}`,
         schedule_start: scheduleStart,
