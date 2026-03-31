@@ -405,7 +405,204 @@ router.get('/brand-promoters', authenticate, async (req, res) => {
     const params = [orgId];
     if (brand_id) { sql += ' AND bpa.brand_id=$2'; params.push(brand_id); }
     res.json((await query(sql, params)).rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
+// Create brand-promoter assignment
+router.post('/brand-promoters', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    const orgId = orgRes.rows[0].organization_id;
+    const { brand_id, employee_id, assignment_type } = req.body;
+    const result = await query(
+      `INSERT INTO brand_promoter_assignments (organization_id, brand_id, employee_id, assignment_type)
+       VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING *`,
+      [orgId, brand_id, employee_id, assignment_type || 'preferred']
+    );
+    res.json(result.rows[0] || { ok: true });
   } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
+
+// Delete brand-promoter assignment
+router.delete('/brand-promoters/:id', authenticate, async (req, res) => {
+  try {
+    await query('UPDATE brand_promoter_assignments SET active=false WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== SUPERVISOR: CONTINGENCY PHOTO UPLOAD =====
+router.post('/routes/:id/contingency-photos', authenticate, async (req, res) => {
+  try {
+    const { photo_type, category_id, product_id, exposure_point, photo_url, reason } = req.body;
+    const route = await query('SELECT * FROM merch_routes WHERE id=$1', [req.params.id]);
+    if (!route.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
+
+    const photo = await query(
+      `INSERT INTO route_photos (route_id, photo_type, category_id, product_id, exposure_point, photo_url,
+       upload_source, uploaded_by, contingency_reason, contingency_uploaded_by, contingency_device)
+       VALUES ($1,$2,$3,$4,$5,$6,'web',$7,$8,$7,'web_upload') RETURNING *`,
+      [req.params.id, photo_type || 'contingency', category_id, product_id, exposure_point, photo_url, req.userId, reason]
+    );
+
+    // Log contingency
+    await query(
+      `INSERT INTO contingency_photo_uploads (route_id, photo_id, uploaded_by, uploader_role, source, reason)
+       VALUES ($1,$2,$3,'supervisor','web',$4)`,
+      [req.params.id, photo.rows[0].id, req.userId, reason]
+    );
+
+    // Audit log
+    await query(
+      `INSERT INTO route_edit_audit_logs (route_id, field_changed, new_value, edited_by, editor_role, source, reason, route_was_completed)
+       VALUES ($1,'photo_added',$2,$3,'supervisor','web',$4,$5)`,
+      [req.params.id, photo_url, req.userId, reason || 'Contingência operacional', route.rows[0].status === 'completed']
+    );
+
+    // Execution author
+    await query(
+      `INSERT INTO execution_authors (route_id, action, performed_by, performer_role, source, details)
+       VALUES ($1,'contingency_photo',$2,'supervisor','web',$3)`,
+      [req.params.id, req.userId, JSON.stringify({ photo_type, reason })]
+    );
+
+    res.json(photo.rows[0]);
+  } catch (err) { logError('routes.contingency_photo', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== SUPERVISOR: SWAP/ADD/REMOVE PROMOTER =====
+router.post('/routes/:id/assign-promoter', authenticate, async (req, res) => {
+  try {
+    const { employee_id, reason, action } = req.body; // action: 'replace', 'add', 'remove'
+    const route = await query('SELECT * FROM merch_routes WHERE id=$1', [req.params.id]);
+    if (!route.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
+    const old = route.rows[0];
+
+    // Log history
+    await query(
+      `INSERT INTO route_person_assignment_history (route_id, employee_id, action, reason, changed_by, progress_at_change)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [req.params.id, action === 'remove' ? old.promoter_id : employee_id, action || 'replace', reason, req.userId, old.progress_pct || 0]
+    );
+
+    if (action === 'replace' || !action) {
+      // Audit old promoter
+      await query(
+        `INSERT INTO route_edit_audit_logs (route_id, field_changed, old_value, new_value, edited_by, editor_role, source, reason, route_was_completed)
+         VALUES ($1,'promoter_id',$2,$3,$4,'supervisor','web',$5,$6)`,
+        [req.params.id, old.promoter_id, employee_id, req.userId, reason, old.status === 'completed']
+      );
+      await query('UPDATE merch_routes SET promoter_id=$2, updated_at=NOW() WHERE id=$1', [req.params.id, employee_id]);
+    }
+
+    // Add to route_person_assignments
+    if (action !== 'remove') {
+      await query(
+        `INSERT INTO route_person_assignments (route_id, employee_id, role, assigned_by)
+         VALUES ($1,$2,'executor',$3) ON CONFLICT DO NOTHING`,
+        [req.params.id, employee_id, req.userId]
+      );
+    } else {
+      await query(
+        `UPDATE route_person_assignments SET active=false, removed_at=NOW(), reason=$3
+         WHERE route_id=$1 AND employee_id=$2`,
+        [req.params.id, employee_id, reason]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (err) { logError('routes.assign_promoter', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== STOCK SCHEDULE RULES =====
+router.get('/stock-schedule-rules', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    const orgId = orgRes.rows[0].organization_id;
+    const { brand_id } = req.query;
+    let sql = 'SELECT * FROM route_stock_schedule_rules WHERE organization_id=$1 AND active=true';
+    const params = [orgId];
+    if (brand_id) { sql += ' AND brand_id=$2'; params.push(brand_id); }
+    res.json((await query(sql, params)).rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
+router.post('/stock-schedule-rules', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    const orgId = orgRes.rows[0].organization_id;
+    const { brand_id, category_id, product_id, pdv_id, rule_type, frequency, max_postponements } = req.body;
+    const result = await query(
+      `INSERT INTO route_stock_schedule_rules (organization_id, brand_id, category_id, product_id, pdv_id, rule_type, frequency, max_postponements)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [orgId, brand_id, category_id, product_id, pdv_id, rule_type || 'stock_count', frequency || 'every_visit', max_postponements ?? 1]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== ROUTE AUDIT LOGS =====
+router.get('/routes/:id/audit', authenticate, async (req, res) => {
+  try {
+    const logs = await query(
+      `SELECT rea.*, u.name as editor_name, u.email as editor_email
+       FROM route_edit_audit_logs rea
+       LEFT JOIN users u ON u.id=rea.edited_by
+       WHERE rea.route_id=$1 ORDER BY rea.created_at DESC`, [req.params.id]
+    );
+    res.json(logs.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
+// ===== EXECUTION AUTHORS (who did what) =====
+router.get('/routes/:id/authors', authenticate, async (req, res) => {
+  try {
+    const authors = await query(
+      `SELECT ea.*, e.full_name as performer_name
+       FROM execution_authors ea
+       LEFT JOIN employees e ON e.id=ea.performed_by
+       WHERE ea.route_id=$1 ORDER BY ea.created_at`, [req.params.id]
+    );
+    res.json(authors.rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
+// ===== LIVE PHOTO BOOK =====
+router.get('/photo-book', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    const orgId = orgRes.rows[0].organization_id;
+    const { brand_id, pdv_id, date_from, date_to } = req.query;
+    let sql = `SELECT lpb.*, e.full_name as promoter_name, pc.name as category_name, pr.name as product_name
+               FROM live_photo_books lpb
+               LEFT JOIN employees e ON e.id=lpb.promoter_id
+               LEFT JOIN product_categories pc ON pc.id=lpb.category_id
+               LEFT JOIN products pr ON pr.id=lpb.product_id
+               WHERE lpb.organization_id=$1`;
+    const params = [orgId];
+    let idx = 2;
+    if (brand_id) { sql += ` AND lpb.brand_id=$${idx++}`; params.push(brand_id); }
+    if (pdv_id) { sql += ` AND lpb.pdv_id=$${idx++}`; params.push(pdv_id); }
+    if (date_from) { sql += ` AND lpb.captured_at >= $${idx++}`; params.push(date_from); }
+    if (date_to) { sql += ` AND lpb.captured_at <= $${idx++}`; params.push(date_to + ' 23:59:59'); }
+    sql += ' ORDER BY lpb.captured_at DESC LIMIT 200';
+    res.json((await query(sql, params)).rows);
+  } catch (err) {
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro' });
+  }
 });
 
 // ===== RETURN REQUESTS =====
