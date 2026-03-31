@@ -38,7 +38,12 @@ router.get('/routes', authenticate, async (req, res) => {
     sql += ' ORDER BY r.visit_date, r.scheduled_time';
     const result = await query(sql, params);
     res.json(result.rows);
-  } catch (err) { logError('routes.list', err); res.status(500).json({ error: 'Erro ao listar rotas' }); }
+  } catch (err) {
+    logError('routes.list', err);
+    // If table doesn't exist yet, return empty
+    if (err.code === '42P01') return res.json([]);
+    res.status(500).json({ error: 'Erro ao listar rotas' });
+  }
 });
 
 // Create route (with recurrence support)
