@@ -15,13 +15,15 @@ import {
   usePromotorUpdateExecution, usePromotorReportDamage, usePromotorReportRupture,
   usePromotorAddValidity, usePromotorReportDiscard,
   usePromotorSetPointType, usePromotorCategoryPhoto,
+  usePromotorRegisterExtraPoint,
 } from "@/hooks/use-promotor-routes";
 import { toast } from "sonner";
 import {
   MapPin, Camera, Check, AlertTriangle, Archive, Clock,
   CheckCircle2, Circle, Calendar as CalendarIcon, Trash2, Store, Info,
-  Lock, Unlock, ChevronRight, Target, ImagePlus,
+  Lock, Unlock, ChevronRight, Target, ImagePlus, Plus,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const EXEC_STATUS_ICON: Record<string, any> = {
   pending: <Circle className="h-4 w-4 text-muted-foreground" />,
@@ -238,6 +240,7 @@ export default function PromotorRota() {
   const addValidity = usePromotorAddValidity();
   const reportDiscard = usePromotorReportDiscard();
   const pdvCheckout = usePromotorPdvCheckout();
+  const registerExtraPoint = usePromotorRegisterExtraPoint();
   const [photoQualityConfig, setPhotoQualityConfig] = useState<PhotoQualityConfig | undefined>();
 
   // Load photo quality config
@@ -258,6 +261,8 @@ export default function PromotorRota() {
   const [pdvCheckoutPhoto, setPdvCheckoutPhoto] = useState('');
   const [checkinPhotoUrl, setCheckinPhotoUrl] = useState('');
   const [routeCompletionResult, setRouteCompletionResult] = useState<any>(null);
+  const [showExtraPointDialog, setShowExtraPointDialog] = useState<{ catId: string; categoryName: string } | null>(null);
+  const [selectedExtraProducts, setSelectedExtraProducts] = useState<string[]>([]);
 
   // Build category status map
   const categoryStatusMap = useMemo(() => {
@@ -517,6 +522,24 @@ export default function PromotorRota() {
             <Button className="w-full h-12" onClick={() => setShowCompleteRoute(true)} disabled={checkout.isPending}>
               <Check className="h-5 w-5 mr-2" /> Concluir Rota
             </Button>
+
+            {/* Extra Point button */}
+            <Button variant="outline" className="w-full h-10 border-dashed border-orange-400/50 text-orange-600 hover:bg-orange-50"
+              onClick={() => {
+                const cats = Object.entries(groupedExecs);
+                if (cats.length === 1) {
+                  setShowExtraPointDialog({ catId: cats[0][1].catId, categoryName: cats[0][0] });
+                  setSelectedExtraProducts([]);
+                } else {
+                  // If multiple categories, show picker (simple: use first for now, ideally show a select)
+                  setShowExtraPointDialog(null);
+                  // Will show category picker dialog
+                  setShowExtraPointCategoryPicker(true);
+                }
+              }}>
+              <Target className="h-4 w-4 mr-2" /> Registrar Ponto Extra
+            </Button>
+
             <p className="text-[10px] text-center text-muted-foreground">
               <Info className="h-3 w-3 inline mr-1" />
               Concluir a rota finaliza o checklist desta marca. O checkout da loja só será feito na última rota do PDV.
