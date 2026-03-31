@@ -411,7 +411,9 @@ export default function PromotorRota() {
           <div className="space-y-4">
             {Object.entries(groupedExecs).map(([category, { catId, execs }]) => {
               const catStatus = categoryStatusMap[catId];
-              const isLocked = catStatus && !catStatus.products_unlocked;
+              // CRITICAL: Category is locked unless products_unlocked is explicitly true
+              // If catStatus doesn't exist yet or products_unlocked is false/null, it's locked
+              const isLocked = !catStatus?.products_unlocked;
               const doneCount = execs.filter((e: any) => e.status === 'completed').length;
 
               return (
