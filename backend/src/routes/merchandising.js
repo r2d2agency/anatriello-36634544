@@ -208,6 +208,55 @@ router.delete('/categories/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Bulk import categories + subcategories
+router.post('/categories/import', async (req, res) => {
+  try {
+    await ensureMerchandisingInfra();
+    const { items } = req.body; // [{name, parent?, description?}]
+    if (!items?.length) return res.status(400).json({ error: 'Nenhum item enviado' });
+
+    // First pass: create categories (items without parent)
+    const catMap = {};
+    let catCount = 0, subCount = 0;
+    for (const item of items) {
+      if (!item.parent) {
+        const existing = await query('SELECT id FROM merch_categories WHERE organization_id=$1 AND LOWER(name)=LOWER($2)', [req.orgId, item.name.trim()]);
+        if (existing.rows.length) {
+          catMap[item.name.trim().toLowerCase()] = existing.rows[0].id;
+        } else {
+          const r = await query(
+            'INSERT INTO merch_categories (organization_id, name, description, status) VALUES ($1,$2,$3,$4) RETURNING id',
+            [req.orgId, item.name.trim(), item.description || null, 'active']
+          );
+          catMap[item.name.trim().toLowerCase()] = r.rows[0].id;
+          catCount++;
+        }
+      }
+    }
+
+    // Second pass: create subcategories (items with parent)
+    for (const item of items) {
+      if (item.parent) {
+        const parentId = catMap[item.parent.trim().toLowerCase()];
+        if (!parentId) {
+          logInfo('import skip', `Parent "${item.parent}" not found for "${item.name}"`);
+          continue;
+        }
+        const existing = await query('SELECT id FROM merch_subcategories WHERE organization_id=$1 AND category_id=$2 AND LOWER(name)=LOWER($3)', [req.orgId, parentId, item.name.trim()]);
+        if (!existing.rows.length) {
+          await query(
+            'INSERT INTO merch_subcategories (organization_id, category_id, name, description, status) VALUES ($1,$2,$3,$4,$5)',
+            [req.orgId, parentId, item.name.trim(), item.description || null, 'active']
+          );
+          subCount++;
+        }
+      }
+    }
+
+    res.json({ ok: true, categories_created: catCount, subcategories_created: subCount });
+  } catch (e) { logError('import categories', e); res.status(500).json({ error: e.message }); }
+});
+
 // ==================== SUBCATEGORIES ====================
 router.get('/subcategories', async (req, res) => {
   try {
