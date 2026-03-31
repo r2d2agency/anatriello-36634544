@@ -48,6 +48,7 @@ export default function PromotorHome() {
   const [pdvCheckoutPhoto, setPdvCheckoutPhoto] = useState('');
   const [pdvCheckoutNotes, setPdvCheckoutNotes] = useState('');
   const [pdvCheckoutLoading, setPdvCheckoutLoading] = useState(false);
+  const [actionPdv, setActionPdv] = useState<{ pdv_id: string; pdv_name: string } | null>(null);
 
   const employee = data?.employee;
   const todayPunches = data?.today_punches || [];
