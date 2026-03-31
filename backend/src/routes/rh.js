@@ -796,6 +796,7 @@ router.get('/payslips', async (req, res) => {
 router.post('/payslips', async (req, res) => {
   try {
     const orgId = req.body.organization_id || await getUserOrgId(req.userId);
+    if (!orgId) return res.status(400).json({ error: 'Organização não encontrada' });
     const d = req.body;
     const result = await query(
       `INSERT INTO payslips (organization_id, employee_id, reference_month, payment_type, gross_salary, earnings, total_earnings, deductions, total_deductions, net_salary, fgts_base, fgts_value, inss_base, inss_value, irrf_base, irrf_value, payment_date, status, notes, generated_by)
