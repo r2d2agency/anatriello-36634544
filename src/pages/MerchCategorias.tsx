@@ -120,10 +120,14 @@ export default function MerchCategorias() {
         <TabsContent value="categorias">
           <Card><CardContent className="p-0">
             <Table>
-              <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Descrição</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow>
+                <TableHead className="w-10"><Checkbox checked={categories.length > 0 && selectedCatIds.size === categories.length} onCheckedChange={() => setSelectedCatIds(selectedCatIds.size === categories.length ? new Set() : new Set(categories.map((c: any) => c.id)))} /></TableHead>
+                <TableHead>Nome</TableHead><TableHead>Descrição</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
+              </TableRow></TableHeader>
               <TableBody>
                 {categories.map((c: any) => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} className={selectedCatIds.has(c.id) ? 'bg-primary/5' : ''}>
+                    <TableCell><Checkbox checked={selectedCatIds.has(c.id)} onCheckedChange={() => { const n = new Set(selectedCatIds); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); setSelectedCatIds(n); }} /></TableCell>
                     <TableCell className="font-medium"><div className="flex items-center gap-2"><FolderTree className="h-4 w-4 text-primary" />{c.name}</div></TableCell>
                     <TableCell>{c.description || '-'}</TableCell>
                     <TableCell><Badge variant={c.status === 'active' ? 'default' : 'secondary'}>{c.status === 'active' ? 'Ativo' : 'Inativo'}</Badge></TableCell>
@@ -133,7 +137,7 @@ export default function MerchCategorias() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {categories.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhuma categoria</TableCell></TableRow>}
+                {categories.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma categoria</TableCell></TableRow>}
               </TableBody>
             </Table>
           </CardContent></Card>
