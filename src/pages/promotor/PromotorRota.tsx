@@ -14,7 +14,7 @@ import {
   usePromotorRouteDetail, usePromotorCheckin, usePromotorCheckout,
   usePromotorUpdateExecution, usePromotorReportDamage, usePromotorReportRupture,
   usePromotorAddValidity, usePromotorReportDiscard,
-  usePromotorSetPointType, usePromotorCategoryPhoto,
+  usePromotorSetPointType, usePromotorCategoryPhoto, usePromotorCategoryAfterPhoto,
   usePromotorRegisterExtraPoint,
 } from "@/hooks/use-promotor-routes";
 import { toast } from "sonner";
