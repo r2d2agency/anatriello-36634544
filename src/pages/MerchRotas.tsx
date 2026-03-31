@@ -10,7 +10,8 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, ChevronLeft, ChevronRight, Plus, MapPin, Clock, User, Eye, Copy, Trash2, Edit, Filter, Repeat, Sparkles, Package, RefreshCw, X } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Calendar, ChevronLeft, ChevronRight, Plus, MapPin, Clock, User, Eye, Copy, Trash2, Edit, Filter, Repeat, Sparkles, Package, RefreshCw, X, CheckCircle2, Activity, Store } from "lucide-react";
 import AIRoutePlanner from "@/components/merch/AIRoutePlanner";
 import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBrandChecklists, useBrandPromoters, useRouteMixPreview, useRouteProducts, useAddRouteProduct, useRemoveRouteProduct, useSyncRouteProducts } from "@/hooks/use-merch-routes";
 import { useBrands } from "@/hooks/use-merchandising";
