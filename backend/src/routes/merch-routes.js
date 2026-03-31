@@ -980,11 +980,38 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
        WHERE rsp.next_route_id=$1 AND rsp.status='pending'`, [req.params.id]
     );
 
+    // Category execution status (step-by-step)
+    let categoryStatuses = [];
+    try {
+      const catRes = await query(
+        `SELECT * FROM merch_execution_categories WHERE route_id=$1 ORDER BY category_name`, [req.params.id]
+      );
+      categoryStatuses = catRes.rows;
+    } catch (e) { if (e.code !== '42P01') throw e; }
+
+    // Auto-create category entries for categories that have products but no entry yet
+    const existingCatIds = new Set(categoryStatuses.map(c => c.category_id));
+    const categoriesInRoute = [...new Set(executions.rows.filter(e => e.category_id).map(e => e.category_id))];
+    for (const catId of categoriesInRoute) {
+      if (!existingCatIds.has(catId)) {
+        const catName = executions.rows.find(e => e.category_id === catId)?.category_name || 'Sem nome';
+        try {
+          const ins = await query(
+            `INSERT INTO merch_execution_categories (route_id, category_id, category_name, performed_by)
+             VALUES ($1,$2,$3,$4) ON CONFLICT (route_id, category_id) DO NOTHING RETURNING *`,
+            [req.params.id, catId, catName, req.employeeId]
+          );
+          if (ins.rows[0]) categoryStatuses.push(ins.rows[0]);
+        } catch (e) { if (e.code !== '42P01') logError('promotor.auto_create_cat', e); }
+      }
+    }
+
     res.json({
       ...route.rows[0],
       executions: executions.rows,
       photos: photos.rows,
       postponed_items: postponed.rows,
+      category_statuses: categoryStatuses,
     });
   } catch (err) { logError('promotor.route_detail', err); res.status(500).json({ error: 'Erro' }); }
 });
