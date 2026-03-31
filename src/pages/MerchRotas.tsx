@@ -271,6 +271,18 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
   const [form, setForm] = useState<any>({});
   const { data: brands = [] } = useBrands();
   const { data: checklists = [] } = useBrandChecklists(form.brand_id);
+  const { data: brandPromoters = [] } = useBrandPromoters(form.brand_id);
+
+  // Sort employees: brand-linked promoters first
+  const sortedEmployees = useMemo(() => {
+    if (!employees?.length) return [];
+    const linkedIds = new Set(brandPromoters.map((bp: any) => bp.employee_id));
+    return [...employees].sort((a: any, b: any) => {
+      const aLinked = linkedIds.has(a.id) ? 0 : 1;
+      const bLinked = linkedIds.has(b.id) ? 0 : 1;
+      return aLinked - bLinked;
+    });
+  }, [employees, brandPromoters]);
 
   const WEEKDAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
