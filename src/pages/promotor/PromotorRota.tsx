@@ -345,7 +345,8 @@ export default function PromotorRota() {
 
   const handleOpenProduct = useCallback((exec: any) => {
     const catStatus = categoryStatusMap[exec.category_id];
-    if (catStatus && !catStatus.products_unlocked) {
+    // Block if category is not unlocked (including when catStatus is undefined)
+    if (!catStatus?.products_unlocked) {
       toast.error('Finalize a etapa de preparação da categoria antes de executar produtos.');
       return;
     }
