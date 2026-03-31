@@ -15,8 +15,11 @@ router.get('/routes', authenticate, async (req, res) => {
     const orgId = orgRes.rows[0].organization_id;
 
     const { promoter_id, brand_id, pdv_id, status, date_from, date_to, supervisor_id } = req.query;
-    let sql = `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, b.name as brand_name,
-               sv.full_name as supervisor_name, bc.name as checklist_name
+    let sql = `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, p.city as pdv_city, b.name as brand_name,
+               sv.full_name as supervisor_name, bc.name as checklist_name,
+               r.checkin_at, r.checkout_at, r.completed_at, r.progress_pct,
+               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as total_products,
+               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as completed_products
                FROM merch_routes r
                LEFT JOIN employees e ON e.id = r.promoter_id
                LEFT JOIN pdvs p ON p.id = r.pdv_id
