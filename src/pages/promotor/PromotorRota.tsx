@@ -14,7 +14,7 @@ import {
   usePromotorRouteDetail, usePromotorCheckin, usePromotorCheckout,
   usePromotorUpdateExecution, usePromotorReportDamage, usePromotorReportRupture,
   usePromotorAddValidity, usePromotorReportDiscard,
-  usePromotorSetPointType, usePromotorCategoryPhoto,
+  usePromotorSetPointType, usePromotorCategoryPhoto, usePromotorCategoryAfterPhoto,
   usePromotorRegisterExtraPoint,
 } from "@/hooks/use-promotor-routes";
 import { toast } from "sonner";
@@ -318,6 +318,81 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
   );
 }
 
+// ===== Category After Photo Gate (required to close/complete category) =====
+function CategoryAfterPhotoGate({ catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, onCompleted }: {
+  catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; onCompleted: () => void;
+}) {
+  const setCategoryAfterPhoto = usePromotorCategoryAfterPhoto();
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [isSending, setIsSending] = useState(false);
+
+  const handleUpload = async () => {
+    if (photos.length === 0) return toast.error('É necessário tirar pelo menos 1 foto (DEPOIS).');
+    setIsSending(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      ).catch(() => null);
+      setCategoryAfterPhoto.mutate({
+        routeId, catId, photo_url: photos[0],
+        latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
+      }, {
+        onSuccess: () => { toast.success('Foto DEPOIS registrada! Categoria concluída.'); setPhotos([]); onCompleted(); },
+        onError: (err: any) => { toast.error(err.message); setIsSending(false); },
+      });
+    } catch { setIsSending(false); }
+  };
+
+  return (
+    <Card className="border-green-500/40 bg-green-50/50 mt-2">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm">
+          <Camera className="h-4 w-4 text-green-600" />
+          <div>
+            <span className="font-bold">{categoryName}</span>
+            <Badge variant="secondary" className="ml-2 text-[9px] bg-green-100 text-green-700">Foto DEPOIS</Badge>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground">
+          Tire a foto da categoria <b>DEPOIS</b> da execução para concluir esta categoria.
+        </p>
+
+        {photos.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {photos.map((p, i) => (
+              <div key={i} className="relative">
+                <img src={p} alt="" className="w-20 h-20 rounded-lg object-cover border" />
+                <button className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
+                  onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <CameraCapture
+          onCapture={(url: string) => setPhotos(prev => [...prev, url])}
+          watermark={{ pdvName, brandName, promotorName, photoType: `Categoria (depois)` }}
+          customTokenGetter={() => localStorage.getItem('promotor_token')}
+          buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto DEPOIS'}
+          qualityConfig={qualityConfig}
+        />
+
+        {photos.length > 0 && (
+          <Button className="w-full" onClick={handleUpload} disabled={isSending || setCategoryAfterPhoto.isPending}>
+            <CheckCircle2 className="h-4 w-4 mr-2" /> {isSending ? 'Enviando...' : 'Registrar e Concluir Categoria'}
+          </Button>
+        )}
+
+        <div className="flex items-center gap-2 p-2 rounded-md bg-green-100/50 text-green-800 text-[11px]">
+          <Camera className="h-4 w-4 flex-shrink-0" />
+          <span>Foto DEPOIS obrigatória para concluir esta categoria.</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PromotorRota() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -548,12 +623,15 @@ export default function PromotorRota() {
           <div className="space-y-4">
             {Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
               const catStatus = categoryStatusMap[catId];
-              // For extra groups: need photo but NOT point type — check if extra photo exists
-              // We track extra photos via a simple state since they don't have a separate category entry
+              // For extra groups: need photo but NOT point type
               const extraPhotoKey = `extra_${catId}`;
               const hasExtraPhoto = extraGroupPhotos[extraPhotoKey];
               const isLocked = isExtraGroup ? !hasExtraPhoto : !catStatus?.products_unlocked;
               const doneCount = execs.filter((e: any) => e.status === 'completed').length;
+              const allProductsDone = doneCount === execs.length && execs.length > 0;
+              const hasAfterPhoto = !!catStatus?.category_after_photo || !!catStatus?.completed;
+              // Show after photo gate when all products done but no after photo yet
+              const needsAfterPhoto = allProductsDone && !isLocked && !hasAfterPhoto;
 
               return (
                 <div key={category}>
@@ -589,11 +667,14 @@ export default function PromotorRota() {
                   {/* Category header */}
                   <div className="flex items-center justify-between mb-2 mt-3">
                     <div className="flex items-center gap-2">
-                      {isExtraGroup ? <Target className="h-4 w-4 text-orange-600" /> : isLocked ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Unlock className="h-4 w-4 text-green-600" />}
+                      {hasAfterPhoto ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : isExtraGroup ? <Target className="h-4 w-4 text-orange-600" /> : isLocked ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Unlock className="h-4 w-4 text-green-600" />}
                       <h3 className="text-sm font-bold">{category}</h3>
-                      {isExtraGroup ? (
+                      {hasAfterPhoto && (
+                        <Badge variant="secondary" className="text-[9px] bg-green-100 text-green-700">✅ Concluída</Badge>
+                      )}
+                      {isExtraGroup && !hasAfterPhoto ? (
                         <Badge variant="secondary" className="text-[9px] bg-orange-100 text-orange-700 border-orange-300">🎯 Extra</Badge>
-                      ) : catStatus?.point_type && (
+                      ) : !hasAfterPhoto && catStatus?.point_type && (
                         <Badge variant="outline" className="text-[9px]">
                           {catStatus.point_type === 'natural' ? '📍 Natural' : '🎯 Extra'}
                         </Badge>
@@ -631,6 +712,20 @@ export default function PromotorRota() {
                       </Card>
                     ))}
                   </div>
+
+                  {/* After Photo Gate - shown when all products done but category not yet completed */}
+                  {needsAfterPhoto && (
+                    <CategoryAfterPhotoGate
+                      catId={catId}
+                      categoryName={category}
+                      routeId={id!}
+                      pdvName={route.pdv_name}
+                      brandName={route.brand_name}
+                      promotorName={route.promotor_name}
+                      qualityConfig={photoQualityConfig}
+                      onCompleted={() => refetch()}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -640,12 +735,27 @@ export default function PromotorRota() {
               const allExecs = route?.executions || [];
               const totalExecs = allExecs.length;
               const completedExecs = allExecs.filter((e: any) => e.status === 'completed').length;
-              const allDone = totalExecs > 0 && completedExecs === totalExecs;
+              const allProductsDone = totalExecs > 0 && completedExecs === totalExecs;
+              
+              // Check all categories have after photos
+              const categoryEntries = Object.entries(groupedExecs);
+              const categoriesMissingAfterPhoto = categoryEntries.filter(([, { catId, execs }]) => {
+                const catStatus = categoryStatusMap[catId];
+                const catDone = execs.every((e: any) => e.status === 'completed');
+                return catDone && !catStatus?.category_after_photo && !catStatus?.completed;
+              });
+              const allCategoriesCompleted = categoriesMissingAfterPhoto.length === 0;
+              const allDone = allProductsDone && allCategoriesCompleted;
+              
               return (
                 <>
                   <Button className="w-full h-12" onClick={() => {
-                    if (!allDone) {
+                    if (!allProductsDone) {
                       toast.error(`Ainda faltam ${totalExecs - completedExecs} produto(s) para concluir. Todos devem estar 100% executados.`);
+                      return;
+                    }
+                    if (!allCategoriesCompleted) {
+                      toast.error(`${categoriesMissingAfterPhoto.length} categoria(s) ainda precisam da foto DEPOIS para serem concluídas.`);
                       return;
                     }
                     setShowCompleteRoute(true);
@@ -654,7 +764,9 @@ export default function PromotorRota() {
                   </Button>
                   {!allDone && (
                     <p className="text-[10px] text-center text-destructive">
-                      ⚠️ Todos os produtos devem estar executados (100%) para concluir a rota.
+                      ⚠️ {!allProductsDone 
+                        ? 'Todos os produtos devem estar executados (100%) para concluir a rota.'
+                        : 'Tire a foto DEPOIS de todas as categorias para concluir a rota.'}
                     </p>
                   )}
                 </>
