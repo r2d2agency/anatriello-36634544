@@ -735,12 +735,27 @@ export default function PromotorRota() {
               const allExecs = route?.executions || [];
               const totalExecs = allExecs.length;
               const completedExecs = allExecs.filter((e: any) => e.status === 'completed').length;
-              const allDone = totalExecs > 0 && completedExecs === totalExecs;
+              const allProductsDone = totalExecs > 0 && completedExecs === totalExecs;
+              
+              // Check all categories have after photos
+              const categoryEntries = Object.entries(groupedExecs);
+              const categoriesMissingAfterPhoto = categoryEntries.filter(([, { catId, execs }]) => {
+                const catStatus = categoryStatusMap[catId];
+                const catDone = execs.every((e: any) => e.status === 'completed');
+                return catDone && !catStatus?.category_after_photo && !catStatus?.completed;
+              });
+              const allCategoriesCompleted = categoriesMissingAfterPhoto.length === 0;
+              const allDone = allProductsDone && allCategoriesCompleted;
+              
               return (
                 <>
                   <Button className="w-full h-12" onClick={() => {
-                    if (!allDone) {
+                    if (!allProductsDone) {
                       toast.error(`Ainda faltam ${totalExecs - completedExecs} produto(s) para concluir. Todos devem estar 100% executados.`);
+                      return;
+                    }
+                    if (!allCategoriesCompleted) {
+                      toast.error(`${categoriesMissingAfterPhoto.length} categoria(s) ainda precisam da foto DEPOIS para serem concluídas.`);
                       return;
                     }
                     setShowCompleteRoute(true);
@@ -749,7 +764,9 @@ export default function PromotorRota() {
                   </Button>
                   {!allDone && (
                     <p className="text-[10px] text-center text-destructive">
-                      ⚠️ Todos os produtos devem estar executados (100%) para concluir a rota.
+                      ⚠️ {!allProductsDone 
+                        ? 'Todos os produtos devem estar executados (100%) para concluir a rota.'
+                        : 'Tire a foto DEPOIS de todas as categorias para concluir a rota.'}
                     </p>
                   )}
                 </>
