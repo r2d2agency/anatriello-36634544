@@ -11,8 +11,8 @@ const promotorApi = async <T>(endpoint: string, options: any = {}): Promise<T> =
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.error || 'Erro');
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || `${response.status}`);
   return data as T;
 };
 
@@ -34,6 +34,11 @@ export function usePromotorRouteDetail(id?: string) {
     queryKey: ['promotor-route', id],
     queryFn: () => promotorApi<any>(`/api/merch/promotor/routes/${id}`),
     enabled: !!id,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 (route not found) or 403
+      if (error?.message?.includes('not found') || error?.message?.includes('404')) return false;
+      return failureCount < 2;
+    },
   });
 }
 
