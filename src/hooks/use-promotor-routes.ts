@@ -160,3 +160,12 @@ export function usePromotorCategoryPhoto() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['promotor-route'] }),
   });
 }
+
+export function usePromotorRegisterExtraPoint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ routeId, catId, product_ids }: { routeId: string; catId: string; product_ids: string[] }) =>
+      promotorApi<any>(`/api/merch/promotor/routes/${routeId}/categories/${catId}/extra-point`, { method: 'POST', body: { product_ids } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['promotor-route'] }),
+  });
+}
