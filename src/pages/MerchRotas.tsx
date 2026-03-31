@@ -340,7 +340,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
               <Select value={form.pdv_id || ''} onValueChange={v => setForm({ ...form, pdv_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {(pdvs || []).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  {(pdvs || []).filter((p: any) => p?.id).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -351,7 +351,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
             <Select value={form.brand_id || ''} onValueChange={v => setForm({ ...form, brand_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
               <SelectContent>
-                {(brands || []).map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                {(brands || []).filter((b: any) => b?.id).map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -447,7 +447,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
               <Select value={form.checklist_id || ''} onValueChange={v => setForm({ ...form, checklist_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecionar checklist" /></SelectTrigger>
                 <SelectContent>
-                  {checklists.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {checklists.filter((c: any) => c?.id).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
