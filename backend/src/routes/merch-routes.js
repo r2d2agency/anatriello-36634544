@@ -1178,6 +1178,9 @@ router.put('/promotor/executions/:id', promotorAuth, async (req, res) => {
     const { checked, qty_store, qty_stock, exposure_point, observation, status } = req.body;
     // Calculate qty_total
     const currentExec = await query('SELECT * FROM route_product_executions WHERE id=$1', [req.params.id]);
+    if (!currentExec.rows.length) {
+      return res.status(404).json({ error: 'Execução não encontrada' });
+    }
     const newStore = qty_store !== undefined ? qty_store : (currentExec.rows[0]?.qty_store || 0);
     const newStock = qty_stock !== undefined ? qty_stock : (currentExec.rows[0]?.qty_stock || 0);
     const result = await query(
@@ -1192,16 +1195,23 @@ router.put('/promotor/executions/:id', promotorAuth, async (req, res) => {
     // Update route progress
     if (result.rows.length) {
       const routeId = result.rows[0].route_id;
-      const progress = await query(
-        `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='completed') as done
-         FROM route_product_executions WHERE route_id=$1`, [routeId]
-      );
-      const pct = progress.rows[0].total > 0 ? (progress.rows[0].done / progress.rows[0].total * 100) : 0;
-      await query('UPDATE merch_routes SET progress_pct=$2, updated_at=NOW() WHERE id=$1', [routeId, pct]);
+      try {
+        const progress = await query(
+          `SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE status='completed')::int as done
+           FROM route_product_executions WHERE route_id=$1`, [routeId]
+        );
+        const pct = progress.rows[0].total > 0 ? (progress.rows[0].done / progress.rows[0].total * 100) : 0;
+        await query('UPDATE merch_routes SET progress_pct=$2, updated_at=NOW() WHERE id=$1', [routeId, pct]);
+      } catch (progressErr) {
+        logWarn('promotor.exec_update.progress_failed', { routeId, error: progressErr?.message });
+      }
     }
 
     res.json(result.rows[0]);
-  } catch (err) { logError('promotor.exec_update', err); res.status(500).json({ error: 'Erro' }); }
+  } catch (err) {
+    logError('promotor.exec_update', err, { id: req.params.id, body: req.body, employeeId: req.employeeId });
+    res.status(500).json({ error: err?.message || 'Erro ao atualizar execução' });
+  }
 });
 
 // Promotor: Add validity entry
@@ -1648,6 +1658,56 @@ router.post('/promotor/return-invoices', promotorAuth, async (req, res) => {
 });
 
 // Promotor: Postpone stock count
+
+// Promotor: Register extra point for a category (duplicate products for extra point execution)
+router.post('/promotor/routes/:routeId/categories/:catId/extra-point', promotorAuth, async (req, res) => {
+  try {
+    const { routeId, catId } = req.params;
+    const { product_ids } = req.body; // array of product IDs to duplicate as extra point
+
+    if (!product_ids || !Array.isArray(product_ids) || product_ids.length === 0) {
+      return res.status(400).json({ error: 'Selecione ao menos um produto para o ponto extra' });
+    }
+
+    // Verify route belongs to promoter
+    const route = await query('SELECT * FROM merch_routes WHERE id=$1 AND promoter_id=$2', [routeId, req.employeeId]);
+    if (!route.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
+
+    // Insert duplicate executions for extra point
+    const created = [];
+    for (const productId of product_ids) {
+      try {
+        const result = await query(
+          `INSERT INTO route_product_executions (route_id, product_id, category_id, exposure_point, status)
+           VALUES ($1, $2, $3, 'extra', 'pending') RETURNING *`,
+          [routeId, productId, catId]
+        );
+        if (result.rows[0]) created.push(result.rows[0]);
+      } catch (e) {
+        // If duplicate, skip
+        logWarn('promotor.extra_point.duplicate_skip', { routeId, productId, catId, error: e?.message });
+      }
+    }
+
+    // Log the extra point registration
+    try {
+      await query(
+        `INSERT INTO route_execution_logs (route_id, action, details, performed_by, source)
+         VALUES ($1, 'extra_point_registered', $2, $3, 'app')`,
+        [routeId, JSON.stringify({ category_id: catId, product_ids, created_count: created.length }), req.employeeId]
+      );
+    } catch (logErr) {
+      logWarn('promotor.extra_point.log_failed', { error: logErr?.message });
+    }
+
+    logInfo('promotor.extra_point.created', { routeId, catId, count: created.length });
+    res.json({ created, count: created.length });
+  } catch (err) {
+    logError('promotor.extra_point', err, { routeId: req.params.routeId, catId: req.params.catId });
+    res.status(500).json({ error: 'Erro ao registrar ponto extra' });
+  }
+});
+
 router.post('/promotor/postpone', promotorAuth, async (req, res) => {
   try {
     const { route_id, product_id, category_id, item_type, reason } = req.body;
