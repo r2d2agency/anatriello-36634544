@@ -93,7 +93,10 @@ export default function MerchCategorias() {
             <TabsTrigger value="categorias">Categorias</TabsTrigger>
             <TabsTrigger value="subcategorias">Subcategorias</TabsTrigger>
           </TabsList>
-          <Button onClick={tab === 'categorias' ? openNewCat : openNewSub}><Plus className="h-4 w-4 mr-2" />Nova</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleImportCSV}><Upload className="h-4 w-4 mr-2" />Importar CSV</Button>
+            <Button onClick={tab === 'categorias' ? openNewCat : openNewSub}><Plus className="h-4 w-4 mr-2" />Nova</Button>
+          </div>
         </div>
 
         <TabsContent value="categorias">
