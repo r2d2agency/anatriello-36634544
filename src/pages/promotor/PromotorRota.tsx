@@ -535,7 +535,7 @@ export default function PromotorRota() {
             {/* Extra Point button */}
             <Button variant="outline" className="w-full h-10 border-dashed border-orange-400/50 text-orange-600 hover:bg-orange-50"
               onClick={() => {
-                const cats = Object.entries(groupedExecs);
+                const cats = Object.entries(groupedExecs).filter(([, v]) => !v.isExtraGroup);
                 if (cats.length === 1) {
                   setShowExtraPointDialog({ catId: cats[0][1].catId, categoryName: cats[0][0] });
                   setSelectedExtraProducts([]);
