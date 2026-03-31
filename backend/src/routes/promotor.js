@@ -220,13 +220,27 @@ router.get('/home', authenticatePromotor, async (req, res) => {
       pdvs = pdvRes.rows;
     }
 
-    // Check schedule status
-    const ws = employee.rows[0]?.work_schedule || '08:00-17:00';
-    const wsParts = String(ws).split('-');
+    // Check schedule status — work_schedule can be "HH:MM-HH:MM" or JSON {"days":{...},"entry":"HH:MM","exit":"HH:MM"}
+    const wsRaw = employee.rows[0]?.work_schedule || '08:00-17:00';
+    let scheduleStart = '08:00';
+    let scheduleEnd = '17:00';
+    try {
+      const parsed = typeof wsRaw === 'object' ? wsRaw : (typeof wsRaw === 'string' && wsRaw.trim().startsWith('{') ? JSON.parse(wsRaw) : null);
+      if (parsed && parsed.entry) {
+        scheduleStart = parsed.entry;
+        scheduleEnd = parsed.exit || '17:00';
+      } else {
+        const parts = String(wsRaw).split('-');
+        if (parts.length >= 2) { scheduleStart = parts[0].trim(); scheduleEnd = parts[1].trim(); }
+      }
+    } catch { 
+      const parts = String(wsRaw).split('-');
+      if (parts.length >= 2) { scheduleStart = parts[0].trim(); scheduleEnd = parts[1].trim(); }
+    }
     const now = new Date();
     const currentMin = now.getHours() * 60 + now.getMinutes();
-    const startMin = wsParts[0] ? wsParts[0].split(':').reduce((h, m) => parseInt(h) * 60 + parseInt(m), 0) : 480;
-    const endMin = wsParts[1] ? wsParts[1].split(':').reduce((h, m) => parseInt(h) * 60 + parseInt(m), 0) : 1020;
+    const startMin = scheduleStart.split(':').reduce((h, m) => parseInt(h) * 60 + parseInt(m), 0) || 480;
+    const endMin = scheduleEnd.split(':').reduce((h, m) => parseInt(h) * 60 + parseInt(m), 0) || 1020;
     const isWithinSchedule = currentMin >= (startMin - 30) && currentMin <= (endMin + 15);
 
     // Check overtime approval for today
@@ -250,9 +264,9 @@ router.get('/home', authenticatePromotor, async (req, res) => {
       available_pdvs: pdvs,
       settings: settings.rows[0] || { theme: 'auto' },
       schedule_status: {
-        work_schedule: ws,
-        schedule_start: wsParts[0] || '08:00',
-        schedule_end: wsParts[1] || '17:00',
+        work_schedule: `${scheduleStart}-${scheduleEnd}`,
+        schedule_start: scheduleStart,
+        schedule_end: scheduleEnd,
         is_within_schedule: isWithinSchedule,
         has_overtime_approval: hasOvertimeApproval,
         overtime_request: overtimeRequest,

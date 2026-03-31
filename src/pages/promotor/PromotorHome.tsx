@@ -167,7 +167,19 @@ export default function PromotorHome() {
                 <Timer className={`h-5 w-5 ${isOutsideSchedule && !scheduleStatus.has_overtime_approval ? 'text-destructive' : 'text-primary'}`} />
                 <div>
                   <p className="text-sm font-medium">
-                    Horário: {scheduleStatus.schedule_start} - {scheduleStatus.schedule_end}
+                    Horário: {(() => {
+                      const start = scheduleStatus.schedule_start;
+                      const end = scheduleStatus.schedule_end;
+                      // If it's a JSON object/string, parse entry/exit
+                      try {
+                        const parsed = typeof start === 'string' && start.startsWith('{') ? JSON.parse(start) : null;
+                        if (parsed?.entry) return `${parsed.entry} - ${parsed.exit || end}`;
+                      } catch {}
+                      // Simple "HH:MM" format
+                      const s = String(start || '08:00');
+                      const e = String(end || '17:00');
+                      return `${s.slice(0, 5)} - ${e.slice(0, 5)}`;
+                    })()}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {scheduleStatus.is_within_schedule
