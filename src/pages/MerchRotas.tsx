@@ -292,20 +292,35 @@ export default function MerchRotas() {
           onClose={() => { setShowCreate(false); setSelectedRoute(null); }}
           pdvs={pdvs}
           employees={employees}
-          onSave={(data: any) => {
-            if (selectedRoute?.id) {
-              updateRoute.mutate({ id: selectedRoute.id, ...data }, { onSuccess: () => { toast.success('Rota atualizada'); setSelectedRoute(null); } });
-            } else {
-              createRoute.mutate(data, { onSuccess: () => { toast.success('Rota criada'); setShowCreate(false); } });
-            }
-          }}
-          onDelete={selectedRoute?.id ? () => {
-            deleteRoute.mutate(selectedRoute.id, { onSuccess: () => { toast.success('Rota excluída'); setSelectedRoute(null); } });
-          } : undefined}
+          onSave={handleSaveIntent}
+          onDelete={selectedRoute?.id ? handleDeleteIntent : undefined}
           onDuplicate={selectedRoute?.id ? () => {
             duplicateRoute.mutate({ id: selectedRoute.id }, { onSuccess: () => { toast.success('Rota duplicada'); setSelectedRoute(null); } });
           } : undefined}
         />
+
+        {/* Scope Confirmation Dialog */}
+        <AlertDialog open={!!scopeDialog} onOpenChange={() => setScopeDialog(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {scopeDialog?.action === 'delete' ? 'Excluir rota recorrente' : 'Editar rota recorrente'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta rota faz parte de uma série recorrente. Deseja aplicar a {scopeDialog?.action === 'delete' ? 'exclusão' : 'alteração'} apenas nesta rota ou em todas as rotas futuras da série?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button variant="outline" onClick={() => executeScopeAction('single')}>
+                Apenas esta rota
+              </Button>
+              <Button variant={scopeDialog?.action === 'delete' ? 'destructive' : 'default'} onClick={() => executeScopeAction('future')}>
+                Esta e todas futuras
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* AI Route Planner */}
         <AIRoutePlanner open={showAIPlanner} onClose={() => setShowAIPlanner(false)} />
