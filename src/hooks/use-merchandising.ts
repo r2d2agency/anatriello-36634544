@@ -178,11 +178,20 @@ export function usePdvBrands(pdvId?: string) {
   });
 }
 
+// ===== BRAND PDVs (which PDVs a brand serves) =====
+export function useBrandPdvs(brandId?: string) {
+  return useQuery({
+    queryKey: ['merch-brand-pdvs', brandId],
+    queryFn: () => api<any[]>(`/api/merchandising/brand-pdvs/${brandId}`),
+    enabled: !!brandId,
+  });
+}
+
 export function useAddPdvBrand() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { pdv_id: string; brand_id: string }) => api<any>('/api/merchandising/pdv-brands', { method: 'POST', body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-pdv-brands'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['merch-pdv-brands'] }); qc.invalidateQueries({ queryKey: ['merch-brand-pdvs'] }); },
   });
 }
 
@@ -190,7 +199,7 @@ export function useRemovePdvBrand() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api<any>(`/api/merchandising/pdv-brands/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-pdv-brands'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['merch-pdv-brands'] }); qc.invalidateQueries({ queryKey: ['merch-brand-pdvs'] }); },
   });
 }
 
