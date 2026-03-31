@@ -1024,7 +1024,8 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     if (!route.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
 
     const executions = await query(
-      `SELECT rpe.*, pr.name as product_name, pr.sku, pr.barcode, pr.image_url,
+      `SELECT rpe.*, (COALESCE(rpe.qty_store,0) + COALESCE(rpe.qty_stock,0)) as qty_total,
+       pr.name as product_name, pr.sku, pr.barcode, pr.image_url,
        pc.name as category_name, ps.name as subcategory_name
        FROM route_product_executions rpe
        JOIN merch_products pr ON pr.id = rpe.product_id
