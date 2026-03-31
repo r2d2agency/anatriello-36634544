@@ -824,6 +824,10 @@ export default function Admin() {
               <Palette className="h-4 w-4" />
               Branding
             </TabsTrigger>
+            <TabsTrigger value="merch-import" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Importação
+            </TabsTrigger>
           </TabsList>
 
           {/* Plans Tab */}
