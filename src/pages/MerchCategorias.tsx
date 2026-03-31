@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory, useSubcategories, useCreateSubcategory, useUpdateSubcategory, useDeleteSubcategory, useImportCategories } from "@/hooks/use-merchandising";
 import { Plus, Pencil, Trash2, FolderTree, Upload } from "lucide-react";
 import { toast } from "sonner";
