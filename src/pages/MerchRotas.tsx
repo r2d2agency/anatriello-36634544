@@ -43,6 +43,7 @@ export default function MerchRotas() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showCreate, setShowCreate] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<any>(null);
+  const [viewRoute, setViewRoute] = useState<any>(null);
   const [filterPromoter, setFilterPromoter] = useState('');
   const [filterBrand, setFilterBrand] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
