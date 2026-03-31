@@ -228,6 +228,96 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
   );
 }
 
+// ===== Extra Point Photo Gate (no point type, only photo) =====
+function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, onPhotoTaken }: {
+  catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; onPhotoTaken: () => void;
+}) {
+  const setCategoryPhoto = usePromotorCategoryPhoto();
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [isSending, setIsSending] = useState(false);
+
+  const handleUploadPhoto = async () => {
+    if (photos.length === 0) return toast.error('É necessário tirar pelo menos 1 foto do ponto extra.');
+    setIsSending(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      ).catch(() => null);
+      setCategoryPhoto.mutate({
+        routeId, catId, photo_url: photos[0],
+        latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
+      }, {
+        onSuccess: () => { toast.success('Foto do ponto extra registrada! Produtos liberados.'); setPhotos([]); onPhotoTaken(); },
+        onError: (err: any) => { toast.error(err.message); setIsSending(false); },
+      });
+    } catch { setIsSending(false); }
+  };
+
+  return (
+    <Card className="border-orange-400/40 bg-orange-50/50">
+      <CardContent className="p-4 space-y-4">
+        <div className="flex items-center gap-2 text-sm">
+          <Target className="h-4 w-4 text-orange-600" />
+          <div>
+            <span className="font-bold">{categoryName}</span>
+            <span className="text-muted-foreground ml-2">• {pdvName} • {brandName}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px]">
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/20 text-green-700">
+            <CheckCircle2 className="h-3 w-3" /> Ponto Extra
+          </div>
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${photos.length > 0 ? 'bg-green-500/20 text-green-700' : 'bg-yellow-500/20 text-yellow-700'}`}>
+            {photos.length > 0 ? <CheckCircle2 className="h-3 w-3" /> : <span className="font-bold">1</span>}
+            Foto{photos.length > 1 ? `s (${photos.length})` : ''}
+          </div>
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+            <Lock className="h-3 w-3" /> Produtos
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs font-semibold flex items-center gap-1">
+            <Camera className="h-3.5 w-3.5" /> Foto do Ponto Extra (obrigatória)
+          </Label>
+          {photos.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {photos.map((p, i) => (
+                <div key={i} className="relative">
+                  <img src={p} alt="" className="w-20 h-20 rounded-lg object-cover border" />
+                  <button className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
+                    onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <CameraCapture
+            onCapture={(url: string) => setPhotos(prev => [...prev, url])}
+            watermark={{ pdvName, brandName, photoType: 'Ponto Extra' }}
+            customTokenGetter={() => localStorage.getItem('promotor_token')}
+            buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto do ponto extra'}
+            qualityConfig={qualityConfig}
+          />
+        </div>
+
+        {photos.length > 0 && (
+          <Button className="w-full" onClick={handleUploadPhoto} disabled={isSending || setCategoryPhoto.isPending}>
+            <Camera className="h-4 w-4 mr-2" /> {isSending ? 'Enviando...' : 'Confirmar e Liberar Produtos'}
+          </Button>
+        )}
+
+        <div className="flex items-center gap-2 p-2 rounded-md bg-orange-100/50 text-orange-800 text-[11px]">
+          <Camera className="h-4 w-4 flex-shrink-0" />
+          <span>Tire a foto do ponto extra antes de acessar os produtos.</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PromotorRota() {
   const { id } = useParams();
   const navigate = useNavigate();
