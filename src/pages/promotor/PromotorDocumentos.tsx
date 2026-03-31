@@ -1,13 +1,18 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useRef } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { usePromotorDocuments, usePromotorConfirmDocument, usePromotorViewDocument, usePromotorPayslips, usePromotorTimesheets } from "@/hooks/use-promotor";
+import { usePromotorDocuments, usePromotorConfirmDocument, usePromotorViewDocument, usePromotorPayslips, usePromotorTimesheets, usePromotorInboundDocuments, usePromotorSendDocument } from "@/hooks/use-promotor";
+import { useUpload } from "@/hooks/use-upload";
 import { PromotorLayout } from "./PromotorLayout";
-import { FileText, Eye, Check, X, Download, Clock, Loader2 } from "lucide-react";
+import { FileText, Eye, Check, Clock, Loader2, Upload, Camera, Image, Download, Send, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -21,15 +26,37 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   cancelado: { label: 'Cancelado', color: 'bg-gray-400' },
 };
 
+const DOC_CATEGORIES = [
+  { value: 'atestado', label: 'Atestado Médico' },
+  { value: 'comprovante', label: 'Comprovante' },
+  { value: 'documento_pessoal', label: 'Documento Pessoal' },
+  { value: 'recibo', label: 'Recibo' },
+  { value: 'relatorio', label: 'Relatório' },
+  { value: 'solicitacao', label: 'Solicitação' },
+  { value: 'outro', label: 'Outro' },
+];
+
 export default function PromotorDocumentos() {
   const [tab, setTab] = useState("pendentes");
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const { data: docs, isLoading } = usePromotorDocuments();
   const { data: payslips } = usePromotorPayslips();
   const { data: timesheets } = usePromotorTimesheets();
+  const { data: inboundDocs } = usePromotorInboundDocuments();
   const confirmDoc = usePromotorConfirmDocument();
   const viewDoc = usePromotorViewDocument();
+  const sendDoc = usePromotorSendDocument();
+  const { uploadFile, isUploading, progress } = useUpload(() => localStorage.getItem('promotor_token'));
   const { toast } = useToast();
+
+  // Send form state
+  const [category, setCategory] = useState("");
+  const [title, setTitle] = useState("");
+  const [observation, setObservation] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const pending = (docs || []).filter((d: any) => ['enviado', 'entregue', 'visualizado'].includes(d.status));
   const completed = (docs || []).filter((d: any) => ['confirmado', 'assinado'].includes(d.status));
@@ -51,17 +78,65 @@ export default function PromotorDocumentos() {
     }
   };
 
+  const handleFileSelect = (file: File | null) => {
+    if (!file) return;
+    setSelectedFile(file);
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleSendDocument = async () => {
+    if (!category || !selectedFile) {
+      toast({ title: 'Preencha a categoria e selecione um arquivo', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const fileUrl = await uploadFile(selectedFile);
+      if (!fileUrl) throw new Error('Falha no upload');
+
+      await sendDoc.mutateAsync({
+        category,
+        title: title || `${DOC_CATEGORIES.find(c => c.value === category)?.label || category} - ${format(new Date(), 'dd/MM/yyyy')}`,
+        file_url: fileUrl,
+        observation,
+      });
+
+      toast({ title: 'Documento enviado com sucesso!' });
+      setCategory("");
+      setTitle("");
+      setObservation("");
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const resetForm = () => {
+    setCategory("");
+    setTitle("");
+    setObservation("");
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
   return (
     <PromotorLayout>
       <div className="p-4 max-w-lg mx-auto space-y-4">
         <h1 className="text-lg font-bold flex items-center gap-2"><FileText className="h-5 w-5" /> Meus Documentos</h1>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="pendentes" className="text-xs">Pendentes{pending.length > 0 && ` (${pending.length})`}</TabsTrigger>
-            <TabsTrigger value="concluidos" className="text-xs">Concluídos</TabsTrigger>
-            <TabsTrigger value="holerites" className="text-xs">Holerites</TabsTrigger>
-            <TabsTrigger value="espelho" className="text-xs">Espelho</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-5">
+            <TabsTrigger value="pendentes" className="text-[10px] px-1">Pendentes{pending.length > 0 && ` (${pending.length})`}</TabsTrigger>
+            <TabsTrigger value="concluidos" className="text-[10px] px-1">Concluídos</TabsTrigger>
+            <TabsTrigger value="enviar" className="text-[10px] px-1">Enviar</TabsTrigger>
+            <TabsTrigger value="holerites" className="text-[10px] px-1">Holerites</TabsTrigger>
+            <TabsTrigger value="espelho" className="text-[10px] px-1">Espelho</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pendentes" className="space-y-2 mt-3">
@@ -95,6 +170,153 @@ export default function PromotorDocumentos() {
                 </CardContent>
               </Card>
             ))}
+          </TabsContent>
+
+          {/* ENVIAR DOCUMENTO */}
+          <TabsContent value="enviar" className="space-y-4 mt-3">
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Categoria *</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOC_CATEGORIES.map(c => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Título (opcional)</Label>
+                  <Input
+                    placeholder="Ex: Atestado médico 30/03"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Descrição (opcional)</Label>
+                  <Textarea
+                    placeholder="Observações sobre o documento..."
+                    value={observation}
+                    onChange={e => setObservation(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                {/* File selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Arquivo *</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Image className="h-4 w-4 mr-2" />
+                      Galeria
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => cameraInputRef.current?.click()}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Câmera
+                    </Button>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                    onChange={e => handleFileSelect(e.target.files?.[0] || null)}
+                  />
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={e => handleFileSelect(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                {/* Preview */}
+                {selectedFile && (
+                  <div className="rounded-lg border border-border p-3 bg-muted/30">
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="Preview" className="w-full max-h-48 object-contain rounded" />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm truncate">{selectedFile.name}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {selectedFile.name} • {(selectedFile.size / 1024).toFixed(0)} KB
+                    </p>
+                  </div>
+                )}
+
+                {/* Upload progress */}
+                {isUploading && (
+                  <div className="space-y-1">
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">Enviando... {progress}%</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={resetForm} disabled={isUploading || sendDoc.isPending}>
+                    Limpar
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleSendDocument}
+                    disabled={!category || !selectedFile || isUploading || sendDoc.isPending}
+                  >
+                    {(isUploading || sendDoc.isPending) ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Enviar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sent documents list */}
+            {(inboundDocs || []).length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">Enviados anteriormente</h3>
+                {(inboundDocs || []).map((doc: any) => (
+                  <Card key={doc.id}>
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{doc.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {DOC_CATEGORIES.find(c => c.value === doc.category)?.label || doc.category}
+                          {doc.created_at && ` • ${format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}`}
+                        </p>
+                      </div>
+                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="holerites" className="space-y-2 mt-3">
