@@ -795,7 +795,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="plans" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-7">
+          <TabsList className="grid w-full max-w-6xl grid-cols-8">
             <TabsTrigger value="plans" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Planos
