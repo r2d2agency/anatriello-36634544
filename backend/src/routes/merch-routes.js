@@ -980,11 +980,38 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
        WHERE rsp.next_route_id=$1 AND rsp.status='pending'`, [req.params.id]
     );
 
+    // Category execution status (step-by-step)
+    let categoryStatuses = [];
+    try {
+      const catRes = await query(
+        `SELECT * FROM merch_execution_categories WHERE route_id=$1 ORDER BY category_name`, [req.params.id]
+      );
+      categoryStatuses = catRes.rows;
+    } catch (e) { if (e.code !== '42P01') throw e; }
+
+    // Auto-create category entries for categories that have products but no entry yet
+    const existingCatIds = new Set(categoryStatuses.map(c => c.category_id));
+    const categoriesInRoute = [...new Set(executions.rows.filter(e => e.category_id).map(e => e.category_id))];
+    for (const catId of categoriesInRoute) {
+      if (!existingCatIds.has(catId)) {
+        const catName = executions.rows.find(e => e.category_id === catId)?.category_name || 'Sem nome';
+        try {
+          const ins = await query(
+            `INSERT INTO merch_execution_categories (route_id, category_id, category_name, performed_by)
+             VALUES ($1,$2,$3,$4) ON CONFLICT (route_id, category_id) DO NOTHING RETURNING *`,
+            [req.params.id, catId, catName, req.employeeId]
+          );
+          if (ins.rows[0]) categoryStatuses.push(ins.rows[0]);
+        } catch (e) { if (e.code !== '42P01') logError('promotor.auto_create_cat', e); }
+      }
+    }
+
     res.json({
       ...route.rows[0],
       executions: executions.rows,
       photos: photos.rows,
       postponed_items: postponed.rows,
+      category_statuses: categoryStatuses,
     });
   } catch (err) { logError('promotor.route_detail', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -1177,6 +1204,67 @@ router.post('/promotor/executions/:id/discard', promotorAuth, async (req, res) =
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
+
+// Promotor: Set category point type
+router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAuth, async (req, res) => {
+  try {
+    const { point_type } = req.body;
+    if (!['natural', 'extra'].includes(point_type)) return res.status(400).json({ error: 'Tipo de ponto inválido. Use: natural ou extra' });
+    const result = await query(
+      `UPDATE merch_execution_categories SET point_type=$3, point_type_at=NOW(), performed_by=$4, updated_at=NOW()
+       WHERE route_id=$1 AND category_id=$2 RETURNING *`,
+      [req.params.routeId, req.params.catId, point_type, req.employeeId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Categoria não encontrada nesta rota' });
+
+    await query(
+      `INSERT INTO route_execution_logs (route_id, action, details, performed_by, source)
+       VALUES ($1,'category_point_type',$2,$3,'app')`,
+      [req.params.routeId, JSON.stringify({ category_id: req.params.catId, point_type }), req.employeeId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) { logError('promotor.cat_point_type', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Promotor: Upload category before photo
+router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, async (req, res) => {
+  try {
+    const { photo_url, latitude, longitude } = req.body;
+    if (!photo_url) return res.status(400).json({ error: 'Foto obrigatória' });
+
+    // Check point_type was set first
+    const cat = await query(
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id=$2`,
+      [req.params.routeId, req.params.catId]
+    );
+    if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
+    if (!cat.rows[0].point_type) return res.status(400).json({ error: 'Selecione o tipo de ponto antes de tirar a foto' });
+
+    const result = await query(
+      `UPDATE merch_execution_categories SET category_before_photo=$3, category_photo_at=NOW(),
+       category_photo_latitude=$4, category_photo_longitude=$5, products_unlocked=true, unlocked_at=NOW(),
+       performed_by=$6, updated_at=NOW()
+       WHERE route_id=$1 AND category_id=$2 RETURNING *`,
+      [req.params.routeId, req.params.catId, photo_url, latitude, longitude, req.employeeId]
+    );
+
+    // Also save to route_photos
+    await query(
+      `INSERT INTO route_photos (route_id, photo_type, category_id, photo_url, latitude, longitude, upload_source, uploaded_by)
+       VALUES ($1,'category_before',$2,$3,$4,$5,'app',$6)`,
+      [req.params.routeId, req.params.catId, photo_url, latitude, longitude, req.employeeId]
+    );
+
+    await query(
+      `INSERT INTO route_execution_logs (route_id, action, details, performed_by, source)
+       VALUES ($1,'category_photo',$2,$3,'app')`,
+      [req.params.routeId, JSON.stringify({ category_id: req.params.catId, photo_url }), req.employeeId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) { logError('promotor.cat_photo', err); res.status(500).json({ error: 'Erro' }); }
 });
 
 // Promotor: Upload photo
