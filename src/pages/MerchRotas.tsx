@@ -45,6 +45,7 @@ export default function MerchRotas() {
   const [filterBrand, setFilterBrand] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showAIPlanner, setShowAIPlanner] = useState(false);
 
   // Calculate date range
   const dateRange = useMemo(() => {
