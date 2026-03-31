@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useBrands, useCategories, useSubcategories, useImportProducts } from "@/hooks/use-merchandising";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
 import { Plus, Search, Pencil, Trash2, Package, Upload, Download } from "lucide-react";
@@ -25,6 +26,7 @@ export default function MerchProdutos() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [form, setForm] = useState<any>(emptyProduct);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: products = [], isLoading } = useProducts({ search, brand_id: brandFilter, category_id: catFilter });
@@ -52,6 +54,42 @@ export default function MerchProdutos() {
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir produto?')) return;
     try { await deleteProduct.mutateAsync(id); toast.success('Excluído'); } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.size) return;
+    if (!confirm(`Excluir ${selectedIds.size} produto(s) selecionado(s)?`)) return;
+
+    let ok = 0;
+    let fail = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await deleteProduct.mutateAsync(id);
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+
+    setSelectedIds(new Set());
+    toast.success(`${ok} excluído(s)${fail ? `, ${fail} erro(s)` : ''}`);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === products.length) {
+      setSelectedIds(new Set());
+      return;
+    }
+
+    setSelectedIds(new Set(products.map((product: any) => product.id)));
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,6 +152,11 @@ export default function MerchProdutos() {
             </Select>
           </div>
           <div className="flex gap-2">
+            {selectedIds.size > 0 && (
+              <Button variant="destructive" onClick={handleBulkDelete}>
+                <Trash2 className="h-4 w-4 mr-2" />Excluir {selectedIds.size}
+              </Button>
+            )}
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
             <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-2" />Importar</Button>
             <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Exportar</Button>
@@ -125,6 +168,12 @@ export default function MerchProdutos() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={products.length > 0 && selectedIds.size === products.length}
+                    onCheckedChange={toggleAll}
+                  />
+                </TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead className="hidden md:table-cell">Marca</TableHead>
                 <TableHead className="hidden md:table-cell">Categoria</TableHead>
@@ -135,7 +184,13 @@ export default function MerchProdutos() {
             </TableHeader>
             <TableBody>
               {products.map((p: any) => (
-                <TableRow key={p.id}>
+                <TableRow key={p.id} className={selectedIds.has(p.id) ? 'bg-primary/5' : ''}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(p.id)}
+                      onCheckedChange={() => toggleOne(p.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       {p.image_url ? <img src={p.image_url} className="h-8 w-8 rounded object-cover" /> : <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center"><Package className="h-4 w-4 text-primary" /></div>}
@@ -152,7 +207,7 @@ export default function MerchProdutos() {
                   </TableCell>
                 </TableRow>
               ))}
-              {!isLoading && products.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum produto</TableCell></TableRow>}
+              {!isLoading && products.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum produto</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent></Card>
