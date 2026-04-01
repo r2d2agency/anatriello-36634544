@@ -1301,4 +1301,70 @@ router.get('/rh/live-map', async (req, res) => {
   }
 });
 
+// =============================================
+// RH: LOCATION HISTORY (TRACKING/PLAYBACK)
+// =============================================
+router.get('/rh/location-history', async (req, res) => {
+  try {
+    const orgId = await resolveOrganizationId(req);
+    if (!orgId) return res.status(401).json({ error: 'organization_id missing' });
+
+    const { employee_id, date } = req.query;
+    if (!employee_id || !date) return res.status(400).json({ error: 'employee_id and date required' });
+
+    const hasTable = await tableExists('public.employee_location_history');
+    if (!hasTable) return res.json({ points: [], employee: null });
+
+    const [points, emp] = await Promise.all([
+      query(
+        `SELECT latitude, longitude, accuracy_meters, battery_level, is_moving, recorded_at
+         FROM employee_location_history
+         WHERE organization_id = $1 AND employee_id = $2 AND recorded_at::date = $3
+         ORDER BY recorded_at ASC`,
+        [orgId, employee_id, date]
+      ),
+      query(`SELECT id, full_name, photo_url, position FROM employees WHERE id = $1 AND organization_id = $2`, [employee_id, orgId]),
+    ]);
+
+    res.json({ points: points.rows, employee: emp.rows[0] || null });
+  } catch (err) {
+    logError('promotor.location-history', err);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
+// =============================================
+// RH: LIST EMPLOYEES WITH TRACKING DATA FOR A DATE
+// =============================================
+router.get('/rh/trackable-employees', async (req, res) => {
+  try {
+    const orgId = await resolveOrganizationId(req);
+    if (!orgId) return res.status(401).json({ error: 'organization_id missing' });
+
+    const { date } = req.query;
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+
+    const hasTable = await tableExists('public.employee_location_history');
+    if (!hasTable) return res.json([]);
+
+    const result = await query(
+      `SELECT e.id, e.full_name, e.photo_url, e.position, e.worker_profile,
+              COUNT(lh.id)::int as point_count,
+              MIN(lh.recorded_at) as first_point,
+              MAX(lh.recorded_at) as last_point
+       FROM employees e
+       JOIN employee_location_history lh ON lh.employee_id = e.id AND lh.recorded_at::date = $2
+       WHERE e.organization_id = $1 AND e.status = 'ativo'
+       GROUP BY e.id, e.full_name, e.photo_url, e.position, e.worker_profile
+       ORDER BY e.full_name`,
+      [orgId, targetDate]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    logError('promotor.trackable-employees', err);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
 export default router;
