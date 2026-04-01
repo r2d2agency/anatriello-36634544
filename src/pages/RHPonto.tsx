@@ -305,6 +305,25 @@ export default function RHPonto() {
           )}
         </div>
 
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Relatório:</span>
+          {([
+            { key: 'todos' as const, label: 'Todos', icon: Clock },
+            { key: 'horas_extras' as const, label: 'Horas Extras', icon: TrendingUp },
+            { key: 'faltas' as const, label: 'Faltas / Horas Faltantes', icon: UserX },
+          ]).map(({ key, label, icon: Icon }) => (
+            <Button
+              key={key}
+              variant={reportType === key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setReportType(key)}
+              className="gap-1.5 text-xs"
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </Button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{consolidated.length}</p><p className="text-[10px] text-muted-foreground">Dias Registrados</p></CardContent></Card>
           <Card><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{appPunches.length}</p><p className="text-[10px] text-muted-foreground">Registros App</p></CardContent></Card>
