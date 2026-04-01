@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Clock, Smartphone, MapPin, CheckCircle2, AlertTriangle, Wifi, WifiOff,
-  Download, FileSpreadsheet, CalendarDays, CalendarRange, Calendar, Filter
+  Download, FileSpreadsheet, CalendarDays, CalendarRange, Calendar, Filter,
+  TrendingUp, UserX
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths } from "date-fns";
 import * as XLSX from "xlsx";
