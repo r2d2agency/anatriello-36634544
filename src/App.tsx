@@ -69,6 +69,7 @@ import RHPontoMonitor from "./pages/RHPontoMonitor";
 import RHPDVs from "./pages/RHPDVs";
 import RHFeriados from "./pages/RHFeriados";
 import RHAcessos from "./pages/RHAcessos";
+import RHRastreamento from "./pages/RHRastreamento";
 import RHMapaOperacional from "./pages/RHMapaOperacional";
 import LiveMaps from "./pages/LiveMaps";
 import MerchMarcas from "./pages/MerchMarcas";
@@ -202,6 +203,7 @@ const App = () => (
             <Route path="/rh/pdvs" element={<ProtectedRoute><RHPDVs /></ProtectedRoute>} />
             <Route path="/rh/feriados" element={<ProtectedRoute><RHFeriados /></ProtectedRoute>} />
             <Route path="/rh/acessos" element={<ProtectedRoute><RHAcessos /></ProtectedRoute>} />
+            <Route path="/rh/rastreamento" element={<ProtectedRoute><RHRastreamento /></ProtectedRoute>} />
             <Route path="/rh/mapa" element={<ProtectedRoute><RHMapaOperacional /></ProtectedRoute>} />
             <Route path="/live-maps" element={<ProtectedRoute><LiveMaps /></ProtectedRoute>} />
             <Route path="/merch/marcas" element={<ProtectedRoute><MerchMarcas /></ProtectedRoute>} />
