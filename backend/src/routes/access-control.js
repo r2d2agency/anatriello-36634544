@@ -826,4 +826,290 @@ router.get('/supermarket/history', authenticateSupermarket, async (req, res) => 
   } catch (err) { logError('supermarket.history', err); res.status(500).json({ error: 'Erro' }); }
 });
 
+// =====================================================================
+// ADMIN: Unified Promoters list (frontend /promoters endpoint)
+// =====================================================================
+router.get('/promoters', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const r = await query(
+      `SELECT ap.id, ap.name as full_name, ap.cpf, ap.phone, ap.photo_url, ap.status,
+              ap.agency_id, a.name as agency_name, ap.employee_id,
+              ap.status = 'active' as is_active,
+              ap.created_at
+       FROM agency_promoters ap
+       LEFT JOIN agencies a ON a.id = ap.agency_id
+       WHERE a.organization_id = $1
+       UNION ALL
+       SELECT e.id, e.name as full_name, e.cpf, e.phone, e.photo_url, 'active' as status,
+              NULL as agency_id, NULL as agency_name, e.id as employee_id,
+              true as is_active, e.created_at
+       FROM employees e WHERE e.organization_id = $1
+       ORDER BY full_name`,
+      [orgId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('access.promoters.list', err); res.status(500).json({ error: 'Erro ao listar promotores' }); }
+});
+
+router.post('/promoters', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const { full_name, cpf, phone, agency_id } = req.body;
+    if (!full_name || !cpf) return res.status(400).json({ error: 'Nome e CPF são obrigatórios' });
+    if (agency_id) {
+      const agency = await query('SELECT max_promoters FROM agencies WHERE id=$1 AND organization_id=$2', [agency_id, orgId]);
+      if (!agency.rows.length) return res.status(404).json({ error: 'Agência não encontrada' });
+      const count = await query("SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status='active'", [agency_id]);
+      if (parseInt(count.rows[0].c) >= agency.rows[0].max_promoters) {
+        return res.status(400).json({ error: 'Limite de promotores atingido' });
+      }
+      const r = await query(
+        'INSERT INTO agency_promoters (agency_id, name, cpf, phone) VALUES ($1,$2,$3,$4) RETURNING *, name as full_name, true as is_active',
+        [agency_id, full_name, cpf, phone || null]
+      );
+      res.json(r.rows[0]);
+    } else {
+      const r = await query(
+        'INSERT INTO employees (organization_id, name, cpf, phone, role) VALUES ($1,$2,$3,$4,$5) RETURNING *, name as full_name, true as is_active',
+        [orgId, full_name, cpf, phone || null, 'promoter']
+      );
+      res.json(r.rows[0]);
+    }
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'CPF já cadastrado' });
+    logError('access.promoters.create', err); res.status(500).json({ error: 'Erro' });
+  }
+});
+
+router.put('/promoters/:id', authenticate, async (req, res) => {
+  try {
+    const { full_name, cpf, phone, agency_id, is_active } = req.body;
+    // Try agency_promoters first
+    let r = await query(
+      `UPDATE agency_promoters SET name=COALESCE($1,name), cpf=COALESCE($2,cpf), phone=$3,
+       status=CASE WHEN $4 THEN 'active' ELSE 'inactive' END, updated_at=NOW()
+       WHERE id=$5 RETURNING *, name as full_name, status='active' as is_active`,
+      [full_name, cpf, phone || null, is_active !== false, req.params.id]
+    );
+    if (!r.rows.length) {
+      r = await query(
+        `UPDATE employees SET name=COALESCE($1,name), cpf=COALESCE($2,cpf), phone=$3, updated_at=NOW()
+         WHERE id=$4 RETURNING *, name as full_name, true as is_active`,
+        [full_name, cpf, phone || null, req.params.id]
+      );
+    }
+    if (!r.rows.length) return res.status(404).json({ error: 'Promotor não encontrado' });
+    res.json(r.rows[0]);
+  } catch (err) { logError('access.promoters.update', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// =====================================================================
+// ADMIN: Unified Rules endpoint (frontend /rules)
+// =====================================================================
+router.get('/rules', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const { promoter_id } = req.query;
+    let sql = `SELECT ar.id, ar.supermarket_unit_id as unit_id, su.name as unit_name,
+               ar.allowed_weekdays, ar.start_time as time_start, ar.end_time as time_end,
+               ar.active, ar.notes, '[]'::jsonb as brands
+               FROM pdv_access_rules ar
+               LEFT JOIN supermarket_units su ON su.id = ar.supermarket_unit_id
+               WHERE ar.organization_id = $1`;
+    const params = [orgId];
+    if (promoter_id) {
+      params.push(promoter_id);
+      sql += ` AND (ar.agency_promoter_id = $${params.length} OR ar.employee_id = $${params.length})`;
+    }
+    sql += ' ORDER BY su.name';
+    const r = await query(sql, params);
+    res.json(r.rows);
+  } catch (err) { logError('access.rules.list_unified', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/rules', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const { promoter_id, unit_id, allowed_weekdays, time_start, time_end, brands } = req.body;
+    if (!promoter_id || !unit_id) return res.status(400).json({ error: 'Promotor e unidade são obrigatórios' });
+    // Determine if agency_promoter or employee
+    const ap = await query('SELECT id FROM agency_promoters WHERE id=$1', [promoter_id]);
+    const isAgencyPromoter = ap.rows.length > 0;
+    const r = await query(
+      `INSERT INTO pdv_access_rules (organization_id, ${isAgencyPromoter ? 'agency_promoter_id' : 'employee_id'},
+       supermarket_unit_id, allowed_weekdays, start_time, end_time)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [orgId, promoter_id, unit_id, JSON.stringify(allowed_weekdays || [1,2,3,4,5]),
+       time_start || '08:00', time_end || '18:00']
+    );
+    res.json(r.rows[0]);
+  } catch (err) { logError('access.rules.create_unified', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.delete('/rules/:id', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    await query('DELETE FROM pdv_access_rules WHERE id=$1 AND organization_id=$2', [req.params.id, orgId]);
+    res.json({ ok: true });
+  } catch (err) { logError('access.rules.delete_unified', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// =====================================================================
+// ADMIN: Logs endpoint (frontend /logs)
+// =====================================================================
+router.get('/logs', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const { unit_id, date, status } = req.query;
+    let sql = `SELECT el.id, el.cpf, el.entry_at as entry_time, el.exit_at as exit_time,
+               el.duration_minutes, el.status, el.block_reason,
+               COALESCE(ap.name, e.name) as promoter_name,
+               su.name as unit_name, a.name as agency_name,
+               '[]'::jsonb as brands
+               FROM pdv_entry_logs el
+               LEFT JOIN supermarket_units su ON su.id = el.supermarket_unit_id
+               LEFT JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
+               LEFT JOIN agencies a ON a.id = ap.agency_id
+               LEFT JOIN employees e ON e.id = el.employee_id
+               WHERE el.organization_id = $1`;
+    const params = [orgId];
+    if (unit_id) { params.push(unit_id); sql += ` AND el.supermarket_unit_id = $${params.length}`; }
+    if (date) { params.push(date); sql += ` AND el.entry_at::date = $${params.length}`; }
+    if (status) { params.push(status); sql += ` AND el.status = $${params.length}`; }
+    sql += ' ORDER BY el.entry_at DESC LIMIT 200';
+    const r = await query(sql, params);
+    res.json(r.rows);
+  } catch (err) { logError('access.logs.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// =====================================================================
+// ADMIN: Billing routes (frontend /billing/*)
+// =====================================================================
+
+// Plans
+router.get('/billing/plans', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const r = await query('SELECT * FROM agency_billing_plans WHERE organization_id=$1 ORDER BY name', [orgId]);
+    res.json(r.rows);
+  } catch (err) { logError('billing.plans.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/billing/plans', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const { name, price_per_promoter, max_promoters } = req.body;
+    if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+    const r = await query(
+      'INSERT INTO agency_billing_plans (organization_id, name, price_per_promoter, max_promoters) VALUES ($1,$2,$3,$4) RETURNING *',
+      [orgId, name, price_per_promoter || 0, max_promoters || null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { logError('billing.plans.create', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Subscriptions
+router.get('/billing/subscriptions', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const r = await query(
+      `SELECT s.*, a.name as agency_name, p.name as plan_name,
+       (SELECT COUNT(*) FROM agency_promoters ap WHERE ap.agency_id = a.id AND ap.status='active') as promoter_count
+       FROM agency_subscriptions s
+       JOIN agencies a ON a.id = s.agency_id
+       LEFT JOIN agency_billing_plans p ON p.id = s.plan_id
+       WHERE a.organization_id = $1 ORDER BY a.name`, [orgId]);
+    res.json(r.rows);
+  } catch (err) { logError('billing.subs.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/billing/subscriptions/:id/block', authenticate, async (req, res) => {
+  try {
+    const r = await query(
+      "UPDATE agency_subscriptions SET status='blocked', updated_at=NOW() WHERE id=$1 RETURNING *",
+      [req.params.id]
+    );
+    if (r.rows.length) {
+      await query("UPDATE agencies SET billing_status='blocked', status='blocked' WHERE id=$1", [r.rows[0].agency_id]);
+    }
+    res.json(r.rows[0] || { ok: true });
+  } catch (err) { logError('billing.subs.block', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/billing/subscriptions/:id/unblock', authenticate, async (req, res) => {
+  try {
+    const r = await query(
+      "UPDATE agency_subscriptions SET status='active', updated_at=NOW() WHERE id=$1 RETURNING *",
+      [req.params.id]
+    );
+    if (r.rows.length) {
+      await query("UPDATE agencies SET billing_status='active', status='active' WHERE id=$1", [r.rows[0].agency_id]);
+    }
+    res.json(r.rows[0] || { ok: true });
+  } catch (err) { logError('billing.subs.unblock', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Invoices
+router.get('/billing/invoices', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const r = await query(
+      `SELECT i.*, a.name as agency_name
+       FROM agency_invoices i
+       JOIN agencies a ON a.id = i.agency_id
+       WHERE a.organization_id = $1
+       ORDER BY i.created_at DESC`, [orgId]);
+    res.json(r.rows);
+  } catch (err) { logError('billing.invoices.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/billing/invoices/:id/pay', authenticate, async (req, res) => {
+  try {
+    const r = await query(
+      "UPDATE agency_invoices SET status='paid', paid_at=NOW(), updated_at=NOW() WHERE id=$1 RETURNING *",
+      [req.params.id]
+    );
+    res.json(r.rows[0] || { ok: true });
+  } catch (err) { logError('billing.invoices.pay', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/billing/invoices/generate', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const { agency_id } = req.body;
+    if (!agency_id) return res.status(400).json({ error: 'Agência é obrigatória' });
+    const agency = await query('SELECT * FROM agencies WHERE id=$1 AND organization_id=$2', [agency_id, orgId]);
+    if (!agency.rows.length) return res.status(404).json({ error: 'Agência não encontrada' });
+    const a = agency.rows[0];
+    const count = await query("SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status='active'", [agency_id]);
+    const promoterCount = parseInt(count.rows[0].c) || 0;
+    const unitPrice = parseFloat(a.price_per_promoter) || 0;
+    const total = promoterCount * unitPrice;
+    const now = new Date();
+    const refMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 10);
+    // Check subscription
+    let sub = await query('SELECT id FROM agency_subscriptions WHERE agency_id=$1', [agency_id]);
+    let subId;
+    if (!sub.rows.length) {
+      const s = await query(
+        "INSERT INTO agency_subscriptions (agency_id, promoter_count, amount_due) VALUES ($1,$2,$3) RETURNING id",
+        [agency_id, promoterCount, total]
+      );
+      subId = s.rows[0].id;
+    } else {
+      subId = sub.rows[0].id;
+      await query('UPDATE agency_subscriptions SET promoter_count=$1, amount_due=$2, updated_at=NOW() WHERE id=$3',
+        [promoterCount, total, subId]);
+    }
+    const inv = await query(
+      `INSERT INTO agency_invoices (subscription_id, agency_id, reference_month, promoter_count, unit_price, total_amount, final_amount, due_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$6,$7) RETURNING *`,
+      [subId, agency_id, refMonth, promoterCount, unitPrice, total, dueDate]
+    );
+    res.json(inv.rows[0]);
+  } catch (err) { logError('billing.invoices.generate', err); res.status(500).json({ error: 'Erro' }); }
+});
+
 export default router;
