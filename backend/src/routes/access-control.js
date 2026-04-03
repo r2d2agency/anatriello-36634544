@@ -732,8 +732,22 @@ router.post('/totem/lookup', authenticateTotem, async (req, res) => {
     }
 
     const p = promoter.rows[0];
+
+    // Check if there's an open entry (checked in but not checked out) at this unit
+    const openEntry = await query(
+      `SELECT id, entry_at FROM pdv_entry_logs
+       WHERE cpf = $1 AND supermarket_unit_id = $2 AND exit_at IS NULL AND status = 'authorized'
+       ORDER BY entry_at DESC LIMIT 1`,
+      [cleanCpf, req.unitId]
+    );
+
+    const hasOpenEntry = openEntry.rows.length > 0;
+
     res.json({
       found: true,
+      has_open_entry: hasOpenEntry,
+      open_entry_id: hasOpenEntry ? openEntry.rows[0].id : null,
+      entry_at: hasOpenEntry ? openEntry.rows[0].entry_at : null,
       promoter: {
         name: p.name,
         photo_url: p.photo_url,
