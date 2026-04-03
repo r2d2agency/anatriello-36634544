@@ -25,6 +25,9 @@ const PromotersTab = () => {
   const updateMutation = useUpdatePromoter();
   const createRuleMutation = useCreateAccessRule();
   const deleteRuleMutation = useDeleteAccessRule();
+  const checkConformityMutation = useCheckPromoterConformity();
+  const checkAllConformityMutation = useCheckAllConformity();
+  const { data: conformityData = [] } = usePromoterConformity();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
