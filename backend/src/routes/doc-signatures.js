@@ -1320,12 +1320,17 @@ router.post('/', async (req, res) => {
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
 
     // Check plan limit
-    const planCheck = await query(
-      `SELECT p.doc_signatures_limit 
-       FROM organizations o JOIN plans p ON p.id = o.plan_id 
-       WHERE o.id = $1`, [orgId]
-    );
-    const limit = planCheck.rows[0]?.doc_signatures_limit || 0;
+    let limit = 0;
+    try {
+      const planCheck = await query(
+        `SELECT p.doc_signatures_limit 
+         FROM organizations o LEFT JOIN plans p ON p.id = o.plan_id 
+         WHERE o.id = $1`, [orgId]
+      );
+      limit = planCheck.rows[0]?.doc_signatures_limit || 0;
+    } catch (planErr) {
+      console.log('[doc-signatures] Plan check skipped:', planErr.message);
+    }
     if (limit > 0) {
       const countResult = await query(
         `SELECT COUNT(*) as cnt FROM doc_signature_documents 
