@@ -36,7 +36,7 @@ export const SupermarketAuthProvider = ({ children }: { children: ReactNode }) =
       const token = localStorage.getItem(TOKEN_KEY);
       if (token) {
         try {
-          const data = await api<{ user: SupermarketUser }>('/api/access-control/supermarket-auth/me', {
+          const data = await api<{ user: SupermarketUser }>('/api/access-control/supermarket/me', {
             headers: { Authorization: `Bearer ${token}` },
           });
           setUser(data.user);
@@ -50,9 +50,10 @@ export const SupermarketAuthProvider = ({ children }: { children: ReactNode }) =
   }, []);
 
   const login = async (email: string, password: string) => {
-    const data = await api<{ user: SupermarketUser; token: string }>('/api/access-control/supermarket-auth/login', {
+    const data = await api<{ user: SupermarketUser; token: string }>('/api/access-control/supermarket/login', {
       method: 'POST',
       body: { email, password },
+      auth: false,
     });
     localStorage.setItem(TOKEN_KEY, data.token);
     setUser(data.user);

@@ -13,6 +13,40 @@ async function getOrgId(userId) {
   return r.rows[0]?.organization_id;
 }
 
+const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
+const isValidPhone = (value) => {
+  if (!value) return true;
+  const digits = onlyDigits(value);
+  return digits.length === 10 || digits.length === 11;
+};
+const isValidCpf = (value) => {
+  const cpf = onlyDigits(value);
+  if (cpf.length !== 11 || /^(\d)+$/.test(cpf)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i += 1) sum += Number(cpf[i]) * (10 - i);
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  if (remainder !== Number(cpf[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i += 1) sum += Number(cpf[i]) * (11 - i);
+  remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  return remainder === Number(cpf[10]);
+};
+const isValidCnpj = (value) => {
+  const cnpj = onlyDigits(value);
+  if (cnpj.length !== 14 || /^(\d)+$/.test(cnpj)) return false;
+  const calcDigit = (base, factors) => {
+    const total = factors.reduce((acc, factor, index) => acc + Number(base[index]) * factor, 0);
+    const remainder = total % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+  const base = cnpj.slice(0, 12);
+  const firstDigit = calcDigit(base, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const secondDigit = calcDigit(`${base}${firstDigit}`, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return cnpj === `${base}${firstDigit}${secondDigit}`;
+};
+
 // ============ MIDDLEWARE: Totem auth ============
 const authenticateTotem = async (req, res, next) => {
   const token = req.headers['x-totem-token'];
@@ -139,13 +173,14 @@ router.post('/units', authenticate, async (req, res) => {
     const { name, cnpj, network_id, pdv_id, address, city, state, zip_code, neighborhood, latitude, longitude,
             radius_meters, opening_time, closing_time, operating_days, operational_requirements, totem_enabled } = req.body;
     if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+    if (cnpj && !isValidCnpj(cnpj)) return res.status(400).json({ error: 'CNPJ inválido' });
     const totemToken = totem_enabled ? require('crypto').randomBytes(32).toString('hex') : null;
     const r = await query(
       `INSERT INTO supermarket_units (organization_id, name, cnpj, network_id, pdv_id, address, city, state, zip_code,
        neighborhood, latitude, longitude, radius_meters, opening_time, closing_time, operating_days,
        operational_requirements, totem_enabled, totem_token)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
-      [orgId, name, cnpj||null, network_id||null, pdv_id||null, address||null, city||null, state||null, zip_code||null,
+      [orgId, name, onlyDigits(cnpj) || null, network_id||null, pdv_id||null, address||null, city||null, state||null, zip_code||null,
        neighborhood||null, latitude||null, longitude||null, radius_meters||200, opening_time||'06:00', closing_time||'22:00',
        JSON.stringify(operating_days || [1,2,3,4,5,6]), operational_requirements||null, totem_enabled||false, totemToken]
     );
@@ -158,6 +193,7 @@ router.put('/units/:id', authenticate, async (req, res) => {
     const orgId = await getOrgId(req.userId);
     const { name, cnpj, network_id, pdv_id, address, city, state, zip_code, neighborhood, latitude, longitude,
             radius_meters, opening_time, closing_time, operating_days, operational_requirements, totem_enabled, active } = req.body;
+    if (cnpj && !isValidCnpj(cnpj)) return res.status(400).json({ error: 'CNPJ inválido' });
     let totemToken = undefined;
     if (totem_enabled) {
       const existing = await query('SELECT totem_token FROM supermarket_units WHERE id=$1', [req.params.id]);
@@ -171,7 +207,7 @@ router.put('/units/:id', authenticate, async (req, res) => {
        totem_enabled=COALESCE($17,totem_enabled), totem_token=COALESCE($18,totem_token),
        active=COALESCE($19,active), updated_at=NOW()
        WHERE id=$20 AND organization_id=$21 RETURNING *`,
-      [name, cnpj||null, network_id||null, pdv_id||null, address||null, city||null, state||null, zip_code||null,
+      [name, onlyDigits(cnpj) || null, network_id||null, pdv_id||null, address||null, city||null, state||null, zip_code||null,
        neighborhood||null, latitude||null, longitude||null, radius_meters, opening_time, closing_time,
        operating_days ? JSON.stringify(operating_days) : undefined, operational_requirements||null,
        totem_enabled, totemToken, active, req.params.id, orgId]
@@ -217,9 +253,12 @@ router.get('/agencies', authenticate, async (req, res) => {
 router.post('/agencies', authenticate, async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
-    const { name, cnpj, responsible_name, responsible_phone, responsible_email, address, city, state,
+    const { name, cnpj, responsible_name, responsible_cpf, responsible_phone, responsible_email, address, city, state,
             plan_name, max_promoters, price_per_promoter, auto_block_on_overdue, notes, plan_id, contracted_promoters } = req.body;
     if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+    if (cnpj && !isValidCnpj(cnpj)) return res.status(400).json({ error: 'CNPJ inválido' });
+    if (responsible_cpf && !isValidCpf(responsible_cpf)) return res.status(400).json({ error: 'CPF do responsável inválido' });
+    if (responsible_phone && !isValidPhone(responsible_phone)) return res.status(400).json({ error: 'Telefone inválido' });
 
     // If plan_id provided, fetch plan to get price
     let finalPrice = price_per_promoter || 0;
@@ -236,10 +275,10 @@ router.post('/agencies', authenticate, async (req, res) => {
     const contractedCount = contracted_promoters || finalMax;
 
     const r = await query(
-      `INSERT INTO agencies (organization_id, name, cnpj, responsible_name, responsible_phone, responsible_email,
+      `INSERT INTO agencies (organization_id, name, cnpj, responsible_name, responsible_cpf, responsible_phone, responsible_email,
        address, city, state, plan_name, max_promoters, price_per_promoter, auto_block_on_overdue, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [orgId, name, cnpj||null, responsible_name||null, responsible_phone||null, responsible_email||null,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [orgId, name, onlyDigits(cnpj) || null, responsible_name||null, onlyDigits(responsible_cpf) || null, onlyDigits(responsible_phone) || null, responsible_email?.trim().toLowerCase() || null,
        address||null, city||null, state||null, finalPlanName, contractedCount, finalPrice,
        auto_block_on_overdue||false, notes||null]
     );
@@ -262,15 +301,18 @@ router.post('/agencies', authenticate, async (req, res) => {
 router.put('/agencies/:id', authenticate, async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
-    const { name, cnpj, responsible_name, responsible_phone, responsible_email, address, city, state,
+    const { name, cnpj, responsible_name, responsible_cpf, responsible_phone, responsible_email, address, city, state,
             plan_name, max_promoters, price_per_promoter, auto_block_on_overdue, status, billing_status, notes } = req.body;
+    if (cnpj && !isValidCnpj(cnpj)) return res.status(400).json({ error: 'CNPJ inválido' });
+    if (responsible_cpf && !isValidCpf(responsible_cpf)) return res.status(400).json({ error: 'CPF do responsável inválido' });
+    if (responsible_phone && !isValidPhone(responsible_phone)) return res.status(400).json({ error: 'Telefone inválido' });
     const r = await query(
-      `UPDATE agencies SET name=COALESCE($1,name), cnpj=$2, responsible_name=$3, responsible_phone=$4,
-       responsible_email=$5, address=$6, city=$7, state=$8, plan_name=$9, max_promoters=COALESCE($10,max_promoters),
-       price_per_promoter=COALESCE($11,price_per_promoter), auto_block_on_overdue=COALESCE($12,auto_block_on_overdue),
-       status=COALESCE($13,status), billing_status=COALESCE($14,billing_status), notes=$15, updated_at=NOW()
-       WHERE id=$16 AND organization_id=$17 RETURNING *`,
-      [name, cnpj||null, responsible_name||null, responsible_phone||null, responsible_email||null,
+      `UPDATE agencies SET name=COALESCE($1,name), cnpj=$2, responsible_name=$3, responsible_cpf=$4, responsible_phone=$5,
+       responsible_email=$6, address=$7, city=$8, state=$9, plan_name=$10, max_promoters=COALESCE($11,max_promoters),
+       price_per_promoter=COALESCE($12,price_per_promoter), auto_block_on_overdue=COALESCE($13,auto_block_on_overdue),
+       status=COALESCE($14,status), billing_status=COALESCE($15,billing_status), notes=$16, updated_at=NOW()
+       WHERE id=$17 AND organization_id=$18 RETURNING *`,
+      [name, onlyDigits(cnpj) || null, responsible_name||null, onlyDigits(responsible_cpf) || null, onlyDigits(responsible_phone) || null, responsible_email?.trim().toLowerCase() || null,
        address||null, city||null, state||null, plan_name||null, max_promoters, price_per_promoter,
        auto_block_on_overdue, status, billing_status, notes||null, req.params.id, orgId]
     );
@@ -317,10 +359,11 @@ router.post('/agencies/:id/users', authenticate, async (req, res) => {
     if (!agency.rows.length) return res.status(404).json({ error: 'Agência não encontrada' });
     const { email, password, name, role } = req.body;
     if (!email || !password || !name) return res.status(400).json({ error: 'Email, senha e nome são obrigatórios' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
     const hash = await bcrypt.hash(password, 10);
     const r = await query(
       'INSERT INTO agency_users (agency_id, email, password_hash, name, role) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, name, role',
-      [req.params.id, email, hash, name, role || 'admin']
+      [req.params.id, String(email).trim().toLowerCase(), hash, String(name).trim(), role || 'admin']
     );
     res.json(r.rows[0]);
   } catch (err) {
@@ -351,8 +394,9 @@ router.post('/agencies/:id/promoters', authenticate, async (req, res) => {
   try {
     const { name, cpf, phone, photo_url, document_url, employee_id } = req.body;
     if (!name || !cpf) return res.status(400).json({ error: 'Nome e CPF são obrigatórios' });
-    const cleanCpf = cpf.replace(/\D/g, '');
-    if (cleanCpf.length !== 11) return res.status(400).json({ error: 'CPF inválido' });
+    const cleanCpf = onlyDigits(cpf);
+    if (!isValidCpf(cleanCpf)) return res.status(400).json({ error: 'CPF inválido' });
+    if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Telefone inválido' });
     // Check agency limit
     const agency = await query('SELECT max_promoters FROM agencies WHERE id=$1', [req.params.id]);
     const count = await query('SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status=\'active\'', [req.params.id]);
@@ -362,7 +406,7 @@ router.post('/agencies/:id/promoters', authenticate, async (req, res) => {
     const r = await query(
       `INSERT INTO agency_promoters (agency_id, name, cpf, phone, photo_url, document_url, employee_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.params.id, name, cpf, phone||null, photo_url||null, document_url||null, employee_id||null]
+      [req.params.id, name, cleanCpf, onlyDigits(phone) || null, photo_url||null, document_url||null, employee_id||null]
     );
     res.json(r.rows[0]);
   } catch (err) {
@@ -688,9 +732,10 @@ router.post('/agency/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    const normalizedEmail = String(email).trim().toLowerCase();
     const r = await query(
-      `SELECT au.*, a.organization_id as org_id, a.status as agency_status FROM agency_users au
-       JOIN agencies a ON a.id = au.agency_id WHERE au.email = $1 AND au.active = true`, [email]);
+      `SELECT au.*, a.organization_id as org_id, a.status as agency_status, a.name as agency_name FROM agency_users au
+       JOIN agencies a ON a.id = au.agency_id WHERE au.email = $1 AND au.active = true`, [normalizedEmail]);
     if (!r.rows.length) return res.status(401).json({ error: 'Credenciais inválidas' });
     const user = r.rows[0];
     if (user.agency_status !== 'active') return res.status(403).json({ error: 'Agência bloqueada' });
@@ -698,8 +743,22 @@ router.post('/agency/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
     const token = jwt.sign({ userId: user.id, agencyId: user.agency_id, orgId: user.org_id, type: 'agency' }, process.env.JWT_SECRET, { expiresIn: '24h' });
     await query('UPDATE agency_users SET last_login=NOW() WHERE id=$1', [user.id]);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, agency_id: user.agency_id } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, agency_id: user.agency_id, agency_name: user.agency_name } });
   } catch (err) { logError('agency.login', err); res.status(500).json({ error: 'Erro no login' }); }
+});
+
+router.get('/agency/me', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT au.id, au.email, au.name, au.role, au.agency_id, a.name as agency_name, a.organization_id
+       FROM agency_users au
+       JOIN agencies a ON a.id = au.agency_id
+       WHERE au.id = $1 AND au.active = true`,
+      [req.agencyUserId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json({ user: r.rows[0] });
+  } catch (err) { logError('agency.me', err); res.status(500).json({ error: 'Erro ao carregar usuário' }); }
 });
 
 // Agency: list own promoters
@@ -779,10 +838,11 @@ router.post('/supermarket/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    const normalizedEmail = String(email).trim().toLowerCase();
     const r = await query(
       `SELECT su_user.*, su.organization_id as org_id, su.name as unit_name FROM supermarket_users su_user
        JOIN supermarket_units su ON su.id = su_user.supermarket_unit_id
-       WHERE su_user.email = $1 AND su_user.active = true`, [email]);
+       WHERE su_user.email = $1 AND su_user.active = true`, [normalizedEmail]);
     if (!r.rows.length) return res.status(401).json({ error: 'Credenciais inválidas' });
     const user = r.rows[0];
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -792,8 +852,23 @@ router.post('/supermarket/login', async (req, res) => {
       canViewAllNetwork: user.can_view_all_network, orgId: user.org_id, type: 'supermarket'
     }, process.env.JWT_SECRET, { expiresIn: '24h' });
     await query('UPDATE supermarket_users SET last_login=NOW() WHERE id=$1', [user.id]);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, unit_name: user.unit_name } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, unit_name: user.unit_name, supermarket_unit_id: user.supermarket_unit_id, network_id: user.network_id, can_view_all_network: user.can_view_all_network } });
   } catch (err) { logError('supermarket.login', err); res.status(500).json({ error: 'Erro no login' }); }
+});
+
+router.get('/supermarket/me', authenticateSupermarket, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT su_user.id, su_user.email, su_user.name, su_user.role, su_user.supermarket_unit_id, su_user.network_id,
+              su_user.can_view_all_network, su.name as unit_name, su.organization_id
+       FROM supermarket_users su_user
+       JOIN supermarket_units su ON su.id = su_user.supermarket_unit_id
+       WHERE su_user.id = $1 AND su_user.active = true`,
+      [req.supermarketUserId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json({ user: r.rows[0] });
+  } catch (err) { logError('supermarket.me', err); res.status(500).json({ error: 'Erro ao carregar usuário' }); }
 });
 
 // Supermarket: create user (admin)
@@ -801,11 +876,12 @@ router.post('/supermarket-users', authenticate, async (req, res) => {
   try {
     const { supermarket_unit_id, network_id, email, password, name, role, can_view_all_network } = req.body;
     if (!email || !password || !name || !supermarket_unit_id) return res.status(400).json({ error: 'Dados obrigatórios faltando' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
     const hash = await bcrypt.hash(password, 10);
     const r = await query(
       `INSERT INTO supermarket_users (supermarket_unit_id, network_id, email, password_hash, name, role, can_view_all_network)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, email, name, role`,
-      [supermarket_unit_id, network_id||null, email, hash, name, role||'manager', can_view_all_network||false]
+      [supermarket_unit_id, network_id||null, String(email).trim().toLowerCase(), hash, String(name).trim(), role||'manager', can_view_all_network||false]
     );
     res.json(r.rows[0]);
   } catch (err) {
@@ -906,6 +982,8 @@ router.post('/promoters', authenticate, async (req, res) => {
     const orgId = await getOrgId(req.userId);
     const { full_name, cpf, phone, agency_id } = req.body;
     if (!full_name || !cpf) return res.status(400).json({ error: 'Nome e CPF são obrigatórios' });
+    if (!isValidCpf(cpf)) return res.status(400).json({ error: 'CPF inválido' });
+    if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Telefone inválido' });
     if (agency_id) {
       const agency = await query('SELECT max_promoters FROM agencies WHERE id=$1 AND organization_id=$2', [agency_id, orgId]);
       if (!agency.rows.length) return res.status(404).json({ error: 'Agência não encontrada' });
@@ -915,7 +993,7 @@ router.post('/promoters', authenticate, async (req, res) => {
       }
       const r = await query(
         'INSERT INTO agency_promoters (agency_id, name, cpf, phone) VALUES ($1,$2,$3,$4) RETURNING *, name as full_name, true as is_active',
-        [agency_id, full_name, cpf, phone || null]
+        [agency_id, full_name, onlyDigits(cpf), onlyDigits(phone) || null]
       );
       res.json(r.rows[0]);
     } else {
@@ -925,7 +1003,7 @@ router.post('/promoters', authenticate, async (req, res) => {
          RETURNING id, full_name, cpf, phone, photo_url, status,
                    NULL::uuid as agency_id, NULL::text as agency_name, id as employee_id,
                    true as is_active, created_at`,
-        [orgId, full_name, cpf, phone || null, 'operacional']
+        [orgId, full_name, onlyDigits(cpf), onlyDigits(phone) || null, 'operacional']
       );
       res.json(r.rows[0]);
     }
@@ -938,12 +1016,14 @@ router.post('/promoters', authenticate, async (req, res) => {
 router.put('/promoters/:id', authenticate, async (req, res) => {
   try {
     const { full_name, cpf, phone, agency_id, is_active } = req.body;
+    if (cpf && !isValidCpf(cpf)) return res.status(400).json({ error: 'CPF inválido' });
+    if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Telefone inválido' });
     // Try agency_promoters first
     let r = await query(
       `UPDATE agency_promoters SET name=COALESCE($1,name), cpf=COALESCE($2,cpf), phone=$3,
        status=CASE WHEN $4 THEN 'active' ELSE 'inactive' END, updated_at=NOW()
        WHERE id=$5 RETURNING *, name as full_name, status='active' as is_active`,
-      [full_name, cpf, phone || null, is_active !== false, req.params.id]
+      [full_name, cpf ? onlyDigits(cpf) : cpf, phone ? onlyDigits(phone) : null, is_active !== false, req.params.id]
     );
     if (!r.rows.length) {
       r = await query(
@@ -952,7 +1032,7 @@ router.put('/promoters/:id', authenticate, async (req, res) => {
          RETURNING id, full_name, cpf, phone, photo_url, status,
                    NULL::uuid as agency_id, NULL::text as agency_name, id as employee_id,
                    true as is_active, created_at`,
-        [full_name, cpf, phone || null, req.params.id]
+        [full_name, cpf ? onlyDigits(cpf) : cpf, phone ? onlyDigits(phone) : null, req.params.id]
       );
     }
     if (!r.rows.length) return res.status(404).json({ error: 'Promotor não encontrado' });

@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, ShieldCheck, Loader2, Key, Trash2, FileText } from "lucide-react";
 import { AuthorizationLetterDialog } from "./AuthorizationLetterDialog";
+import { useToast } from "@/hooks/use-toast";
+import { formatCpf, formatPhone, isValidCpf, isValidPhone, onlyDigits } from "@/lib/br-utils";
 
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -22,6 +24,7 @@ const PromotersTab = () => {
   const updateMutation = useUpdatePromoter();
   const createRuleMutation = useCreateAccessRule();
   const deleteRuleMutation = useDeleteAccessRule();
+  const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
@@ -42,7 +45,7 @@ const PromotersTab = () => {
 
   const openEdit = (p: any) => {
     setEditing(p);
-    setForm({ full_name: p.full_name, cpf: p.cpf, phone: p.phone || "", agency_id: p.agency_id || "", is_active: p.is_active });
+    setForm({ full_name: p.full_name, cpf: formatCpf(p.cpf), phone: formatPhone(p.phone || ""), agency_id: p.agency_id || "", is_active: p.is_active });
     setDialogOpen(true);
   };
 
@@ -53,13 +56,33 @@ const PromotersTab = () => {
   };
 
   const handleSave = async () => {
-    const payload = { ...form, agency_id: form.agency_id || null };
-    if (editing) {
-      await updateMutation.mutateAsync({ id: editing.id, ...payload });
-    } else {
-      await createMutation.mutateAsync(payload);
+    if (!isValidCpf(form.cpf)) {
+      toast({ title: "CPF inválido", description: "Revise o CPF do promotor antes de salvar.", variant: "destructive" });
+      return;
     }
-    setDialogOpen(false);
+
+    if (form.phone && !isValidPhone(form.phone)) {
+      toast({ title: "Telefone inválido", description: "Informe um telefone com DDD válido.", variant: "destructive" });
+      return;
+    }
+
+    const payload = {
+      ...form,
+      cpf: onlyDigits(form.cpf),
+      phone: form.phone ? onlyDigits(form.phone) : null,
+      agency_id: form.agency_id || null,
+    };
+
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, ...payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      setDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Erro ao salvar promotor", description: error?.message || "Tente novamente.", variant: "destructive" });
+    }
   };
 
   const handleAddRule = async () => {
@@ -82,11 +105,6 @@ const PromotersTab = () => {
         ? f.allowed_weekdays.filter(d => d !== day)
         : [...f.allowed_weekdays, day].sort(),
     }));
-  };
-
-  const formatCpf = (cpf: string) => {
-    if (!cpf || cpf.length !== 11) return cpf;
-    return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
   };
 
   return (
@@ -142,14 +160,13 @@ const PromotersTab = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog cadastro */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "Editar Promotor" : "Novo Promotor"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome Completo *</Label><Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} /></div>
-            <div><Label>CPF *</Label><Input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) }))} placeholder="Somente números" maxLength={11} /></div>
-            <div><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+            <div><Label>CPF *</Label><Input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: formatCpf(e.target.value) }))} placeholder="000.000.000-00" /></div>
+            <div><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))} placeholder="(00) 00000-0000" /></div>
             <div>
               <Label>Agência</Label>
               <Select value={form.agency_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, agency_id: v === "__none__" ? "" : v }))}>
@@ -168,12 +185,10 @@ const PromotersTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog regras de acesso */}
       <Dialog open={rulesDialogOpen} onOpenChange={setRulesDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Regras de Acesso — {selectedPromoter?.full_name}</DialogTitle></DialogHeader>
 
-          {/* Regras existentes */}
           <div className="space-y-2 max-h-[30vh] overflow-y-auto">
             {(rules as any[]).length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhuma regra cadastrada</p>
@@ -193,7 +208,6 @@ const PromotersTab = () => {
             ))}
           </div>
 
-          {/* Nova regra */}
           <div className="border-t pt-4 space-y-3">
             <p className="font-medium text-sm">Adicionar regra</p>
             <div>

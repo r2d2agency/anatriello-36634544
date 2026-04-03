@@ -34,7 +34,7 @@ export const AgencyAuthProvider = ({ children }: { children: ReactNode }) => {
       const token = localStorage.getItem(AGENCY_TOKEN_KEY);
       if (token) {
         try {
-          const data = await api<{ user: AgencyUser }>('/api/access-control/agency-auth/me', {
+          const data = await api<{ user: AgencyUser }>('/api/access-control/agency/me', {
             headers: { Authorization: `Bearer ${token}` },
           });
           setUser(data.user);
@@ -48,9 +48,10 @@ export const AgencyAuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const data = await api<{ user: AgencyUser; token: string }>('/api/access-control/agency-auth/login', {
+    const data = await api<{ user: AgencyUser; token: string }>('/api/access-control/agency/login', {
       method: 'POST',
       body: { email, password },
+      auth: false,
     });
     localStorage.setItem(AGENCY_TOKEN_KEY, data.token);
     setUser(data.user);
