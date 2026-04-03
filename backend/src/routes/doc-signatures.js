@@ -1405,7 +1405,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('[doc-signatures] Create error:', error);
-    res.status(500).json({ error: 'Erro ao criar documento' });
+    res.status(500).json({ error: 'Erro ao criar documento', detail: error.message });
   }
 });
 
