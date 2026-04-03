@@ -779,6 +779,49 @@ router.get('/agency/me', authenticateAgency, async (req, res) => {
   } catch (err) { logError('agency.me', err); res.status(500).json({ error: 'Erro ao carregar usuário' }); }
 });
 
+// Agency: dashboard stats
+router.get('/agency/stats', authenticateAgency, async (req, res) => {
+  try {
+    const totalP = await query('SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1', [req.agencyId]);
+    const activeP = await query("SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status='active'", [req.agencyId]);
+    const blockedP = await query("SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status='blocked'", [req.agencyId]);
+    const allowedUnits = await query('SELECT COUNT(*) as c FROM agency_allowed_units WHERE agency_id=$1', [req.agencyId]);
+    const entriesToday = await query(
+      `SELECT COUNT(*) as c FROM access_logs al
+       JOIN agency_promoters ap ON ap.cpf = al.cpf
+       WHERE ap.agency_id=$1 AND al.entry_at::date = CURRENT_DATE AND al.status='authorized'`, [req.agencyId]
+    );
+    const blockedToday = await query(
+      `SELECT COUNT(*) as c FROM access_logs al
+       JOIN agency_promoters ap ON ap.cpf = al.cpf
+       WHERE ap.agency_id=$1 AND al.entry_at::date = CURRENT_DATE AND al.status='blocked'`, [req.agencyId]
+    );
+    res.json({
+      total_promoters: parseInt(totalP.rows[0].c),
+      active_promoters: parseInt(activeP.rows[0].c),
+      blocked_promoters: parseInt(blockedP.rows[0].c),
+      units_authorized: parseInt(allowedUnits.rows[0].c),
+      entries_today: parseInt(entriesToday.rows[0].c),
+      blocked_today: parseInt(blockedToday.rows[0].c),
+    });
+  } catch (err) { logError('agency.stats', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Agency: recent entries
+router.get('/agency/recent-entries', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT al.*, ap.name as promoter_name, su.name as unit_name
+       FROM access_logs al
+       JOIN agency_promoters ap ON ap.cpf = al.cpf
+       JOIN supermarket_units su ON su.id = al.supermarket_unit_id
+       WHERE ap.agency_id=$1
+       ORDER BY al.entry_at DESC LIMIT 20`, [req.agencyId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('agency.recent_entries', err); res.status(500).json({ error: 'Erro' }); }
+});
+
 // Agency: list own promoters
 router.get('/agency/promoters', authenticateAgency, async (req, res) => {
   try {
