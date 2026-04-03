@@ -59,7 +59,7 @@ export default function AgencyAccessRules() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api('/api/access-control/agency-portal/access-rules', { method: 'POST', body: data, headers: getHeaders() }),
+    mutationFn: (data: any) => api('/api/access-control/agency/access-rules', { method: 'POST', body: data, headers: getHeaders() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agency-access-rules'] });
       toast({ title: 'Regra criada' });
