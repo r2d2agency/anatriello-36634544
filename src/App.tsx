@@ -219,6 +219,8 @@ const App = () => (
             <Route path="/merch/checklists" element={<ProtectedRoute><MerchChecklists /></ProtectedRoute>} />
             <Route path="/merch/book-fotos" element={<ProtectedRoute><MerchBookFotos /></ProtectedRoute>} />
             <Route path="/merch/auditoria" element={<ProtectedRoute><MerchAuditoria /></ProtectedRoute>} />
+            <Route path="/controle-acesso" element={<ProtectedRoute><AccessControlAdmin /></ProtectedRoute>} />
+            <Route path="/totem" element={<TotemAccess />} />
             {/* Promotor App */}
             <Route path="/promotor/login" element={<PromotorLogin />} />
             <Route path="/promotor/home" element={<PromotorHome />} />
