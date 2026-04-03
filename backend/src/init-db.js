@@ -4044,6 +4044,7 @@ CREATE TABLE IF NOT EXISTS agencies (
   name VARCHAR(255) NOT NULL,
   cnpj VARCHAR(20),
   responsible_name VARCHAR(255),
+  responsible_cpf VARCHAR(14),
   responsible_phone VARCHAR(30),
   responsible_email VARCHAR(255),
   address TEXT,
@@ -4405,3 +4406,5 @@ export async function initDatabase() {
   
   return true;
 }
+
+ALTER TABLE agencies ADD COLUMN IF NOT EXISTS responsible_cpf VARCHAR(14);
