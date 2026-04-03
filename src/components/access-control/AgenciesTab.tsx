@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAgencies, useCreateAgency, useUpdateAgency, useUnits, useCreateAgencyUser, useSetAgencyUnits } from "@/hooks/use-access-control";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ const AgenciesTab = () => {
   const setUnitsMutation = useSetAgencyUnits();
   const { uploadFile } = useUpload();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [dialogTab, setDialogTab] = useState("dados");
@@ -274,10 +276,12 @@ const AgenciesTab = () => {
       toast({
         title: emailSent ? "Contrato gerado!" : "Contrato criado",
         description: emailSent
-          ? "O contrato foi criado e enviado para assinatura digital."
-          : "O contrato foi criado no módulo de Assinaturas, mas o envio por e-mail falhou. Verifique o SMTP.",
+          ? "O contrato foi criado e enviado para assinatura digital. Redirecionando..."
+          : "O contrato foi criado. Redirecionando para Assinaturas...",
       });
       setContractDialogOpen(false);
+      // Redireciona para a página de assinaturas
+      setTimeout(() => navigate("/assinaturas"), 600);
     } catch (error: any) {
       toast({ title: "Erro ao gerar contrato", description: error?.message || "Tente novamente", variant: "destructive" });
     } finally {
