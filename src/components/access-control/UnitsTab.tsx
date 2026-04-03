@@ -382,6 +382,17 @@ const UnitsTab = () => {
         contactEmail={supermarketUser?.email || ""}
         contactPhone=""
       />
+
+      {authOverrideUnit && (
+        <PdvAuthOverrideDialog
+          open={!!authOverrideUnit}
+          onOpenChange={(v) => { if (!v) setAuthOverrideUnit(null); }}
+          unitId={authOverrideUnit.id}
+          unitName={authOverrideUnit.name}
+          networkId={authOverrideUnit.network_id}
+          networkName={authOverrideUnit.network_name}
+        />
+      )}
     </Card>
   );
 };
