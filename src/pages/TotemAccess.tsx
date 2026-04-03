@@ -134,6 +134,9 @@ const TotemAccess = () => {
           name: data.promoter.name,
           photo_url: data.promoter.photo_url,
           agency_name: data.promoter.agency_name,
+          has_open_entry: !!data.has_open_entry,
+          open_entry_id: data.open_entry_id,
+          entry_at: data.entry_at,
         });
       } else {
         setLookupError(data.reason || "Cadastro não encontrado");
