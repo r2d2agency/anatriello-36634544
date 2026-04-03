@@ -21,6 +21,7 @@ interface LookupResult {
   name: string;
   photo_url?: string;
   agency_name?: string;
+  brands: string[];
   has_open_entry: boolean;
   open_entry_id?: string;
   entry_at?: string;
