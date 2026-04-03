@@ -626,6 +626,50 @@ router.get('/audit-logs', authenticate, async (req, res) => {
 // TOTEM ROUTES (public-facing, authenticated by totem token)
 // =====================================================================
 
+// Totem login — supermarket user authenticates, returns totem_token + unit config
+router.post('/totem/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const r = await query(
+      `SELECT su_user.*, su.organization_id as org_id, su.name as unit_name,
+              su.totem_token, su.totem_enabled, su.logo_url as unit_logo,
+              su.city, su.state, su.id as unit_id
+       FROM supermarket_users su_user
+       JOIN supermarket_units su ON su.id = su_user.supermarket_unit_id
+       WHERE su_user.email = $1 AND su_user.active = true`, [normalizedEmail]);
+    if (!r.rows.length) return res.status(401).json({ error: 'Credenciais inválidas' });
+    const user = r.rows[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
+
+    // If totem not enabled or no token, generate one
+    let totemToken = user.totem_token;
+    if (!totemToken || !user.totem_enabled) {
+      totemToken = totemToken || crypto.randomBytes(32).toString('hex');
+      await query(
+        'UPDATE supermarket_units SET totem_token=$1, totem_enabled=true WHERE id=$2',
+        [totemToken, user.unit_id]
+      );
+    }
+
+    await query('UPDATE supermarket_users SET last_login=NOW() WHERE id=$1', [user.id]);
+
+    res.json({
+      totem_token: totemToken,
+      unit: {
+        id: user.unit_id,
+        name: user.unit_name,
+        logo_url: user.unit_logo,
+        city: user.city,
+        state: user.state,
+      },
+      user: { id: user.id, name: user.name, email: user.email },
+    });
+  } catch (err) { logError('totem.login', err); res.status(500).json({ error: 'Erro no login do totem' }); }
+});
+
 // Validate CPF at totem
 router.post('/totem/validate', authenticateTotem, async (req, res) => {
   try {
