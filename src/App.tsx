@@ -102,11 +102,13 @@ import AgencyLayout from "./pages/agency/AgencyLayout";
 import AgencyDashboard from "./pages/agency/AgencyDashboard";
 import AgencyPromoters from "./pages/agency/AgencyPromoters";
 import AgencyAccessRules from "./pages/agency/AgencyAccessRules";
+import AgencyVisitRequests from "./pages/agency/AgencyVisitRequests";
 import { SupermarketAuthProvider } from "./contexts/SupermarketAuthContext";
 import SupermarketLogin from "./pages/supermarket/SupermarketLogin";
 import SupermarketLayout from "./pages/supermarket/SupermarketLayout";
 import SupermarketDashboard from "./pages/supermarket/SupermarketDashboard";
 import SupermarketHistory from "./pages/supermarket/SupermarketHistory";
+import SupermarketVisitRequests from "./pages/supermarket/SupermarketVisitRequests";
 
 const queryClient = new QueryClient();
 
