@@ -155,6 +155,7 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
     adminOnly: true,
     items: [
       { name: "Painel Acesso", href: "/controle-acesso", icon: ShieldCheck, pageKey: 'controle_acesso', adminOnly: true },
+      { name: "Modelos de Contrato", href: "/modelo-contrato", icon: FileText, adminOnly: true },
     ],
   },
   {
@@ -180,7 +181,6 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Conexões", href: "/conexao", icon: Plug, pageKey: 'conexoes' },
       { name: "Templates Meta", href: "/meta-templates", icon: FileText, pageKey: 'meta_templates' },
       { name: "Assinaturas", href: "/assinaturas", icon: FileSignature, pageKey: 'assinaturas', moduleKey: 'doc_signatures' as const },
-      { name: "Modelo Contrato", href: "/modelo-contrato", icon: FileText, pageKey: 'modelo_contrato' },
       { name: "Ajustes", href: "/configuracoes", icon: Settings, pageKey: 'ajustes' },
     ],
   },
