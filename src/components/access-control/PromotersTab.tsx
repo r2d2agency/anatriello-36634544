@@ -13,6 +13,7 @@ import { Plus, Pencil, ShieldCheck, Loader2, Key, Trash2, FileText } from "lucid
 import { AuthorizationLetterDialog } from "./AuthorizationLetterDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCpf, formatPhone, isValidCpf, isValidPhone, onlyDigits } from "@/lib/br-utils";
+import HelpPanel from "./HelpPanel";
 
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
