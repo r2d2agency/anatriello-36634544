@@ -169,8 +169,9 @@ const PromotersTab = () => {
                     <TableHead>CPF</TableHead>
                     <TableHead>Agência</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Conformidade</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[120px]">Ações</TableHead>
+                    <TableHead className="w-[150px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
