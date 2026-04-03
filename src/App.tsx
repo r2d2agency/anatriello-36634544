@@ -96,6 +96,12 @@ import PromotorTrocarSenha from "./pages/promotor/PromotorTrocarSenha";
 import NotFound from "./pages/NotFound";
 import TotemAccess from "./pages/TotemAccess";
 import AccessControlAdmin from "./pages/AccessControlAdmin";
+import { AgencyAuthProvider } from "./contexts/AgencyAuthContext";
+import AgencyLogin from "./pages/agency/AgencyLogin";
+import AgencyLayout from "./pages/agency/AgencyLayout";
+import AgencyDashboard from "./pages/agency/AgencyDashboard";
+import AgencyPromoters from "./pages/agency/AgencyPromoters";
+import AgencyAccessRules from "./pages/agency/AgencyAccessRules";
 
 const queryClient = new QueryClient();
 
