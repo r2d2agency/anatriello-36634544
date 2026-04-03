@@ -334,6 +334,16 @@ const UnitsTab = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SendAccessDialog
+        open={sendAccessOpen}
+        onOpenChange={setSendAccessOpen}
+        portalType="supermarket"
+        entityName={sendAccessUnit?.name || ""}
+        loginEmail={supermarketUser?.email || ""}
+        contactEmail={supermarketUser?.email || ""}
+        contactPhone=""
+      />
     </Card>
   );
 };
