@@ -239,12 +239,14 @@ const App = () => (
             <Route path="/agencia" element={<AgencyAuthProvider><AgencyLayout /></AgencyAuthProvider>}>
               <Route path="dashboard" element={<AgencyDashboard />} />
               <Route path="promotores" element={<AgencyPromoters />} />
+              <Route path="visitas" element={<AgencyVisitRequests />} />
               <Route path="regras" element={<AgencyAccessRules />} />
             </Route>
             {/* Supermarket Portal */}
             <Route path="/supermercado/login" element={<SupermarketAuthProvider><SupermarketLogin /></SupermarketAuthProvider>} />
             <Route path="/supermercado" element={<SupermarketAuthProvider><SupermarketLayout /></SupermarketAuthProvider>}>
               <Route path="dashboard" element={<SupermarketDashboard />} />
+              <Route path="visitas" element={<SupermarketVisitRequests />} />
               <Route path="historico" element={<SupermarketHistory />} />
             </Route>
             {/* Promotor App */}
