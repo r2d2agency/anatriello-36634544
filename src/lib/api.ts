@@ -53,18 +53,22 @@ interface ApiOptions {
 }
 
 export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
-  const { method = 'GET', body, auth = true } = options;
+  const { method = 'GET', body, auth = true, headers: customHeaders } = options;
   const normalizedEndpoint = normalizeEndpoint(endpoint);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (auth) {
+  if (auth && !customHeaders?.Authorization) {
     const token = localStorage.getItem('auth_token');
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+  }
+
+  if (customHeaders) {
+    Object.assign(headers, customHeaders);
   }
 
   const baseCandidates = getBaseCandidates(normalizedEndpoint);
