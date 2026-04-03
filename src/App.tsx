@@ -71,6 +71,7 @@ import RHPDVs from "./pages/RHPDVs";
 import RHFeriados from "./pages/RHFeriados";
 import RHAcessos from "./pages/RHAcessos";
 import RHRastreamento from "./pages/RHRastreamento";
+import RHBiometria from "./pages/RHBiometria";
 import RHMapaOperacional from "./pages/RHMapaOperacional";
 import LiveMaps from "./pages/LiveMaps";
 import MerchMarcas from "./pages/MerchMarcas";
