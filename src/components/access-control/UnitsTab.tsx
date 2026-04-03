@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useUnits, useCreateUnit, useUpdateUnit, useDeleteUnit, useNetworks, useCreateSupermarketUser, useUpdateSupermarketUser, useSupermarketUser, useRegenerateTotemToken } from "@/hooks/use-access-control";
+import { useUnits, useCreateUnit, useUpdateUnit, useDeleteUnit, useNetworks, useCreateSupermarketUser, useUpdateSupermarketUser, useSupermarketUser, useRegenerateTotemToken, usePdvAuthOverrides } from "@/hooks/use-access-control";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
