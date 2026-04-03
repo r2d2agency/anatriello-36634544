@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useUnits, useCreateUnit, useUpdateUnit, useDeleteUnit, useNetworks } from "@/hooks/use-access-control";
+import { useUnits, useCreateUnit, useUpdateUnit, useDeleteUnit, useNetworks, useCreateSupermarketUser } from "@/hooks/use-access-control";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Store, Loader2, Copy } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Pencil, Trash2, Store, Loader2, Copy, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const defaultForm = {
@@ -23,10 +24,17 @@ const UnitsTab = () => {
   const createMutation = useCreateUnit();
   const updateMutation = useUpdateUnit();
   const deleteMutation = useDeleteUnit();
+  const createUserMutation = useCreateSupermarketUser();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState(defaultForm);
+
+  // Login dialog
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [loginUnit, setLoginUnit] = useState<any>(null);
+  const [loginForm, setLoginForm] = useState({ name: "", email: "", password: "" });
+  const [showPw, setShowPw] = useState(false);
 
   const openNew = () => { setEditing(null); setForm(defaultForm); setDialogOpen(true); };
   const openEdit = (u: any) => {
@@ -61,6 +69,31 @@ const UnitsTab = () => {
     toast({ title: "Token copiado!" });
   };
 
+  const openLoginDialog = (u: any) => {
+    setLoginUnit(u);
+    setLoginForm({ name: u.name, email: "", password: "" });
+    setShowPw(false);
+    setLoginDialogOpen(true);
+  };
+
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let pw = "pdv";
+    for (let i = 0; i < 5; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    setLoginForm(f => ({ ...f, password: pw }));
+    setShowPw(true);
+  };
+
+  const handleCreateLogin = async () => {
+    if (!loginForm.email || !loginForm.password || !loginForm.name) return;
+    await createUserMutation.mutateAsync({
+      supermarket_unit_id: loginUnit.id,
+      network_id: loginUnit.network_id || null,
+      ...loginForm,
+    });
+    setLoginDialogOpen(false);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -83,7 +116,7 @@ const UnitsTab = () => {
                   <TableHead>Horário</TableHead>
                   <TableHead>Token Totem</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
+                  <TableHead className="w-[140px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -101,12 +134,17 @@ const UnitsTab = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={u.is_active ? "default" : "secondary"}>{u.is_active ? "Ativa" : "Inativa"}</Badge>
+                      <Badge variant={u.is_active !== false ? "default" : "secondary"}>{u.is_active !== false ? "Ativa" : "Inativa"}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => openLoginDialog(u)} title="Criar acesso portal">
+                          <KeyRound className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(u)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(u.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => { if (confirm("Excluir?")) deleteMutation.mutate(u.id); }}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -117,6 +155,7 @@ const UnitsTab = () => {
         )}
       </CardContent>
 
+      {/* Edit/Create Unit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Editar Unidade" : "Nova Unidade"}</DialogTitle></DialogHeader>
@@ -151,6 +190,51 @@ const UnitsTab = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!form.name || createMutation.isPending || updateMutation.isPending}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Portal Login Dialog */}
+      <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" /> Criar Acesso — Portal do Supermercado
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Crie um login para que o supermercado <strong>{loginUnit?.name}</strong> acesse o portal e acompanhe promotores em tempo real.
+          </p>
+          <Separator />
+          <div className="space-y-4">
+            <div><Label>Nome do responsável *</Label><Input value={loginForm.name} onChange={e => setLoginForm(f => ({ ...f, name: e.target.value }))} placeholder="Gerente da loja" /></div>
+            <div><Label>E-mail de acesso *</Label><Input type="email" value={loginForm.email} onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))} placeholder="gerente@supermercado.com" /></div>
+            <div>
+              <Label>Senha *</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showPw ? "text" : "password"}
+                    value={loginForm.password}
+                    onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
+                    placeholder="••••••••"
+                  />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPw(!showPw)}>
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={generatePassword}>Gerar</Button>
+              </div>
+              {showPw && loginForm.password && (
+                <p className="text-xs text-muted-foreground mt-1">Senha: <code className="bg-muted px-1 rounded">{loginForm.password}</code></p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLoginDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateLogin} disabled={!loginForm.email || !loginForm.password || !loginForm.name || createUserMutation.isPending}>
+              Criar Acesso
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

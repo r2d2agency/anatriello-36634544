@@ -126,6 +126,52 @@ export function useDeleteAccessRule() {
   });
 }
 
+// ─── Supermarket Users ───
+export function useCreateSupermarketUser() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (data: any) => api(`${BASE}/supermarket-users`, { method: "POST", body: data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["ac-units"] }); toast({ title: "Acesso do supermercado criado" }); },
+  });
+}
+
+// ─── Agency Users ───
+export function useCreateAgencyUser() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ agencyId, ...data }: any) => api(`${BASE}/agencies/${agencyId}/users`, { method: "POST", body: data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["ac-agencies"] }); toast({ title: "Acesso da agência criado" }); },
+  });
+}
+
+export function useAgencyUsers(agencyId?: string) {
+  return useQuery({
+    queryKey: ["ac-agency-users", agencyId],
+    queryFn: () => api<any[]>(`${BASE}/agencies/${agencyId}/users`),
+    enabled: !!agencyId,
+  });
+}
+
+// ─── Agency PDV Permissions ───
+export function useAgencyUnits(agencyId?: string) {
+  return useQuery({
+    queryKey: ["ac-agency-units", agencyId],
+    queryFn: () => api<any[]>(`${BASE}/agencies/${agencyId}/allowed-units`),
+    enabled: !!agencyId,
+  });
+}
+export function useSetAgencyUnits() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ agencyId, unit_ids }: { agencyId: string; unit_ids: string[] }) =>
+      api(`${BASE}/agencies/${agencyId}/allowed-units`, { method: "PUT", body: { unit_ids } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["ac-agency-units"] }); toast({ title: "PDVs atualizados" }); },
+  });
+}
+
 // ─── Entry Logs ───
 export function useEntryLogs(filters?: { unit_id?: string; date?: string }) {
   const params = new URLSearchParams();
