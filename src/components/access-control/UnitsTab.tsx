@@ -128,7 +128,7 @@ const UnitsTab = () => {
               <Select value={form.network_id} onValueChange={v => setForm(f => ({ ...f, network_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Sem rede" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma</SelectItem>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
                   {networks.map((n: any) => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
                 </SelectContent>
               </Select>

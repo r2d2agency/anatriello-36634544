@@ -155,7 +155,7 @@ const PromotersTab = () => {
               <Select value={form.agency_id} onValueChange={v => setForm(f => ({ ...f, agency_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Interno (sem agência)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Interno</SelectItem>
+                  <SelectItem value="__none__">Interno</SelectItem>
                   {agencies.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
