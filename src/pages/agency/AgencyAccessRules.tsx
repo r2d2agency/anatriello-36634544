@@ -42,7 +42,7 @@ export default function AgencyAccessRules() {
 
   const { data: rules = [] } = useQuery({
     queryKey: ['agency-access-rules'],
-    queryFn: () => api<any[]>('/api/access-control/agency-portal/access-rules', { headers: getHeaders() }),
+    queryFn: () => api<any[]>('/api/access-control/agency/access-rules', { headers: getHeaders() }),
     enabled: !!user,
   });
 
