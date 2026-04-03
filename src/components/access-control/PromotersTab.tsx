@@ -184,10 +184,31 @@ const PromotersTab = () => {
                         <Badge variant="outline">{p.employee_id ? "Interno" : "Externo"}</Badge>
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          const promoterId = p.agency_promoter_id || p.id;
+                          const conformities = (conformityData as any[]).filter((c: any) =>
+                            (c.agency_promoter_id === promoterId) || (c.employee_id === p.employee_id)
+                          );
+                          if (conformities.length === 0) return <Badge variant="outline" className="text-muted-foreground">Não verificado</Badge>;
+                          const hasNonConform = conformities.some((c: any) => c.status === 'nao_conforme');
+                          const hasPending = conformities.some((c: any) => c.status === 'pendente');
+                          if (hasNonConform) return <Badge variant="destructive">Não conforme</Badge>;
+                          if (hasPending) return <Badge className="bg-amber-500 hover:bg-amber-600">Pendente</Badge>;
+                          return <Badge className="bg-emerald-600 hover:bg-emerald-700">Conforme</Badge>;
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Ativo" : "Inativo"}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => {
+                            const type = p.employee_id ? "employee" : "agency_promoter";
+                            const id = p.employee_id || p.agency_promoter_id || p.id;
+                            checkConformityMutation.mutate({ id, type });
+                          }} title="Verificar conformidade">
+                            <ScanFace className="h-4 w-4 text-primary" />
+                          </Button>
                           <Button size="icon" variant="ghost" onClick={() => openRules(p)} title="Regras de acesso"><Key className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => openEdit(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => { setLetterPromoter(p); setLetterDialogOpen(true); }} title="Carta de autorização"><FileText className="h-4 w-4" /></Button>
