@@ -114,6 +114,9 @@ export default function AgencyPromoters() {
                   <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
                     <Edit className="h-3 w-3 mr-1" /> Editar
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setLetterPromoter(p); setLetterOpen(true); }}>
+                    <FileText className="h-3 w-3 mr-1" /> Carta
+                  </Button>
                   {p.status === 'active' ? (
                     <Button size="sm" variant="outline" className="text-destructive" onClick={() => toggleMutation.mutate({ id: p.id, status: 'blocked' })}>
                       <Ban className="h-3 w-3 mr-1" /> Bloquear
