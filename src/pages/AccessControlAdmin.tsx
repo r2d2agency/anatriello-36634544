@@ -12,7 +12,7 @@ const AccessControlAdmin = () => {
   const [tab, setTab] = useState("networks");
 
   return (
-    <MainLayout title="Controle de Acesso PDV">
+    <MainLayout>
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex flex-wrap gap-1">
           <TabsTrigger value="networks" className="gap-2">
