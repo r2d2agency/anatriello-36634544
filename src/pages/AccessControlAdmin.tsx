@@ -47,3 +47,4 @@ const AccessControlAdmin = () => {
   );
 };
 
+export default AccessControlAdmin;
