@@ -932,9 +932,18 @@ router.post('/agency/access-rules', authenticateAgency, async (req, res) => {
   } catch (err) { logError('agency.rules.create', err); res.status(500).json({ error: 'Erro' }); }
 });
 
-// =====================================================================
-// VISIT REQUESTS (Agency side)
-// =====================================================================
+// Agency: delete access rule
+router.delete('/agency/access-rules/:id', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `DELETE FROM pdv_access_rules WHERE id=$1 AND agency_promoter_id IN (SELECT id FROM agency_promoters WHERE agency_id=$2) RETURNING id`,
+      [req.params.id, req.agencyId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Regra não encontrada' });
+    res.json({ success: true });
+  } catch (err) { logError('agency.rules.delete', err); res.status(500).json({ error: 'Erro' }); }
+});
+
 
 // Agency: list visit requests
 router.get('/agency/visit-requests', authenticateAgency, async (req, res) => {
