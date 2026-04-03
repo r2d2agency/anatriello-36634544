@@ -376,6 +376,39 @@ const AgenciesTab = () => {
         <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Agência</Button>
       </CardHeader>
       <CardContent>
+        <HelpPanel
+          title="Como funcionam as Agências?"
+          sections={[
+            {
+              title: "O que é uma Agência?",
+              icon: "info",
+              content: [
+                "Agências terceiras cadastram e gerenciam promotores externos.",
+                "Cada agência possui um portal próprio para cadastrar promotores com CPF e foto obrigatória.",
+                "Vincule as Unidades (PDVs) que a agência está autorizada a atender.",
+              ],
+            },
+            {
+              title: "Cadastro de promotores pela agência",
+              icon: "alert",
+              content: [
+                "A foto do promotor é usada para confirmação visual no Totem e reconhecimento facial.",
+                "Requisitos da foto: frontal, bem iluminada, sem óculos escuros/bonés, mínimo 480×480px.",
+                "Se a Rede exige selfie ou facial, promotores sem foto conforme serão bloqueados automaticamente.",
+                "A agência recebe notificação quando um promotor não está em conformidade.",
+              ],
+            },
+            {
+              title: "Ações disponíveis",
+              icon: "check",
+              content: [
+                "📤 Enviar Acesso — envia credenciais do portal para a agência.",
+                "📝 Gerar Contrato — cria contrato de prestação de serviços para assinatura digital.",
+                "✏️ Editar — dados, login do portal e PDVs autorizados.",
+              ],
+            },
+          ]}
+        />
         {isLoading ? (
           <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : agencies.length === 0 ? (
