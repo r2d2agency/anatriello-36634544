@@ -58,6 +58,7 @@ import RespostasRapidas from "./pages/RespostasRapidas";
 import ApiDocumentation from "./pages/ApiDocumentation";
 import MetaTemplates from "./pages/MetaTemplates";
 import Assinaturas from "./pages/Assinaturas";
+import ModeloContrato from "./pages/ModeloContrato";
 import AssinarDocumento from "./pages/AssinarDocumento";
 import VerificarDocumento from "./pages/VerificarDocumento";
 import RHColaboradores from "./pages/RHColaboradores";
