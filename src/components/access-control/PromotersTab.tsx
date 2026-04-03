@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { usePromoters, useCreatePromoter, useUpdatePromoter, useAgencies, useUnits, useCreateAccessRule, useAccessRules, useDeleteAccessRule } from "@/hooks/use-access-control";
+import { usePromoters, useCreatePromoter, useUpdatePromoter, useAgencies, useUnits, useCreateAccessRule, useAccessRules, useDeleteAccessRule, useCheckPromoterConformity, useCheckAllConformity, usePromoterConformity } from "@/hooks/use-access-control";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, ShieldCheck, Loader2, Key, Trash2, FileText } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, Loader2, Key, Trash2, FileText, ScanFace, RefreshCw } from "lucide-react";
 import { AuthorizationLetterDialog } from "./AuthorizationLetterDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCpf, formatPhone, isValidCpf, isValidPhone, onlyDigits } from "@/lib/br-utils";
@@ -25,6 +25,9 @@ const PromotersTab = () => {
   const updateMutation = useUpdatePromoter();
   const createRuleMutation = useCreateAccessRule();
   const deleteRuleMutation = useDeleteAccessRule();
+  const checkConformityMutation = useCheckPromoterConformity();
+  const checkAllConformityMutation = useCheckAllConformity();
+  const { data: conformityData = [] } = usePromoterConformity();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -111,9 +114,15 @@ const PromotersTab = () => {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Promotores</CardTitle>
-          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Promotor</Button>
+          <div className="flex gap-2">
+            <Button onClick={() => checkAllConformityMutation.mutate()} size="sm" variant="outline" disabled={checkAllConformityMutation.isPending}>
+              {checkAllConformityMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ScanFace className="h-4 w-4 mr-1" />}
+              Verificar Conformidade
+            </Button>
+            <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Promotor</Button>
+          </div>
         </CardHeader>
         <CardContent>
           <HelpPanel
@@ -160,8 +169,9 @@ const PromotersTab = () => {
                     <TableHead>CPF</TableHead>
                     <TableHead>Agência</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Conformidade</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[120px]">Ações</TableHead>
+                    <TableHead className="w-[150px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -174,10 +184,31 @@ const PromotersTab = () => {
                         <Badge variant="outline">{p.employee_id ? "Interno" : "Externo"}</Badge>
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          const promoterId = p.agency_promoter_id || p.id;
+                          const conformities = (conformityData as any[]).filter((c: any) =>
+                            (c.agency_promoter_id === promoterId) || (c.employee_id === p.employee_id)
+                          );
+                          if (conformities.length === 0) return <Badge variant="outline" className="text-muted-foreground">Não verificado</Badge>;
+                          const hasNonConform = conformities.some((c: any) => c.status === 'nao_conforme');
+                          const hasPending = conformities.some((c: any) => c.status === 'pendente');
+                          if (hasNonConform) return <Badge variant="destructive">Não conforme</Badge>;
+                          if (hasPending) return <Badge className="bg-amber-500 hover:bg-amber-600">Pendente</Badge>;
+                          return <Badge className="bg-emerald-600 hover:bg-emerald-700">Conforme</Badge>;
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Ativo" : "Inativo"}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => {
+                            const type = p.employee_id ? "employee" : "agency_promoter";
+                            const id = p.employee_id || p.agency_promoter_id || p.id;
+                            checkConformityMutation.mutate({ id, type });
+                          }} title="Verificar conformidade">
+                            <ScanFace className="h-4 w-4 text-primary" />
+                          </Button>
                           <Button size="icon" variant="ghost" onClick={() => openRules(p)} title="Regras de acesso"><Key className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => openEdit(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => { setLetterPromoter(p); setLetterDialogOpen(true); }} title="Carta de autorização"><FileText className="h-4 w-4" /></Button>
