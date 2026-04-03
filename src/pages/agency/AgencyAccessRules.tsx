@@ -42,24 +42,24 @@ export default function AgencyAccessRules() {
 
   const { data: rules = [] } = useQuery({
     queryKey: ['agency-access-rules'],
-    queryFn: () => api<any[]>('/api/access-control/agency-portal/access-rules', { headers: getHeaders() }),
+    queryFn: () => api<any[]>('/api/access-control/agency/access-rules', { headers: getHeaders() }),
     enabled: !!user,
   });
 
   const { data: promoters = [] } = useQuery({
     queryKey: ['agency-promoters'],
-    queryFn: () => api<any[]>('/api/access-control/agency-portal/promoters', { headers: getHeaders() }),
+    queryFn: () => api<any[]>('/api/access-control/agency/promoters', { headers: getHeaders() }),
     enabled: !!user,
   });
 
   const { data: units = [] } = useQuery({
     queryKey: ['agency-available-units'],
-    queryFn: () => api<any[]>('/api/access-control/agency-portal/available-units', { headers: getHeaders() }),
+    queryFn: () => api<any[]>('/api/access-control/agency/allowed-units', { headers: getHeaders() }),
     enabled: !!user,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api('/api/access-control/agency-portal/access-rules', { method: 'POST', body: data, headers: getHeaders() }),
+    mutationFn: (data: any) => api('/api/access-control/agency/access-rules', { method: 'POST', body: data, headers: getHeaders() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agency-access-rules'] });
       toast({ title: 'Regra criada' });
@@ -69,7 +69,7 @@ export default function AgencyAccessRules() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api(`/api/access-control/agency-portal/access-rules/${id}`, { method: 'DELETE', headers: getHeaders() }),
+    mutationFn: (id: string) => api(`/api/access-control/agency/access-rules/${id}`, { method: 'DELETE', headers: getHeaders() }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agency-access-rules'] });
       toast({ title: 'Regra removida' });

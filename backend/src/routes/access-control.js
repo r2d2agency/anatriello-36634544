@@ -779,6 +779,49 @@ router.get('/agency/me', authenticateAgency, async (req, res) => {
   } catch (err) { logError('agency.me', err); res.status(500).json({ error: 'Erro ao carregar usuário' }); }
 });
 
+// Agency: dashboard stats
+router.get('/agency/stats', authenticateAgency, async (req, res) => {
+  try {
+    const totalP = await query('SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1', [req.agencyId]);
+    const activeP = await query("SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status='active'", [req.agencyId]);
+    const blockedP = await query("SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status='blocked'", [req.agencyId]);
+    const allowedUnits = await query('SELECT COUNT(*) as c FROM agency_allowed_units WHERE agency_id=$1', [req.agencyId]);
+    const entriesToday = await query(
+      `SELECT COUNT(*) as c FROM access_logs al
+       JOIN agency_promoters ap ON ap.cpf = al.cpf
+       WHERE ap.agency_id=$1 AND al.entry_at::date = CURRENT_DATE AND al.status='authorized'`, [req.agencyId]
+    );
+    const blockedToday = await query(
+      `SELECT COUNT(*) as c FROM access_logs al
+       JOIN agency_promoters ap ON ap.cpf = al.cpf
+       WHERE ap.agency_id=$1 AND al.entry_at::date = CURRENT_DATE AND al.status='blocked'`, [req.agencyId]
+    );
+    res.json({
+      total_promoters: parseInt(totalP.rows[0].c),
+      active_promoters: parseInt(activeP.rows[0].c),
+      blocked_promoters: parseInt(blockedP.rows[0].c),
+      units_authorized: parseInt(allowedUnits.rows[0].c),
+      entries_today: parseInt(entriesToday.rows[0].c),
+      blocked_today: parseInt(blockedToday.rows[0].c),
+    });
+  } catch (err) { logError('agency.stats', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Agency: recent entries
+router.get('/agency/recent-entries', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT al.*, ap.name as promoter_name, su.name as unit_name
+       FROM access_logs al
+       JOIN agency_promoters ap ON ap.cpf = al.cpf
+       JOIN supermarket_units su ON su.id = al.supermarket_unit_id
+       WHERE ap.agency_id=$1
+       ORDER BY al.entry_at DESC LIMIT 20`, [req.agencyId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('agency.recent_entries', err); res.status(500).json({ error: 'Erro' }); }
+});
+
 // Agency: list own promoters
 router.get('/agency/promoters', authenticateAgency, async (req, res) => {
   try {
@@ -790,22 +833,63 @@ router.get('/agency/promoters', authenticateAgency, async (req, res) => {
 // Agency: create promoter
 router.post('/agency/promoters', authenticateAgency, async (req, res) => {
   try {
-    const { name, cpf, phone, photo_url, document_url, employee_id } = req.body;
+    const { name, cpf, phone, photo_url, document_url, employee_id, email, whatsapp, birth_date, rg, gender, address, city, state, emergency_contact, emergency_phone, notes } = req.body;
     if (!name || !cpf) return res.status(400).json({ error: 'Nome e CPF são obrigatórios' });
+    if (!isValidCpf(cpf)) return res.status(400).json({ error: 'CPF inválido' });
+    if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Telefone inválido' });
+    if (whatsapp && !isValidPhone(whatsapp)) return res.status(400).json({ error: 'WhatsApp inválido' });
     const agency = await query('SELECT max_promoters FROM agencies WHERE id=$1', [req.agencyId]);
     const count = await query('SELECT COUNT(*) as c FROM agency_promoters WHERE agency_id=$1 AND status=\'active\'', [req.agencyId]);
     if (parseInt(count.rows[0].c) >= agency.rows[0]?.max_promoters) {
       return res.status(400).json({ error: 'Limite de promotores atingido' });
     }
     const r = await query(
-      'INSERT INTO agency_promoters (agency_id, name, cpf, phone, photo_url, document_url, employee_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-      [req.agencyId, name, cpf, phone||null, photo_url||null, document_url||null, employee_id||null]
+      `INSERT INTO agency_promoters (agency_id, name, cpf, phone, photo_url, document_url, employee_id, email, whatsapp, birth_date, rg, gender, address, city, state, emergency_contact, emergency_phone, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+      [req.agencyId, name, onlyDigits(cpf), phone ? onlyDigits(phone) : null, photo_url||null, document_url||null, employee_id||null,
+       email||null, whatsapp ? onlyDigits(whatsapp) : null, birth_date||null, rg||null, gender||null, address||null, city||null, state||null,
+       emergency_contact||null, emergency_phone ? onlyDigits(emergency_phone) : null, notes||null]
     );
     res.json(r.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'CPF já cadastrado' });
     logError('agency.promoters.create', err); res.status(500).json({ error: 'Erro' });
   }
+});
+
+// Agency: update promoter
+router.put('/agency/promoters/:id', authenticateAgency, async (req, res) => {
+  try {
+    const { name, phone, photo_url, document_url, email, whatsapp, birth_date, rg, gender, address, city, state, emergency_contact, emergency_phone, notes } = req.body;
+    if (phone && !isValidPhone(phone)) return res.status(400).json({ error: 'Telefone inválido' });
+    if (whatsapp && !isValidPhone(whatsapp)) return res.status(400).json({ error: 'WhatsApp inválido' });
+    const r = await query(
+      `UPDATE agency_promoters SET name=COALESCE($1,name), phone=$2, photo_url=COALESCE($3,photo_url), document_url=COALESCE($4,document_url),
+       email=$5, whatsapp=$6, birth_date=$7, rg=$8, gender=$9, address=$10, city=$11, state=$12,
+       emergency_contact=$13, emergency_phone=$14, notes=$15, updated_at=NOW()
+       WHERE id=$16 AND agency_id=$17 RETURNING *`,
+      [name, phone ? onlyDigits(phone) : null, photo_url, document_url, email||null, whatsapp ? onlyDigits(whatsapp) : null,
+       birth_date||null, rg||null, gender||null, address||null, city||null, state||null,
+       emergency_contact||null, emergency_phone ? onlyDigits(emergency_phone) : null, notes||null,
+       req.params.id, req.agencyId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Promotor não encontrado' });
+    res.json(r.rows[0]);
+  } catch (err) { logError('agency.promoters.update', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Agency: toggle promoter status
+router.put('/agency/promoters/:id/status', authenticateAgency, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'blocked', 'inactive'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
+    const r = await query(
+      'UPDATE agency_promoters SET status=$1, updated_at=NOW() WHERE id=$2 AND agency_id=$3 RETURNING *',
+      [status, req.params.id, req.agencyId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Promotor não encontrado' });
+    res.json(r.rows[0]);
+  } catch (err) { logError('agency.promoters.status', err); res.status(500).json({ error: 'Erro' }); }
 });
 
 // Agency: list access rules for own promoters
@@ -848,9 +932,18 @@ router.post('/agency/access-rules', authenticateAgency, async (req, res) => {
   } catch (err) { logError('agency.rules.create', err); res.status(500).json({ error: 'Erro' }); }
 });
 
-// =====================================================================
-// VISIT REQUESTS (Agency side)
-// =====================================================================
+// Agency: delete access rule
+router.delete('/agency/access-rules/:id', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `DELETE FROM pdv_access_rules WHERE id=$1 AND agency_promoter_id IN (SELECT id FROM agency_promoters WHERE agency_id=$2) RETURNING id`,
+      [req.params.id, req.agencyId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Regra não encontrada' });
+    res.json({ success: true });
+  } catch (err) { logError('agency.rules.delete', err); res.status(500).json({ error: 'Erro' }); }
+});
+
 
 // Agency: list visit requests
 router.get('/agency/visit-requests', authenticateAgency, async (req, res) => {
