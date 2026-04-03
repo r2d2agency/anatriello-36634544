@@ -25,6 +25,8 @@ const defaultForm = {
 const UnitsTab = () => {
   const { data: units = [], isLoading } = useUnits();
   const { data: networks = [] } = useNetworks();
+  const unitIds = (units as any[]).map((u: any) => u.id);
+  const { data: overrides = {} } = usePdvAuthOverrides(unitIds);
   const createMutation = useCreateUnit();
   const updateMutation = useUpdateUnit();
   const deleteMutation = useDeleteUnit();
