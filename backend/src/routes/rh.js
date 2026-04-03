@@ -1932,4 +1932,99 @@ router.put('/facial-recognition/config', async (req, res) => {
   }
 });
 
+// ─── Facial Enrollment for Employees ───
+
+// Ensure employees have face_descriptor column
+let faceEnrollColumnReady = false;
+async function ensureFaceEnrollColumn() {
+  if (faceEnrollColumnReady) return;
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_descriptor JSONB`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_photo_url TEXT`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_enrolled_at TIMESTAMPTZ`);
+  faceEnrollColumnReady = true;
+}
+
+// List employees with facial enrollment status
+router.get('/facial-recognition/employees', async (req, res) => {
+  try {
+    await ensureFacialRecognitionInfra();
+    await ensureFaceEnrollColumn();
+    const orgId = req.query.org_id || await getUserOrgId(req.userId);
+    if (!orgId) return res.json([]);
+
+    const { filter } = req.query; // 'all' | 'enrolled' | 'pending'
+    let sql = `SELECT e.id, e.full_name, e.photo_url, e.cpf, e.position, e.status,
+                      e.face_descriptor IS NOT NULL as face_enrolled,
+                      e.face_photo_url, e.face_enrolled_at
+               FROM employees e
+               WHERE e.organization_id = $1 AND e.status = 'active'`;
+
+    if (filter === 'enrolled') sql += ` AND e.face_descriptor IS NOT NULL`;
+    else if (filter === 'pending') sql += ` AND e.face_descriptor IS NULL`;
+
+    sql += ` ORDER BY e.face_descriptor IS NULL DESC, e.full_name`;
+    const result = await query(sql, [orgId]);
+    res.json(result.rows);
+  } catch (err) {
+    logError('rh.facial.employees', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Enroll employee face
+router.post('/facial-recognition/enroll/:employeeId', async (req, res) => {
+  try {
+    await ensureFacialRecognitionInfra();
+    await ensureFaceEnrollColumn();
+    const { employeeId } = req.params;
+    const { descriptor, landmarks, imageDataUrl, geometricProfile } = req.body;
+
+    if (!descriptor || !Array.isArray(descriptor)) {
+      return res.status(400).json({ error: 'Descriptor facial é obrigatório' });
+    }
+
+    const faceData = { descriptor, landmarks, geometricProfile };
+
+    await query(
+      `UPDATE employees SET
+         face_descriptor = $1,
+         face_photo_url = $2,
+         face_enrolled_at = NOW()
+       WHERE id = $3`,
+      [JSON.stringify(faceData), imageDataUrl || null, employeeId]
+    );
+
+    // Log the enrollment
+    const emp = await query(`SELECT organization_id FROM employees WHERE id = $1`, [employeeId]);
+    if (emp.rows[0]) {
+      await query(
+        `INSERT INTO face_verification_logs
+         (organization_id, employee_id, verification_context, confidence_score, result, captured_image_url)
+         VALUES ($1, $2, 'enrollment', 100, 'approved', $3)`,
+        [emp.rows[0].organization_id, employeeId, imageDataUrl || null]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    logError('rh.facial.enroll', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove employee face enrollment
+router.delete('/facial-recognition/enroll/:employeeId', async (req, res) => {
+  try {
+    await ensureFaceEnrollColumn();
+    await query(
+      `UPDATE employees SET face_descriptor = NULL, face_photo_url = NULL, face_enrolled_at = NULL WHERE id = $1`,
+      [req.params.employeeId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logError('rh.facial.remove', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

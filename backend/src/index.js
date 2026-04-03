@@ -62,6 +62,7 @@ import { executeTaskReminders } from './task-reminder-scheduler.js';
 import { executeSecretaryFollowups } from './secretary-followup-scheduler.js';
 import { executeSecretaryDigest } from './secretary-digest-scheduler.js';
 import { checkInactivityTimeouts } from './lib/ai-agent-processor.js';
+import { executeScoreCalculation } from './score-scheduler.js';
 import { requestContext } from './request-context.js';
 import { log, logError } from './logger.js';
 
@@ -639,5 +640,17 @@ initDatabase().then((ok) => {
       }
     });
     console.log('🤖 AI agent inactivity checker started - checks every minute');
+
+    // Promoter score calculation - runs every 6 hours
+    cron.schedule('0 */6 * * *', async () => {
+      try {
+        await executeScoreCalculation();
+      } catch (error) {
+        console.error('⭐ [CRON] Error calculating promoter scores:', error);
+      }
+    }, {
+      timezone: 'America/Sao_Paulo'
+    });
+    console.log('⭐ Promoter score calculator started - runs every 6 hours');
   });
 });
