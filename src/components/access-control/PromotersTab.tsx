@@ -129,7 +129,8 @@ const PromotersTab = () => {
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => openRules(p)} title="Regras de acesso"><Key className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setLetterPromoter(p); setLetterDialogOpen(true); }} title="Carta de autorização"><FileText className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
