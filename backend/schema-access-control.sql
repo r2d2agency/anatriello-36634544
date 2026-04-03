@@ -219,3 +219,12 @@ CREATE TABLE IF NOT EXISTS daily_brand_presence (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(supermarket_unit_id, brand_id, presence_date)
 );
+
+-- PDVs permitidos por agência (pré-autorização)
+CREATE TABLE IF NOT EXISTS agency_allowed_units (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_id UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(agency_id, supermarket_unit_id)
+);
