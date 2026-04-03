@@ -428,6 +428,7 @@ app.use('/api/rh', rhRoutes);
 app.use('/api/promotor', promotorRoutes);
 app.use('/api/merchandising', merchandisingRoutes);
 app.use('/api/merch', merchRoutesRoutes);
+app.use('/api/access-control', accessControlRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
