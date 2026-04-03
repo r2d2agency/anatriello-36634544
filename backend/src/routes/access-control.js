@@ -218,17 +218,44 @@ router.post('/agencies', authenticate, async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
     const { name, cnpj, responsible_name, responsible_phone, responsible_email, address, city, state,
-            plan_name, max_promoters, price_per_promoter, auto_block_on_overdue, notes } = req.body;
+            plan_name, max_promoters, price_per_promoter, auto_block_on_overdue, notes, plan_id, contracted_promoters } = req.body;
     if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+
+    // If plan_id provided, fetch plan to get price
+    let finalPrice = price_per_promoter || 0;
+    let finalPlanName = plan_name || null;
+    let finalMax = max_promoters || 10;
+    if (plan_id) {
+      const plan = await query('SELECT * FROM agency_billing_plans WHERE id=$1 AND organization_id=$2', [plan_id, orgId]);
+      if (plan.rows.length) {
+        finalPrice = plan.rows[0].price_per_promoter;
+        finalPlanName = plan.rows[0].name;
+        if (plan.rows[0].max_promoters) finalMax = plan.rows[0].max_promoters;
+      }
+    }
+    const contractedCount = contracted_promoters || finalMax;
+
     const r = await query(
       `INSERT INTO agencies (organization_id, name, cnpj, responsible_name, responsible_phone, responsible_email,
        address, city, state, plan_name, max_promoters, price_per_promoter, auto_block_on_overdue, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [orgId, name, cnpj||null, responsible_name||null, responsible_phone||null, responsible_email||null,
-       address||null, city||null, state||null, plan_name||null, max_promoters||10, price_per_promoter||0,
+       address||null, city||null, state||null, finalPlanName, contractedCount, finalPrice,
        auto_block_on_overdue||false, notes||null]
     );
-    res.json(r.rows[0]);
+    const agency = r.rows[0];
+
+    // Auto-create subscription if plan_id provided
+    if (plan_id) {
+      const amount = contractedCount * parseFloat(finalPrice);
+      await query(
+        `INSERT INTO agency_subscriptions (agency_id, plan_id, promoter_count, amount_due)
+         VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+        [agency.id, plan_id, contractedCount, amount]
+      );
+    }
+
+    res.json(agency);
   } catch (err) { logError('access.agencies.create', err); res.status(500).json({ error: 'Erro ao criar agência' }); }
 });
 
