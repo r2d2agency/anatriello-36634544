@@ -295,3 +295,51 @@ export function useResolveFraudLog() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["ac-fraud-logs"] }); toast({ title: "Log resolvido" }); },
   });
 }
+
+// ─── Promoter Conformity ───
+export function usePromoterConformity(filters?: { network_id?: string; status?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.network_id) params.set("network_id", filters.network_id);
+  if (filters?.status) params.set("status", filters.status);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ["ac-conformity", filters],
+    queryFn: () => api<any[]>(`${BASE}/promoters/conformity${qs ? `?${qs}` : ""}`),
+  });
+}
+
+export function useCheckPromoterConformity() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ id, type }: { id: string; type: "agency_promoter" | "employee" }) =>
+      api<{ results: any[] }>(`${BASE}/promoters/${id}/check-conformity`, { method: "POST", body: { type } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ac-conformity"] });
+      toast({ title: "Conformidade verificada" });
+    },
+  });
+}
+
+export function useCheckAllConformity() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: () => api<{ checked: number }>(`${BASE}/promoters/check-all-conformity`, { method: "POST" }),
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["ac-conformity"] });
+      toast({ title: `Conformidade verificada para ${data.checked} promotores` });
+    },
+  });
+}
+
+export function useConformityNotifications(filters?: { agency_id?: string; unread_only?: boolean }) {
+  const params = new URLSearchParams();
+  if (filters?.agency_id) params.set("agency_id", filters.agency_id);
+  if (filters?.unread_only) params.set("unread_only", "true");
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ["ac-conformity-notif", filters],
+    queryFn: () => api<any[]>(`${BASE}/conformity-notifications${qs ? `?${qs}` : ""}`),
+  });
+}
