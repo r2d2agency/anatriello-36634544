@@ -15,6 +15,10 @@ async function getOrgId(userId) {
 }
 
 const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
+const tableExists = async (tableName) => {
+  const result = await query('SELECT to_regclass($1) AS regclass', [tableName]);
+  return Boolean(result.rows[0]?.regclass);
+};
 const isValidPhone = (value) => {
   if (!value) return true;
   const digits = onlyDigits(value);
@@ -2171,6 +2175,9 @@ router.post('/totem/auth-attempt', authenticateTotem, async (req, res) => {
 // --- Admin: Auth attempt logs ---
 router.get('/auth-attempts', authenticate, async (req, res) => {
   try {
+    const hasAuthAttemptLogs = await tableExists('public.authentication_attempt_logs');
+    if (!hasAuthAttemptLogs) return res.json([]);
+
     const orgId = await getOrgId(req.userId);
     const { unit_id, method, result: resultFilter, date } = req.query;
     let sql = `SELECT aal.*, su.name as unit_name, ap.name as promoter_name, e.full_name as employee_name
@@ -2193,6 +2200,9 @@ router.get('/auth-attempts', authenticate, async (req, res) => {
 // --- Admin: Fraud detection logs ---
 router.get('/fraud-logs', authenticate, async (req, res) => {
   try {
+    const hasFraudLogs = await tableExists('public.fraud_detection_logs');
+    if (!hasFraudLogs) return res.json([]);
+
     const orgId = await getOrgId(req.userId);
     const { unit_id, fraud_type, severity, resolved } = req.query;
     let sql = `SELECT fdl.*, su.name as unit_name, ap.name as promoter_name, e.full_name as employee_name
@@ -2214,6 +2224,9 @@ router.get('/fraud-logs', authenticate, async (req, res) => {
 
 router.put('/fraud-logs/:id/resolve', authenticate, async (req, res) => {
   try {
+    const hasFraudLogs = await tableExists('public.fraud_detection_logs');
+    if (!hasFraudLogs) return res.status(404).json({ error: 'Logs de fraude ainda não estão disponíveis neste ambiente' });
+
     const { resolution_notes } = req.body;
     const r = await query(
       `UPDATE fraud_detection_logs SET resolved=true, resolved_by=$1, resolved_at=NOW(), resolution_notes=$2 WHERE id=$3 RETURNING *`,

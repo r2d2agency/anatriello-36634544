@@ -4207,6 +4207,167 @@ CREATE TABLE IF NOT EXISTS daily_brand_presence (
 );
 `;
 
+const step45cAuthModules = `
+-- Configurações de autenticação por rede
+CREATE TABLE IF NOT EXISTS network_auth_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  network_id UUID NOT NULL REFERENCES supermarket_networks(id) ON DELETE CASCADE,
+  cpf_entry_enabled BOOLEAN DEFAULT true,
+  qr_entry_enabled BOOLEAN DEFAULT false,
+  selfie_entry_required BOOLEAN DEFAULT false,
+  selfie_exit_required BOOLEAN DEFAULT false,
+  facial_recognition_enabled BOOLEAN DEFAULT false,
+  combined_validation VARCHAR(50) DEFAULT 'cpf_only',
+  security_level VARCHAR(20) DEFAULT 'basic',
+  facial_min_confidence NUMERIC(5,2) DEFAULT 70.00,
+  allow_low_confidence_entry BOOLEAN DEFAULT false,
+  low_confidence_action VARCHAR(20) DEFAULT 'alert',
+  qr_expiration_minutes INTEGER DEFAULT 60,
+  qr_single_use BOOLEAN DEFAULT true,
+  require_lgpd_consent BOOLEAN DEFAULT true,
+  consent_text TEXT DEFAULT 'Ao utilizar este sistema, você consente com a captura e armazenamento temporário de sua imagem para fins de controle de acesso, conforme a Lei Geral de Proteção de Dados (LGPD).',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(network_id)
+);
+
+CREATE TABLE IF NOT EXISTS pdv_auth_overrides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  cpf_entry_enabled BOOLEAN,
+  qr_entry_enabled BOOLEAN,
+  selfie_entry_required BOOLEAN,
+  selfie_exit_required BOOLEAN,
+  facial_recognition_enabled BOOLEAN,
+  combined_validation VARCHAR(50),
+  security_level VARCHAR(20),
+  facial_min_confidence NUMERIC(5,2),
+  allow_low_confidence_entry BOOLEAN,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(supermarket_unit_id)
+);
+
+CREATE TABLE IF NOT EXISTS qr_access_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  valid_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  valid_from TIME,
+  valid_until TIME,
+  status VARCHAR(20) DEFAULT 'active',
+  used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_by UUID,
+  created_by_type VARCHAR(20) DEFAULT 'system',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_qr_promoter CHECK (agency_promoter_id IS NOT NULL OR employee_id IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_qr_tokens_token ON qr_access_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_qr_tokens_status ON qr_access_tokens(status, expires_at);
+
+CREATE TABLE IF NOT EXISTS qr_usage_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  qr_token_id UUID REFERENCES qr_access_tokens(id) ON DELETE SET NULL,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  action VARCHAR(20) NOT NULL,
+  reason VARCHAR(100),
+  device_info TEXT,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS selfie_captures (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  entry_log_id UUID REFERENCES pdv_entry_logs(id) ON DELETE SET NULL,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  capture_type VARCHAR(20) NOT NULL,
+  image_url TEXT NOT NULL,
+  captured_at TIMESTAMPTZ DEFAULT NOW(),
+  device_info TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_selfie_captures_entry ON selfie_captures(entry_log_id);
+
+CREATE TABLE IF NOT EXISTS facial_recognition_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  entry_log_id UUID REFERENCES pdv_entry_logs(id) ON DELETE SET NULL,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  comparison_type VARCHAR(30) NOT NULL,
+  confidence_score NUMERIC(5,2),
+  result VARCHAR(20) NOT NULL,
+  base_image_url TEXT,
+  captured_image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS authentication_attempt_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  cpf VARCHAR(14),
+  method VARCHAR(30) NOT NULL,
+  auth_steps JSONB DEFAULT '[]',
+  overall_result VARCHAR(20) NOT NULL,
+  confidence_level NUMERIC(5,2),
+  block_reason VARCHAR(100),
+  entry_log_id UUID REFERENCES pdv_entry_logs(id) ON DELETE SET NULL,
+  device_info TEXT,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_attempts_org ON authentication_attempt_logs(organization_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_auth_attempts_unit ON authentication_attempt_logs(supermarket_unit_id, created_at);
+
+CREATE TABLE IF NOT EXISTS fraud_detection_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  cpf VARCHAR(14),
+  fraud_type VARCHAR(50) NOT NULL,
+  severity VARCHAR(20) DEFAULT 'medium',
+  details JSONB DEFAULT '{}',
+  resolved BOOLEAN DEFAULT false,
+  resolved_by UUID,
+  resolved_at TIMESTAMPTZ,
+  resolution_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fraud_logs_org ON fraud_detection_logs(organization_id, created_at);
+
+CREATE TABLE IF NOT EXISTS promoter_identity_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  base_photo_url TEXT NOT NULL,
+  face_encoding JSONB,
+  lgpd_consent_given BOOLEAN DEFAULT false,
+  lgpd_consent_at TIMESTAMPTZ,
+  lgpd_consent_ip VARCHAR(45),
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_identity_promoter CHECK (agency_promoter_id IS NOT NULL OR employee_id IS NOT NULL)
+);
+`;
+
 const step46AgencyBilling = `
 CREATE TABLE IF NOT EXISTS agency_billing_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4341,6 +4502,7 @@ const migrationSteps = [
   { name: 'Promotor App (Fase 2)', sql: step43PromotorApp, critical: false },
   { name: 'Merchandising Phase 4 (Routes)', sql: step44MerchPhase4, critical: false },
   { name: 'Access Control (Fase 5)', sql: step45AccessControl, critical: false },
+  { name: 'Access Control Auth Modules (Fase 5)', sql: step45cAuthModules, critical: false },
   { name: 'Agency Billing', sql: step46AgencyBilling, critical: false },
   { name: 'Agency Allowed Units', sql: step45bAgencyAllowedUnits, critical: false },
   { name: 'Visit Requests', sql: step47VisitRequests, critical: false },
