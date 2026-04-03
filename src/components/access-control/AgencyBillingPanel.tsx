@@ -47,6 +47,7 @@ export function AgencyBillingPanel() {
   const [planForm, setPlanForm] = useState({ name: '', price_per_promoter: '', max_promoters: '' });
   const [invoiceDialog, setInvoiceDialog] = useState(false);
   const [selectedAgency, setSelectedAgency] = useState('');
+  const [monthsAhead, setMonthsAhead] = useState('1');
 
   const createPlanMutation = useMutation({
     mutationFn: (data: any) => api('/api/access-control/billing/plans', { method: 'POST', body: data }),
