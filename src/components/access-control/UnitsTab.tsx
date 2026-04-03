@@ -235,7 +235,7 @@ const UnitsTab = () => {
                           const level = ov.security_level || "custom";
                           const labelMap: Record<string, string> = { basic: "Básico", intermediate: "Intermediário", high: "Alto", maximum: "Máximo" };
                           return (
-                            <Badge variant="outline" className="gap-1 border-amber-500 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-400">
+                            <Badge variant="destructive" className="gap-1">
                               <Shield className="h-3 w-3" /> Override: {labelMap[level] || level}
                             </Badge>
                           );
