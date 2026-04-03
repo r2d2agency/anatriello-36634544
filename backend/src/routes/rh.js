@@ -1807,4 +1807,55 @@ router.get('/pdvs', async (req, res) => {
   }
 });
 
+// ─── Facial Recognition Config ───
+router.get('/facial-recognition/config', async (req, res) => {
+  try {
+    const orgId = req.query.org_id || await getUserOrgId(req.userId);
+    if (!orgId) return res.json({ enabled: false });
+    const result = await query(
+      `SELECT * FROM facial_recognition_config WHERE organization_id = $1 LIMIT 1`,
+      [orgId]
+    );
+    if (result.rows.length === 0) {
+      return res.json({
+        enabled: false, use_for_attendance: false, use_for_checkin: false,
+        min_confidence: 70, require_photo_registration: true,
+        auto_verify_on_clock_in: false, allow_manual_fallback: true, photo_quality_check: true,
+      });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    logError('rh.facial-config.get', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/facial-recognition/config', async (req, res) => {
+  try {
+    const orgId = req.body.organization_id || await getUserOrgId(req.userId);
+    if (!orgId) return res.status(400).json({ error: 'Organização não encontrada' });
+    const d = req.body;
+    const result = await query(
+      `INSERT INTO facial_recognition_config (organization_id, enabled, use_for_attendance, use_for_checkin, min_confidence, require_photo_registration, auto_verify_on_clock_in, allow_manual_fallback, photo_quality_check)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (organization_id) DO UPDATE SET
+         enabled = EXCLUDED.enabled,
+         use_for_attendance = EXCLUDED.use_for_attendance,
+         use_for_checkin = EXCLUDED.use_for_checkin,
+         min_confidence = EXCLUDED.min_confidence,
+         require_photo_registration = EXCLUDED.require_photo_registration,
+         auto_verify_on_clock_in = EXCLUDED.auto_verify_on_clock_in,
+         allow_manual_fallback = EXCLUDED.allow_manual_fallback,
+         photo_quality_check = EXCLUDED.photo_quality_check,
+         updated_at = NOW()
+       RETURNING *`,
+      [orgId, d.enabled, d.use_for_attendance, d.use_for_checkin, d.min_confidence, d.require_photo_registration, d.auto_verify_on_clock_in, d.allow_manual_fallback, d.photo_quality_check]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    logError('rh.facial-config.put', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
