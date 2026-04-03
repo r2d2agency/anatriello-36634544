@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock, Store, Delete, Settings, UserCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock, Store, Delete, Settings, UserCheck, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,9 @@ interface LookupResult {
   name: string;
   photo_url?: string;
   agency_name?: string;
+  has_open_entry: boolean;
+  open_entry_id?: string;
+  entry_at?: string;
 }
 
 interface TotemConfig {
@@ -131,6 +134,9 @@ const TotemAccess = () => {
           name: data.promoter.name,
           photo_url: data.promoter.photo_url,
           agency_name: data.promoter.agency_name,
+          has_open_entry: !!data.has_open_entry,
+          open_entry_id: data.open_entry_id,
+          entry_at: data.entry_at,
         });
       } else {
         setLookupError(data.reason || "Cadastro não encontrado");
@@ -173,6 +179,31 @@ const TotemAccess = () => {
       setLoading(false);
       setLookupResult(null);
       setLookupError(null);
+    }
+  };
+
+  const handleConfirmCheckout = async () => {
+    if (!lookupResult?.open_entry_id) return;
+    setLoading(true);
+    try {
+      const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+      await fetch(`${API_URL}/api/access-control/totem/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-totem-token": config.token },
+        body: JSON.stringify({ entry_id: lookupResult.open_entry_id }),
+      });
+      setResult({
+        status: "authorized",
+        promoter_name: lookupResult.name,
+        promoter_photo: lookupResult.photo_url,
+        agency_name: lookupResult.agency_name,
+        block_reason: "SAÍDA REGISTRADA",
+      });
+    } catch {
+      setResult({ status: "blocked", block_reason: "Erro ao registrar saída" });
+    } finally {
+      setLoading(false);
+      setLookupResult(null);
     }
   };
 
@@ -220,18 +251,22 @@ const TotemAccess = () => {
   // ═══ Result screen ═══
   if (result) {
     const isAuthorized = result.status === "authorized";
+    const isCheckout = result.block_reason === "SAÍDA REGISTRADA";
+    const bgColor = isCheckout ? "#2563eb" : isAuthorized ? "#16a34a" : "#dc2626";
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-8 transition-colors duration-500"
-        style={{ background: isAuthorized ? "#16a34a" : "#dc2626" }}>
+        style={{ background: bgColor }}>
         <div className="text-center text-white max-w-lg w-full">
           {config.logoUrl && <img src={config.logoUrl} alt="Logo" className="h-16 mx-auto mb-6 object-contain" />}
-          {isAuthorized ? (
+          {isCheckout ? (
+            <LogOut className="h-32 w-32 mx-auto mb-6 animate-in zoom-in duration-500" />
+          ) : isAuthorized ? (
             <CheckCircle2 className="h-32 w-32 mx-auto mb-6 animate-in zoom-in duration-500" />
           ) : (
             <XCircle className="h-32 w-32 mx-auto mb-6 animate-in zoom-in duration-500" />
           )}
           <h1 className="text-5xl font-bold mb-4">
-            {isAuthorized ? "ACESSO LIBERADO" : "ACESSO BLOQUEADO"}
+            {isCheckout ? "SAÍDA REGISTRADA" : isAuthorized ? "ACESSO LIBERADO" : "ACESSO BLOQUEADO"}
           </h1>
           {isAuthorized && (
             <Card className="bg-white/20 backdrop-blur border-white/30 p-6 mt-6 text-white">
@@ -327,29 +362,49 @@ const TotemAccess = () => {
 
         {lookupResult && (
           <div className="rounded-2xl p-6 backdrop-blur animate-in fade-in zoom-in-95 duration-300"
-            style={{ backgroundColor: `${config.primaryColor}22`, border: `2px solid ${config.primaryColor}55` }}>
-            <p className="text-white/70 text-sm mb-4 uppercase tracking-wider">Confirme sua identidade</p>
+            style={{ backgroundColor: lookupResult.has_open_entry ? "#f59e0b22" : `${config.primaryColor}22`, border: `2px solid ${lookupResult.has_open_entry ? "#f59e0b55" : `${config.primaryColor}55`}` }}>
+            
+            {lookupResult.has_open_entry ? (
+              <p className="text-amber-300 text-sm mb-4 uppercase tracking-wider font-semibold">⏱ Você já está no PDV — Registrar saída?</p>
+            ) : (
+              <p className="text-white/70 text-sm mb-4 uppercase tracking-wider">Confirme sua identidade</p>
+            )}
+
             {lookupResult.photo_url ? (
               <img src={lookupResult.photo_url} alt="Foto" className="w-32 h-32 rounded-full mx-auto mb-4 border-4 object-cover shadow-xl"
-                style={{ borderColor: config.primaryColor }} />
+                style={{ borderColor: lookupResult.has_open_entry ? "#f59e0b" : config.primaryColor }} />
             ) : (
               <div className="w-32 h-32 rounded-full mx-auto mb-4 border-4 flex items-center justify-center"
-                style={{ borderColor: config.primaryColor, backgroundColor: `${config.primaryColor}33` }}>
+                style={{ borderColor: lookupResult.has_open_entry ? "#f59e0b" : config.primaryColor, backgroundColor: `${config.primaryColor}33` }}>
                 <UserCheck className="h-16 w-16 text-white/60" />
               </div>
             )}
             <p className="text-white text-2xl font-bold mb-1">{lookupResult.name}</p>
             {lookupResult.agency_name && <p className="text-white/70 text-lg">Agência: {lookupResult.agency_name}</p>}
 
+            {lookupResult.has_open_entry && lookupResult.entry_at && (
+              <p className="text-amber-300/80 text-sm mt-2">
+                Entrada: {new Date(lookupResult.entry_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+
             <div className="flex gap-3 mt-6">
               <Button onClick={handleReset} variant="outline" className="flex-1 h-14 text-lg border-white/30 text-white hover:bg-white/10">
                 Não sou eu
               </Button>
-              <Button onClick={handleConfirmCheckin} disabled={loading}
-                className="flex-1 h-14 text-lg font-bold" style={btnStyle}>
-                {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <UserCheck className="h-5 w-5 mr-2" />}
-                {loading ? "Validando..." : "Check-in"}
-              </Button>
+              {lookupResult.has_open_entry ? (
+                <Button onClick={handleConfirmCheckout} disabled={loading}
+                  className="flex-1 h-14 text-lg font-bold bg-amber-500 hover:bg-amber-600 text-white">
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LogOut className="h-5 w-5 mr-2" />}
+                  {loading ? "Saindo..." : "Check-out"}
+                </Button>
+              ) : (
+                <Button onClick={handleConfirmCheckin} disabled={loading}
+                  className="flex-1 h-14 text-lg font-bold" style={btnStyle}>
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
+                  {loading ? "Validando..." : "Check-in"}
+                </Button>
+              )}
             </div>
           </div>
         )}
