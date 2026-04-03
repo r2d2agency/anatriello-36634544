@@ -703,6 +703,49 @@ router.post('/totem/validate', authenticateTotem, async (req, res) => {
   } catch (err) { logError('totem.validate', err); res.status(500).json({ error: 'Erro na validação' }); }
 });
 
+// Lookup promoter by CPF (no entry registered — just preview)
+router.post('/totem/lookup', authenticateTotem, async (req, res) => {
+  try {
+    const { cpf } = req.body;
+    if (!cpf) return res.status(400).json({ error: 'CPF é obrigatório' });
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) return res.status(400).json({ found: false, reason: 'CPF inválido' });
+
+    const promoter = await query(
+      `SELECT ap.id as agency_promoter_id, ap.name, ap.photo_url, ap.status as promoter_status,
+              ap.agency_id, a.name as agency_name, a.status as agency_status, a.billing_status,
+              NULL as employee_id
+       FROM agency_promoters ap
+       JOIN agencies a ON a.id = ap.agency_id
+       WHERE ap.cpf = $1
+       UNION ALL
+       SELECT NULL as agency_promoter_id, e.full_name, e.photo_url, 'active' as promoter_status,
+              NULL as agency_id, NULL as agency_name, 'active' as agency_status, 'active' as billing_status,
+              e.id as employee_id
+       FROM employees e WHERE e.cpf = $1
+       LIMIT 1`,
+      [cleanCpf]
+    );
+
+    if (!promoter.rows.length) {
+      return res.json({ found: false, reason: 'Cadastro não encontrado' });
+    }
+
+    const p = promoter.rows[0];
+    res.json({
+      found: true,
+      promoter: {
+        name: p.name,
+        photo_url: p.photo_url,
+        agency_name: p.agency_name,
+        status: p.promoter_status,
+        agency_status: p.agency_status,
+        billing_status: p.billing_status,
+      },
+    });
+  } catch (err) { logError('totem.lookup', err); res.status(500).json({ error: 'Erro na busca' }); }
+});
+
 // Totem checkout
 router.post('/totem/checkout', authenticateTotem, async (req, res) => {
   try {
