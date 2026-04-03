@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Plus, Pencil, Trash2, Store, Loader2, Copy, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCnpj, isValidCnpj, onlyDigits } from "@/lib/br-utils";
 
 const defaultForm = {
   name: "", cnpj: "", address: "", city: "", state: "", network_id: "",
@@ -30,7 +31,6 @@ const UnitsTab = () => {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState(defaultForm);
 
-  // Login dialog
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [loginUnit, setLoginUnit] = useState<any>(null);
   const [loginForm, setLoginForm] = useState({ name: "", email: "", password: "" });
@@ -40,28 +40,46 @@ const UnitsTab = () => {
   const openEdit = (u: any) => {
     setEditing(u);
     setForm({
-      name: u.name, cnpj: u.cnpj || "", address: u.address || "", city: u.city || "", state: u.state || "",
-      network_id: u.network_id || "", latitude: u.latitude?.toString() || "", longitude: u.longitude?.toString() || "",
+      name: u.name,
+      cnpj: formatCnpj(u.cnpj || ""),
+      address: u.address || "",
+      city: u.city || "",
+      state: u.state || "",
+      network_id: u.network_id || "",
+      latitude: u.latitude?.toString() || "",
+      longitude: u.longitude?.toString() || "",
       radius_meters: u.radius_meters?.toString() || "200",
-      operating_hours_start: u.operating_hours_start || "06:00", operating_hours_end: u.operating_hours_end || "22:00",
+      operating_hours_start: u.operating_hours_start || "06:00",
+      operating_hours_end: u.operating_hours_end || "22:00",
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
+    if (form.cnpj && !isValidCnpj(form.cnpj)) {
+      toast({ title: "CNPJ inválido", description: "Revise o CNPJ da unidade antes de salvar.", variant: "destructive" });
+      return;
+    }
+
     const payload = {
       ...form,
+      cnpj: form.cnpj ? onlyDigits(form.cnpj) : null,
       network_id: form.network_id || null,
       latitude: form.latitude ? parseFloat(form.latitude) : null,
       longitude: form.longitude ? parseFloat(form.longitude) : null,
       radius_meters: parseInt(form.radius_meters) || 200,
     };
-    if (editing) {
-      await updateMutation.mutateAsync({ id: editing.id, ...payload });
-    } else {
-      await createMutation.mutateAsync(payload);
+
+    try {
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, ...payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      setDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Erro ao salvar unidade", description: error?.message || "Tente novamente.", variant: "destructive" });
     }
-    setDialogOpen(false);
   };
 
   const copyTotemToken = (token: string) => {
@@ -86,12 +104,23 @@ const UnitsTab = () => {
 
   const handleCreateLogin = async () => {
     if (!loginForm.email || !loginForm.password || !loginForm.name) return;
-    await createUserMutation.mutateAsync({
-      supermarket_unit_id: loginUnit.id,
-      network_id: loginUnit.network_id || null,
-      ...loginForm,
-    });
-    setLoginDialogOpen(false);
+    if (loginForm.password.length < 6) {
+      toast({ title: "Senha inválida", description: "A senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await createUserMutation.mutateAsync({
+        supermarket_unit_id: loginUnit.id,
+        network_id: loginUnit.network_id || null,
+        name: loginForm.name.trim(),
+        email: loginForm.email.trim().toLowerCase(),
+        password: loginForm.password,
+      });
+      setLoginDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Erro ao criar acesso", description: error?.message || "Tente novamente.", variant: "destructive" });
+    }
   };
 
   return (
@@ -155,13 +184,15 @@ const UnitsTab = () => {
         )}
       </CardContent>
 
-      {/* Edit/Create Unit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Editar Unidade" : "Nova Unidade"}</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             <div><Label>Nome *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-            <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} /></div>
+            <div>
+              <Label>CNPJ</Label>
+              <Input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: formatCnpj(e.target.value) }))} placeholder="00.000.000/0000-00" />
+            </div>
             <div>
               <Label>Rede</Label>
               <Select value={form.network_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, network_id: v === "__none__" ? "" : v }))}>
@@ -175,7 +206,7 @@ const UnitsTab = () => {
             <div><Label>Endereço</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-2">
               <div><Label>Cidade</Label><Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
-              <div><Label>UF</Label><Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} maxLength={2} /></div>
+              <div><Label>UF</Label><Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value.toUpperCase() }))} maxLength={2} /></div>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div><Label>Latitude</Label><Input value={form.latitude} onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))} /></div>
@@ -194,7 +225,6 @@ const UnitsTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create Portal Login Dialog */}
       <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -218,6 +248,7 @@ const UnitsTab = () => {
                     value={loginForm.password}
                     onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
                     placeholder="••••••••"
+                    minLength={6}
                   />
                   <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPw(!showPw)}>
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

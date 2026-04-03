@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAgencies, useCreateAgency, useUpdateAgency, useUnits, useCreateAgencyUser, useSetAgencyUnits } from "@/hooks/use-access-control";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,46 +16,65 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Users, Loader2, KeyRound, Eye, EyeOff, Store, FileSignature, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { useUpload } from "@/hooks/use-upload";
+import { generateAgencyContractPdfBlob } from "@/lib/agency-contract-pdf";
+import { formatCnpj, formatCpf, formatPhone, isValidCnpj, isValidCpf, isValidPhone, onlyDigits } from "@/lib/br-utils";
+
+const defaultForm = {
+  name: "",
+  cnpj: "",
+  responsible_name: "",
+  responsible_cpf: "",
+  contact_email: "",
+  contact_phone: "",
+  max_promoters: "50",
+  is_active: true,
+  address: "",
+  city: "",
+  state: "",
+  plan_id: "",
+  contracted_promoters: "",
+};
 
 const AgenciesTab = () => {
   const { data: agencies = [], isLoading } = useAgencies();
   const { data: units = [] } = useUnits();
   const { data: plans = [] } = useQuery({
-    queryKey: ['billing-plans'],
-    queryFn: () => api<any[]>('/api/access-control/billing/plans'),
+    queryKey: ["billing-plans"],
+    queryFn: () => api<any[]>("/api/access-control/billing/plans"),
   });
   const createMutation = useCreateAgency();
   const updateMutation = useUpdateAgency();
   const createUserMutation = useCreateAgencyUser();
   const setUnitsMutation = useSetAgencyUnits();
+  const { uploadFile } = useUpload();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [dialogTab, setDialogTab] = useState("dados");
-  const [form, setForm] = useState({
-    name: "", cnpj: "", responsible_name: "", contact_email: "", contact_phone: "",
-    max_promoters: "50", is_active: true, address: "", city: "", state: "",
-    plan_id: "", contracted_promoters: "",
-  });
+  const [form, setForm] = useState(defaultForm);
 
-  // Login fields
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginName, setLoginName] = useState("");
   const [showPw, setShowPw] = useState(false);
 
-  // PDV selection
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
 
-  // Contract dialog
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [contractAgency, setContractAgency] = useState<any>(null);
   const [contractLoading, setContractLoading] = useState(false);
+  const [contractSignerName, setContractSignerName] = useState("");
+  const [contractSignerEmail, setContractSignerEmail] = useState("");
+  const [contractSignerCpf, setContractSignerCpf] = useState("");
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", cnpj: "", responsible_name: "", contact_email: "", contact_phone: "", max_promoters: "50", is_active: true, address: "", city: "", state: "", plan_id: "", contracted_promoters: "" });
-    setLoginEmail(""); setLoginPassword(""); setLoginName(""); setShowPw(false);
+    setForm(defaultForm);
+    setLoginEmail("");
+    setLoginPassword("");
+    setLoginName("");
+    setShowPw(false);
     setSelectedUnits([]);
     setDialogTab("dados");
     setDialogOpen(true);
@@ -64,17 +83,27 @@ const AgenciesTab = () => {
   const openEdit = (a: any) => {
     setEditing(a);
     setForm({
-      name: a.name, cnpj: a.cnpj || "", responsible_name: a.responsible_name || "",
-      contact_email: a.contact_email || a.responsible_email || "", contact_phone: a.contact_phone || a.responsible_phone || "",
-      max_promoters: a.max_promoters?.toString() || "50", is_active: a.is_active !== false && a.status !== 'inactive',
-      address: a.address || "", city: a.city || "", state: a.state || "",
-      plan_id: "", contracted_promoters: a.max_promoters?.toString() || "",
+      name: a.name,
+      cnpj: formatCnpj(a.cnpj || ""),
+      responsible_name: a.responsible_name || "",
+      responsible_cpf: formatCpf(a.responsible_cpf || ""),
+      contact_email: a.contact_email || a.responsible_email || "",
+      contact_phone: formatPhone(a.contact_phone || a.responsible_phone || ""),
+      max_promoters: a.max_promoters?.toString() || "50",
+      is_active: a.is_active !== false && a.status !== "inactive",
+      address: a.address || "",
+      city: a.city || "",
+      state: a.state || "",
+      plan_id: "",
+      contracted_promoters: a.max_promoters?.toString() || "",
     });
-    setLoginEmail(""); setLoginPassword(""); setLoginName(a.responsible_name || ""); setShowPw(false);
+    setLoginEmail("");
+    setLoginPassword("");
+    setLoginName(a.responsible_name || "");
+    setShowPw(false);
     setSelectedUnits([]);
     setDialogTab("dados");
     setDialogOpen(true);
-    // Load existing allowed units
     api<any[]>(`/api/access-control/agencies/${a.id}/allowed-units`).then(list => {
       setSelectedUnits(list.map((u: any) => u.supermarket_unit_id));
     }).catch(() => {});
@@ -83,7 +112,7 @@ const AgenciesTab = () => {
   const generatePassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
     let pw = "agc";
-    for (let i = 0; i < 5; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 5; i += 1) pw += chars[Math.floor(Math.random() * chars.length)];
     setLoginPassword(pw);
     setShowPw(true);
   };
@@ -92,87 +121,161 @@ const AgenciesTab = () => {
     setSelectedUnits(prev => prev.includes(unitId) ? prev.filter(id => id !== unitId) : [...prev, unitId]);
   };
 
-  const handleSave = async () => {
-    const payload = {
-      ...form,
-      max_promoters: parseInt(form.max_promoters) || 50,
-      responsible_email: form.contact_email,
-      responsible_phone: form.contact_phone,
-      plan_id: form.plan_id || undefined,
-      contracted_promoters: parseInt(form.contracted_promoters) || undefined,
-    };
-    let agencyId = editing?.id;
-    if (editing) {
-      await updateMutation.mutateAsync({ id: editing.id, ...payload });
-    } else {
-      const result: any = await createMutation.mutateAsync(payload);
-      agencyId = result?.id;
+  const validateAgencyForm = () => {
+    if (form.cnpj && !isValidCnpj(form.cnpj)) {
+      toast({ title: "CNPJ inválido", description: "Revise o CNPJ da agência antes de salvar.", variant: "destructive" });
+      return false;
     }
 
-    // Save allowed PDVs
-    if (agencyId && selectedUnits.length > 0) {
-      await setUnitsMutation.mutateAsync({ agencyId, unit_ids: selectedUnits });
+    if (form.responsible_cpf && !isValidCpf(form.responsible_cpf)) {
+      toast({ title: "CPF inválido", description: "Revise o CPF do responsável antes de salvar.", variant: "destructive" });
+      return false;
     }
 
-    // Create login if provided
-    if (agencyId && loginEmail && loginPassword) {
-      try {
-        await createUserMutation.mutateAsync({
-          agencyId,
-          email: loginEmail,
-          password: loginPassword,
-          name: loginName || form.responsible_name || form.name,
-        });
-      } catch (err: any) {
-        toast({ title: "Erro ao criar login", description: err?.message, variant: "destructive" });
+    if (form.contact_phone && !isValidPhone(form.contact_phone)) {
+      toast({ title: "Telefone inválido", description: "Informe um telefone com DDD válido.", variant: "destructive" });
+      return false;
+    }
+
+    const hasPartialAccessData = loginEmail || loginPassword || loginName;
+    if (hasPartialAccessData) {
+      if (!loginEmail || !loginPassword || !loginName) {
+        toast({ title: "Dados de acesso incompletos", description: "Preencha nome, e-mail e senha para criar o acesso do portal.", variant: "destructive" });
+        return false;
+      }
+      if (loginPassword.length < 6) {
+        toast({ title: "Senha inválida", description: "A senha do portal deve ter no mínimo 6 caracteres.", variant: "destructive" });
+        return false;
       }
     }
 
-    setDialogOpen(false);
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateAgencyForm()) return;
+
+    const payload = {
+      ...form,
+      cnpj: form.cnpj ? onlyDigits(form.cnpj) : null,
+      responsible_cpf: form.responsible_cpf ? onlyDigits(form.responsible_cpf) : null,
+      contact_phone: form.contact_phone ? onlyDigits(form.contact_phone) : null,
+      max_promoters: parseInt(form.max_promoters) || 50,
+      responsible_email: form.contact_email,
+      responsible_phone: form.contact_phone ? onlyDigits(form.contact_phone) : null,
+      plan_id: form.plan_id || undefined,
+      contracted_promoters: parseInt(form.contracted_promoters) || undefined,
+    };
+
+    try {
+      let agencyId = editing?.id;
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, ...payload });
+      } else {
+        const result: any = await createMutation.mutateAsync(payload);
+        agencyId = result?.id;
+      }
+
+      if (agencyId) {
+        await setUnitsMutation.mutateAsync({ agencyId, unit_ids: selectedUnits });
+      }
+
+      if (agencyId && loginEmail && loginPassword && loginName) {
+        await createUserMutation.mutateAsync({
+          agencyId,
+          email: loginEmail.trim().toLowerCase(),
+          password: loginPassword,
+          name: loginName.trim(),
+        });
+      }
+
+      setDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Erro ao salvar agência", description: error?.message || "Tente novamente.", variant: "destructive" });
+    }
   };
 
   const openContractDialog = (a: any) => {
     setContractAgency(a);
+    setContractSignerName(a.responsible_name || a.name || "");
+    setContractSignerEmail((a.contact_email || a.responsible_email || "").trim().toLowerCase());
+    setContractSignerCpf(formatCpf(a.responsible_cpf || ""));
     setContractDialogOpen(true);
   };
 
   const handleGenerateContract = async () => {
     if (!contractAgency) return;
+    if (!contractSignerName.trim() || !contractSignerEmail.trim()) {
+      toast({ title: "Dados incompletos", description: "Informe nome e e-mail do responsável para gerar o contrato.", variant: "destructive" });
+      return;
+    }
+    if (!isValidCpf(contractSignerCpf)) {
+      toast({ title: "CPF inválido", description: "Informe um CPF válido para o signatário do contrato.", variant: "destructive" });
+      return;
+    }
+
     setContractLoading(true);
     try {
-      // Create a doc-signature document with the contract
-      const res = await api<any>('/api/doc-signatures/documents', {
-        method: 'POST',
+      const pdfBlob = generateAgencyContractPdfBlob({
+        agencyName: contractAgency.name,
+        agencyCnpj: contractAgency.cnpj,
+        responsibleName: contractSignerName.trim(),
+        responsibleEmail: contractSignerEmail.trim().toLowerCase(),
+        responsiblePhone: contractAgency.contact_phone || contractAgency.responsible_phone || "",
+        responsibleCpf: contractSignerCpf,
+        address: contractAgency.address || "",
+        city: contractAgency.city || "",
+        state: contractAgency.state || "",
+        planName: contractAgency.plan_name || "Plano comercial vigente",
+        contractedPromoters: Number(contractAgency.max_promoters || 0),
+        pricePerPromoter: Number(contractAgency.price_per_promoter || 0),
+        organizationName: "Ayratech",
+      });
+
+      const safeAgencyName = contractAgency.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const file = new File([pdfBlob], `contrato-agencia-${safeAgencyName || 'agencia'}.pdf`, { type: "application/pdf" });
+      const fileUrl = await uploadFile(file);
+
+      if (!fileUrl) {
+        throw new Error("Não foi possível enviar o PDF do contrato.");
+      }
+
+      const document = await api<any>("/api/doc-signatures", {
+        method: "POST",
         body: {
           title: `Contrato de Prestação de Serviços — ${contractAgency.name}`,
-          description: `Contrato da agência ${contractAgency.name} (CNPJ: ${contractAgency.cnpj || 'N/I'})`,
-          template_type: 'agency_contract',
-          template_data: {
-            agency_name: contractAgency.name,
-            agency_cnpj: contractAgency.cnpj || '',
-            responsible_name: contractAgency.responsible_name || contractAgency.responsible_email || '',
-            contact_email: contractAgency.contact_email || contractAgency.responsible_email || '',
-            contact_phone: contractAgency.contact_phone || contractAgency.responsible_phone || '',
-            max_promoters: contractAgency.max_promoters,
-            price_per_promoter: contractAgency.price_per_promoter || 0,
-            address: contractAgency.address || '',
-            city: contractAgency.city || '',
-            state: contractAgency.state || '',
-          },
-          signers: [
-            {
-              name: contractAgency.responsible_name || contractAgency.name,
-              email: contractAgency.contact_email || contractAgency.responsible_email || '',
-              cpf: contractAgency.cnpj || '',
-              role: 'signer',
-            },
-          ],
+          description: `Contrato da agência ${contractAgency.name}`,
+          file_url: fileUrl,
         },
       });
-      toast({ title: "Contrato gerado!", description: "O contrato foi criado e enviado para assinatura digital." });
+
+      await api(`/api/doc-signatures/${document.id}/signers`, {
+        method: "POST",
+        body: {
+          name: contractSignerName.trim(),
+          email: contractSignerEmail.trim().toLowerCase(),
+          cpf: onlyDigits(contractSignerCpf),
+          phone: onlyDigits(contractAgency.contact_phone || contractAgency.responsible_phone || "") || null,
+          role: "signer",
+        },
+      });
+
+      let emailSent = true;
+      try {
+        await api(`/api/doc-signatures/${document.id}/send`, { method: "POST" });
+      } catch {
+        emailSent = false;
+      }
+
+      toast({
+        title: emailSent ? "Contrato gerado!" : "Contrato criado",
+        description: emailSent
+          ? "O contrato foi criado e enviado para assinatura digital."
+          : "O contrato foi criado no módulo de Assinaturas, mas o envio por e-mail falhou. Verifique o SMTP.",
+      });
       setContractDialogOpen(false);
-    } catch (err: any) {
-      toast({ title: "Erro ao gerar contrato", description: err?.message || "Tente novamente", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Erro ao gerar contrato", description: error?.message || "Tente novamente", variant: "destructive" });
     } finally {
       setContractLoading(false);
     }
@@ -205,12 +308,12 @@ const AgenciesTab = () => {
               {agencies.map((a: any) => (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">{a.name}</TableCell>
-                  <TableCell>{a.cnpj || "—"}</TableCell>
+                  <TableCell>{a.cnpj ? formatCnpj(a.cnpj) : "—"}</TableCell>
                   <TableCell>{a.responsible_name || "—"}</TableCell>
                   <TableCell>{a.max_promoters} promotores</TableCell>
                   <TableCell>
-                    <Badge variant={a.status === 'active' || a.is_active ? "default" : "secondary"}>
-                      {a.status === 'active' || a.is_active ? "Ativa" : "Inativa"}
+                    <Badge variant={a.status === "active" || a.is_active ? "default" : "secondary"}>
+                      {a.status === "active" || a.is_active ? "Ativa" : "Inativa"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -230,7 +333,6 @@ const AgenciesTab = () => {
         )}
       </CardContent>
 
-      {/* Agency Edit/Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh]">
           <DialogHeader><DialogTitle>{editing ? "Editar Agência" : "Nova Agência"}</DialogTitle></DialogHeader>
@@ -244,27 +346,31 @@ const AgenciesTab = () => {
 
             <TabsContent value="dados" className="space-y-4 max-h-[50vh] overflow-y-auto">
               <div><Label>Nome *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} /></div>
-              <div><Label>Responsável</Label><Input value={form.responsible_name} onChange={e => setForm(f => ({ ...f, responsible_name: e.target.value }))} /></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>Email</Label><Input value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} /></div>
-                <div><Label>Telefone</Label><Input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} /></div>
+              <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: formatCnpj(e.target.value) }))} placeholder="00.000.000/0000-00" /></div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><Label>Responsável</Label><Input value={form.responsible_name} onChange={e => setForm(f => ({ ...f, responsible_name: e.target.value }))} /></div>
+                <div><Label>CPF do responsável</Label><Input value={form.responsible_cpf} onChange={e => setForm(f => ({ ...f, responsible_cpf: formatCpf(e.target.value) }))} placeholder="000.000.000-00" /></div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><Label>Email</Label><Input type="email" value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} /></div>
+                <div><Label>Telefone</Label><Input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: formatPhone(e.target.value) }))} placeholder="(00) 00000-0000" /></div>
               </div>
               <div><Label>Endereço</Label><Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>Cidade</Label><Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
-                <div><Label>UF</Label><Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} maxLength={2} /></div>
+                <div><Label>UF</Label><Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value.toUpperCase() }))} maxLength={2} /></div>
               </div>
               <Separator />
               <p className="text-sm font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" /> Plano e Cobrança</p>
               <div>
                 <Label>Plano de Cobrança</Label>
                 <Select value={form.plan_id} onValueChange={v => {
-                  setForm(f => ({ ...f, plan_id: v }));
                   const plan = (plans as any[])?.find((p: any) => p.id === v);
-                  if (plan) {
-                    setForm(f => ({ ...f, plan_id: v, max_promoters: plan.max_promoters?.toString() || f.max_promoters }));
-                  }
+                  setForm(f => ({
+                    ...f,
+                    plan_id: v,
+                    max_promoters: plan?.max_promoters?.toString() || f.max_promoters,
+                  }));
                 }}>
                   <SelectTrigger><SelectValue placeholder="Selecione um plano..." /></SelectTrigger>
                   <SelectContent>
@@ -335,7 +441,7 @@ const AgenciesTab = () => {
                 <Label>Senha *</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Input type={showPw ? "text" : "password"} value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" />
+                    <Input type={showPw ? "text" : "password"} value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" minLength={6} />
                     <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPw(!showPw)}>
                       {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -346,9 +452,7 @@ const AgenciesTab = () => {
                   <p className="text-xs text-muted-foreground mt-1">Senha: <code className="bg-muted px-1 rounded">{loginPassword}</code></p>
                 )}
               </div>
-              {!editing && (
-                <p className="text-xs text-muted-foreground">O login será criado automaticamente ao salvar a agência.</p>
-              )}
+              <p className="text-xs text-muted-foreground">Ao salvar, o acesso será criado com os dados informados acima.</p>
             </TabsContent>
           </Tabs>
 
@@ -359,7 +463,6 @@ const AgenciesTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Contract Dialog */}
       <Dialog open={contractDialogOpen} onOpenChange={setContractDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -370,17 +473,23 @@ const AgenciesTab = () => {
           {contractAgency && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Será gerado um contrato de prestação de serviços para a agência <strong>{contractAgency.name}</strong> e enviado para assinatura digital.
+                O sistema vai gerar o PDF do contrato da agência <strong>{contractAgency.name}</strong> e enviá-lo para assinatura digital.
               </p>
               <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Agência:</span><span className="font-medium">{contractAgency.name}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">CNPJ:</span><span>{contractAgency.cnpj || "N/I"}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Responsável:</span><span>{contractAgency.responsible_name || "N/I"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">CNPJ:</span><span>{contractAgency.cnpj ? formatCnpj(contractAgency.cnpj) : "N/I"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Plano:</span><span>{contractAgency.plan_name || "N/I"}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Limite promotores:</span><span>{contractAgency.max_promoters}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Valor/promotor:</span><span>R$ {(contractAgency.price_per_promoter || 0).toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Valor/promotor:</span><span>R$ {Number(contractAgency.price_per_promoter || 0).toFixed(2)}</span></div>
+              </div>
+              <Separator />
+              <div className="space-y-3">
+                <div><Label>Responsável signatário *</Label><Input value={contractSignerName} onChange={e => setContractSignerName(e.target.value)} placeholder="Nome do responsável" /></div>
+                <div><Label>E-mail para assinatura *</Label><Input type="email" value={contractSignerEmail} onChange={e => setContractSignerEmail(e.target.value)} placeholder="responsavel@agencia.com" /></div>
+                <div><Label>CPF do signatário *</Label><Input value={contractSignerCpf} onChange={e => setContractSignerCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" /></div>
               </div>
               <p className="text-xs text-muted-foreground">
-                O contrato será criado no módulo de Assinaturas Digitais e um link será enviado ao e-mail do responsável para assinatura com validade jurídica.
+                O contrato será criado no módulo de Assinaturas Digitais. Se o SMTP estiver configurado, o link seguirá por e-mail automaticamente.
               </p>
             </div>
           )}
@@ -388,7 +497,7 @@ const AgenciesTab = () => {
             <Button variant="outline" onClick={() => setContractDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleGenerateContract} disabled={contractLoading}>
               {contractLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Gerar e Enviar para Assinatura
+              Gerar Contrato
             </Button>
           </DialogFooter>
         </DialogContent>
