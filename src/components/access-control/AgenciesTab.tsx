@@ -68,6 +68,7 @@ const AgenciesTab = () => {
       contact_email: a.contact_email || a.responsible_email || "", contact_phone: a.contact_phone || a.responsible_phone || "",
       max_promoters: a.max_promoters?.toString() || "50", is_active: a.is_active !== false && a.status !== 'inactive',
       address: a.address || "", city: a.city || "", state: a.state || "",
+      plan_id: "", contracted_promoters: a.max_promoters?.toString() || "",
     });
     setLoginEmail(""); setLoginPassword(""); setLoginName(a.responsible_name || ""); setShowPw(false);
     setSelectedUnits([]);
