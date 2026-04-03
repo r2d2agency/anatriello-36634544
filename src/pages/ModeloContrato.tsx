@@ -10,9 +10,10 @@ import { FileUploadInput } from '@/components/ui/file-upload-input';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { FileText, Plus, Pencil, Trash2, Loader2, Star, Eye } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, Loader2, Star, Eye, Building2, Save } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface ContractTemplate {
@@ -26,6 +27,19 @@ interface ContractTemplate {
   header_text_color: string;
   is_default: boolean;
   created_at: string;
+}
+
+interface CompanyInfo {
+  company_name: string;
+  cnpj: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  responsible_name: string;
+  responsible_cpf: string;
+  responsible_email: string;
+  responsible_phone: string;
 }
 
 const defaultClauses = [
@@ -46,6 +60,19 @@ const emptyForm = {
   is_default: false,
 };
 
+const emptyCompanyInfo: CompanyInfo = {
+  company_name: '',
+  cnpj: '',
+  address: '',
+  city: '',
+  state: '',
+  zip_code: '',
+  responsible_name: '',
+  responsible_cpf: '',
+  responsible_email: '',
+  responsible_phone: '',
+};
+
 export default function ModeloContrato() {
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,8 +82,13 @@ export default function ModeloContrato() {
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<ContractTemplate | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(emptyCompanyInfo);
+  const [savingCompany, setSavingCompany] = useState(false);
 
-  useEffect(() => { loadTemplates(); }, []);
+  useEffect(() => {
+    loadTemplates();
+    loadCompanyInfo();
+  }, []);
 
   const loadTemplates = async () => {
     setLoading(true);
@@ -65,6 +97,24 @@ export default function ModeloContrato() {
       setTemplates(data);
     } catch { setTemplates([]); }
     setLoading(false);
+  };
+
+  const loadCompanyInfo = async () => {
+    try {
+      const data = await api<CompanyInfo>('/api/doc-signatures/company-info');
+      if (data && data.company_name) setCompanyInfo(data);
+    } catch { /* ignore */ }
+  };
+
+  const saveCompanyInfo = async () => {
+    setSavingCompany(true);
+    try {
+      await api('/api/doc-signatures/company-info', { method: 'PUT', body: companyInfo });
+      toast.success('Dados da empresa salvos com sucesso!');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar dados da empresa');
+    }
+    setSavingCompany(false);
   };
 
   const openNew = () => {
@@ -134,70 +184,154 @@ export default function ModeloContrato() {
               Modelos de Contrato
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Edite o texto, logo, cabeçalho e rodapé dos contratos gerados automaticamente
+              Edite o texto, logo, cabeçalho, rodapé e dados da empresa contratante
             </p>
           </div>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Modelo</Button>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-            ) : templates.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>Nenhum modelo de contrato cadastrado</p>
-                <p className="text-sm">Clique em "Novo Modelo" para criar</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {templates.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between p-4 hover:bg-muted/30">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {t.logo_url && <img src={t.logo_url} alt="" className="h-8 w-8 rounded object-contain" />}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">{t.name}</p>
-                          {t.is_default && <Badge variant="secondary" className="text-xs gap-1"><Star className="h-3 w-3" /> Padrão</Badge>}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">{t.header_text}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button size="icon" variant="ghost" onClick={() => { setPreviewTemplate(t); setPreviewOpen(true); }}><Eye className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
-                            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(t.id)}>Excluir</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+        <Tabs defaultValue="templates">
+          <TabsList>
+            <TabsTrigger value="templates" className="gap-2"><FileText className="h-4 w-4" /> Modelos</TabsTrigger>
+            <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" /> Dados da Contratante</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="templates">
+            <Card>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>Nenhum modelo de contrato cadastrado</p>
+                    <p className="text-sm">Clique em "Novo Modelo" para criar</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="divide-y">
+                    {templates.map((t) => (
+                      <div key={t.id} className="flex items-center justify-between p-4 hover:bg-muted/30">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {t.logo_url && <img src={t.logo_url} alt="" className="h-8 w-8 rounded object-contain" />}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{t.name}</p>
+                              {t.is_default && <Badge variant="secondary" className="text-xs gap-1"><Star className="h-3 w-3" /> Padrão</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{t.header_text}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" onClick={() => { setPreviewTemplate(t); setPreviewOpen(true); }}><Eye className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
+                                <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(t.id)}>Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="company">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Dados da Empresa Contratante
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Preencha uma vez e esses dados serão utilizados automaticamente em todos os contratos gerados
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Razão Social / Nome da Empresa</Label>
+                    <Input value={companyInfo.company_name} onChange={e => setCompanyInfo(c => ({ ...c, company_name: e.target.value }))} placeholder="Ex: Ayratech Tecnologia LTDA" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CNPJ</Label>
+                    <Input value={companyInfo.cnpj} onChange={e => setCompanyInfo(c => ({ ...c, cnpj: e.target.value }))} placeholder="00.000.000/0000-00" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Endereço Completo</Label>
+                  <Input value={companyInfo.address} onChange={e => setCompanyInfo(c => ({ ...c, address: e.target.value }))} placeholder="Rua, número, complemento, bairro" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Cidade</Label>
+                    <Input value={companyInfo.city} onChange={e => setCompanyInfo(c => ({ ...c, city: e.target.value }))} placeholder="Cidade" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Estado</Label>
+                    <Input value={companyInfo.state} onChange={e => setCompanyInfo(c => ({ ...c, state: e.target.value }))} placeholder="UF" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CEP</Label>
+                    <Input value={companyInfo.zip_code} onChange={e => setCompanyInfo(c => ({ ...c, zip_code: e.target.value }))} placeholder="00000-000" />
+                  </div>
+                </div>
+
+                <Separator />
+                <p className="text-sm font-medium">Representante Legal</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome do Responsável</Label>
+                    <Input value={companyInfo.responsible_name} onChange={e => setCompanyInfo(c => ({ ...c, responsible_name: e.target.value }))} placeholder="Nome completo" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CPF do Responsável</Label>
+                    <Input value={companyInfo.responsible_cpf} onChange={e => setCompanyInfo(c => ({ ...c, responsible_cpf: e.target.value }))} placeholder="000.000.000-00" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>E-mail do Responsável</Label>
+                    <Input type="email" value={companyInfo.responsible_email} onChange={e => setCompanyInfo(c => ({ ...c, responsible_email: e.target.value }))} placeholder="email@empresa.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone / WhatsApp</Label>
+                    <Input value={companyInfo.responsible_phone} onChange={e => setCompanyInfo(c => ({ ...c, responsible_phone: e.target.value }))} placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button onClick={saveCompanyInfo} disabled={savingCompany} className="gap-2">
+                    {savingCompany ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar Dados da Empresa
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Editor Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle>{editing ? 'Editar Modelo de Contrato' : 'Novo Modelo de Contrato'}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-5">
+            <div className="flex-1 overflow-y-auto space-y-5 pr-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nome do Modelo *</Label>
@@ -265,7 +399,7 @@ export default function ModeloContrato() {
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0 pt-4 border-t">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}

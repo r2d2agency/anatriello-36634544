@@ -137,6 +137,24 @@ async function ensureTables() {
     await query(`ALTER TABLE contract_templates ADD COLUMN IF NOT EXISTS header_text_color VARCHAR(20) DEFAULT '#FFFFFF'`);
     await query(`ALTER TABLE contract_templates ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false`);
 
+    // Company info for contracts (contratante data saved once)
+    await query(`CREATE TABLE IF NOT EXISTS contract_company_info (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE UNIQUE,
+      company_name VARCHAR(500),
+      cnpj VARCHAR(30),
+      address TEXT,
+      city VARCHAR(255),
+      state VARCHAR(50),
+      zip_code VARCHAR(20),
+      responsible_name VARCHAR(255),
+      responsible_cpf VARCHAR(20),
+      responsible_email VARCHAR(255),
+      responsible_phone VARCHAR(30),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )`);
+
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'signer'`);
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS sign_order INTEGER DEFAULT 1`);
     await query(`ALTER TABLE doc_signature_signers ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'`);
@@ -1843,6 +1861,39 @@ router.delete('/contract-templates/:templateId', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir template' });
+  }
+});
+
+// ======= Company Info (contratante) =======
+router.get('/company-info', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(`SELECT * FROM contract_company_info WHERE organization_id = $1`, [orgId]);
+    res.json(result.rows[0] || {});
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar dados da empresa' });
+  }
+});
+
+router.put('/company-info', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    const { company_name, cnpj, address, city, state, zip_code, responsible_name, responsible_cpf, responsible_email, responsible_phone } = req.body;
+    const result = await query(
+      `INSERT INTO contract_company_info (organization_id, company_name, cnpj, address, city, state, zip_code, responsible_name, responsible_cpf, responsible_email, responsible_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (organization_id) DO UPDATE SET
+         company_name=$2, cnpj=$3, address=$4, city=$5, state=$6, zip_code=$7,
+         responsible_name=$8, responsible_cpf=$9, responsible_email=$10, responsible_phone=$11, updated_at=NOW()
+       RETURNING *`,
+      [orgId, company_name, cnpj, address, city, state, zip_code, responsible_name, responsible_cpf, responsible_email, responsible_phone]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('[doc-signatures] Company info save error:', error);
+    res.status(500).json({ error: 'Erro ao salvar dados da empresa' });
   }
 });
 
