@@ -326,7 +326,7 @@ export default function ModeloContrato() {
 
         {/* Editor Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogContent className="max-w-2xl max-h-[90vh] !flex !flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle>{editing ? 'Editar Modelo de Contrato' : 'Novo Modelo de Contrato'}</DialogTitle>
             </DialogHeader>
