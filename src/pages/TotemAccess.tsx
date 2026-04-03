@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock, Store, Delete, Settings, UserCheck, LogOut, LogIn } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock, Store, Delete, Settings, UserCheck, LogOut, LogIn, Lock, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 interface ValidationResult {
   status: "authorized" | "blocked";
@@ -39,6 +40,16 @@ interface TotemConfig {
   headerText: string;
 }
 
+interface TotemSession {
+  token: string;
+  unitName: string;
+  unitLogo: string;
+  unitCity: string;
+  unitState: string;
+  userName: string;
+  userEmail: string;
+}
+
 const DEFAULT_CONFIG: TotemConfig = {
   token: "",
   unitName: "PDV",
@@ -51,25 +62,43 @@ const DEFAULT_CONFIG: TotemConfig = {
   headerText: "Controle de Acesso",
 };
 
+function loadSession(): TotemSession | null {
+  try {
+    const saved = localStorage.getItem("totem_session");
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
+function saveSession(session: TotemSession) {
+  localStorage.setItem("totem_session", JSON.stringify(session));
+}
+
+function clearSession() {
+  localStorage.removeItem("totem_session");
+}
+
 function loadConfig(): TotemConfig {
   try {
     const saved = localStorage.getItem("totem_config");
     if (saved) return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
   } catch {}
-  const token = localStorage.getItem("totem_token") || "";
-  const unitName = localStorage.getItem("totem_unit_name") || "PDV";
-  return { ...DEFAULT_CONFIG, token, unitName };
+  return DEFAULT_CONFIG;
 }
 
 function saveConfig(config: TotemConfig) {
   localStorage.setItem("totem_config", JSON.stringify(config));
-  localStorage.setItem("totem_token", config.token);
-  localStorage.setItem("totem_unit_name", config.unitName);
 }
 
 const NUMPAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
 const TotemAccess = () => {
+  const [session, setSession] = useState<TotemSession | null>(loadSession);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+
   const [cpfDigits, setCpfDigits] = useState("");
   const [loading, setLoading] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -77,11 +106,15 @@ const TotemAccess = () => {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [config, setConfig] = useState<TotemConfig>(loadConfig);
+  const [config, setConfig] = useState<TotemConfig>(() => {
+    const c = loadConfig();
+    const s = loadSession();
+    if (s) return { ...c, token: s.token, unitName: s.unitName, logoUrl: s.unitLogo || c.logoUrl };
+    return c;
+  });
   const [configOpen, setConfigOpen] = useState(false);
   const [configForm, setConfigForm] = useState<TotemConfig>(config);
-  const [settingsTaps, setSettingsTaps] = useState(0);
-  const settingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -95,10 +128,6 @@ const TotemAccess = () => {
     }
   }, [result]);
 
-  useEffect(() => {
-    if (!config.token) setConfigOpen(true);
-  }, []);
-
   const formatCpf = (digits: string) => {
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
@@ -106,8 +135,61 @@ const TotemAccess = () => {
     return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
   };
 
+  const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+  // ═══ Login ═══
+  const handleLogin = async () => {
+    if (!loginEmail || !loginPassword) return;
+    setLoginLoading(true);
+    setLoginError("");
+    try {
+      const res = await fetch(`${API_URL}/api/access-control/totem/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setLoginError(data.error || "Erro no login"); return; }
+
+      const newSession: TotemSession = {
+        token: data.totem_token,
+        unitName: data.unit?.name || "PDV",
+        unitLogo: data.unit?.logo_url || "",
+        unitCity: data.unit?.city || "",
+        unitState: data.unit?.state || "",
+        userName: data.user?.name || "",
+        userEmail: data.user?.email || "",
+      };
+      saveSession(newSession);
+      setSession(newSession);
+
+      const newConfig = {
+        ...config,
+        token: newSession.token,
+        unitName: newSession.unitName,
+        logoUrl: newSession.unitLogo || config.logoUrl,
+      };
+      setConfig(newConfig);
+      saveConfig(newConfig);
+    } catch {
+      setLoginError("Erro de conexão com o servidor");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleDisconnect = () => {
+    clearSession();
+    setSession(null);
+    setConfig(prev => ({ ...prev, token: "" }));
+    setDisconnectConfirm(false);
+    setLoginEmail("");
+    setLoginPassword("");
+  };
+
+  // ═══ CPF flow ═══
   const handleNumpadPress = (key: string) => {
-    if (lookupResult || lookupError) return; // block input during confirmation
+    if (lookupResult || lookupError) return;
     if (key === "⌫") {
       setCpfDigits(prev => prev.slice(0, -1));
     } else if (key && cpfDigits.length < 11) {
@@ -123,7 +205,6 @@ const TotemAccess = () => {
     setLookupLoading(true);
     setLookupError(null);
     try {
-      const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       const res = await fetch(`${API_URL}/api/access-control/totem/lookup`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-totem-token": config.token },
@@ -153,7 +234,6 @@ const TotemAccess = () => {
   const handleConfirmCheckin = async () => {
     setLoading(true);
     try {
-      const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       const res = await fetch(`${API_URL}/api/access-control/totem/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-totem-token": config.token },
@@ -188,7 +268,6 @@ const TotemAccess = () => {
     if (!lookupResult?.open_entry_id) return;
     setLoading(true);
     try {
-      const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       await fetch(`${API_URL}/api/access-control/totem/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-totem-token": config.token },
@@ -212,7 +291,6 @@ const TotemAccess = () => {
   const handleCheckout = async () => {
     if (!result?.entry_id) return;
     try {
-      const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       await fetch(`${API_URL}/api/access-control/totem/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-totem-token": config.token },
@@ -229,26 +307,66 @@ const TotemAccess = () => {
     setCpfDigits("");
   };
 
-  const handleSettingsTap = () => {
-    setSettingsTaps(prev => prev + 1);
-    if (settingsTimerRef.current) clearTimeout(settingsTimerRef.current);
-    settingsTimerRef.current = setTimeout(() => setSettingsTaps(0), 2000);
-    if (settingsTaps >= 4) {
-      setConfigForm(config);
-      setConfigOpen(true);
-      setSettingsTaps(0);
-    }
-  };
-
   const handleSaveConfig = () => {
     saveConfig(configForm);
     setConfig(configForm);
+    if (session) {
+      const updatedSession = { ...session, token: configForm.token, unitName: configForm.unitName, unitLogo: configForm.logoUrl };
+      saveSession(updatedSession);
+      setSession(updatedSession);
+    }
     setConfigOpen(false);
   };
 
   const bgStyle = { background: `linear-gradient(135deg, ${config.bgColor} 0%, ${config.secondaryColor} 50%, ${config.bgColor} 100%)` };
   const btnStyle = { backgroundColor: config.buttonColor, color: config.buttonTextColor };
   const numpadBtnStyle = { backgroundColor: `${config.primaryColor}22`, borderColor: `${config.primaryColor}44`, color: "#fff" };
+
+  // ═══ LOGIN SCREEN ═══
+  if (!session) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 select-none" style={bgStyle}>
+        <div className="text-center max-w-sm w-full space-y-6">
+          <ShieldCheck className="h-20 w-20 mx-auto drop-shadow-lg" style={{ color: config.primaryColor }} />
+          <h1 className="text-3xl font-bold text-white">Totem de Acesso</h1>
+          <p className="text-white/60">Faça login com as credenciais do PDV para ativar o totem</p>
+
+          <Card className="bg-white/10 border-white/20 p-6 backdrop-blur space-y-4">
+            <div className="text-left">
+              <Label className="text-white/80">E-mail</Label>
+              <Input
+                type="email"
+                value={loginEmail}
+                onChange={e => setLoginEmail(e.target.value)}
+                placeholder="email@pdv.com"
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/30"
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+              />
+            </div>
+            <div className="text-left">
+              <Label className="text-white/80">Senha</Label>
+              <Input
+                type="password"
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                placeholder="••••••••"
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/30"
+                onKeyDown={e => e.key === "Enter" && handleLogin()}
+              />
+            </div>
+            {loginError && <p className="text-red-400 text-sm">{loginError}</p>}
+            <Button onClick={handleLogin} disabled={loginLoading || !loginEmail || !loginPassword}
+              className="w-full h-12 text-lg font-bold" style={btnStyle}>
+              {loginLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Lock className="h-5 w-5 mr-2" />}
+              {loginLoading ? "Conectando..." : "Conectar Totem"}
+            </Button>
+          </Card>
+
+          <p className="text-white/30 text-xs">As credenciais são fornecidas pelo administrador do sistema</p>
+        </div>
+      </div>
+    );
+  }
 
   // ═══ Result screen ═══
   if (result) {
@@ -270,7 +388,7 @@ const TotemAccess = () => {
           <h1 className="text-5xl font-bold mb-4">
             {isCheckout ? "SAÍDA REGISTRADA" : isAuthorized ? "ACESSO LIBERADO" : "ACESSO BLOQUEADO"}
           </h1>
-          {isAuthorized && (
+          {isAuthorized && !isCheckout && (
             <Card className="bg-white/20 backdrop-blur border-white/30 p-6 mt-6 text-white">
               {result.promoter_photo && (
                 <img src={result.promoter_photo} alt="Foto" className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white object-cover" />
@@ -289,7 +407,16 @@ const TotemAccess = () => {
               )}
             </Card>
           )}
-          {!isAuthorized && <p className="text-2xl mt-4 opacity-90">{result.block_reason}</p>}
+          {isCheckout && (
+            <Card className="bg-white/20 backdrop-blur border-white/30 p-6 mt-6 text-white">
+              {result.promoter_photo && (
+                <img src={result.promoter_photo} alt="Foto" className="w-20 h-20 rounded-full mx-auto mb-3 border-4 border-white object-cover" />
+              )}
+              <p className="text-2xl font-semibold">{result.promoter_name}</p>
+              {result.agency_name && <p className="text-lg opacity-80">Agência: {result.agency_name}</p>}
+            </Card>
+          )}
+          {!isAuthorized && !isCheckout && <p className="text-2xl mt-4 opacity-90">{result.block_reason}</p>}
           <div className="mt-8 flex gap-4 justify-center">
             {isAuthorized && result.entry_id && (
               <Button size="lg" onClick={handleCheckout} className="bg-white text-green-700 hover:bg-white/90 text-xl px-8 py-6">
@@ -308,9 +435,14 @@ const TotemAccess = () => {
   // ═══ Main CPF Input screen ═══
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 select-none" style={bgStyle}>
-      <div className="absolute top-4 right-4 opacity-0" onClick={handleSettingsTap}>
-        <Settings className="h-8 w-8" />
-      </div>
+      {/* Settings icon — always visible */}
+      <button
+        onClick={() => { setConfigForm(config); setConfigOpen(true); }}
+        className="absolute top-4 right-4 p-2 rounded-full transition-all hover:bg-white/10"
+        title="Configurações do Totem"
+      >
+        <Settings className="h-6 w-6 text-white/40 hover:text-white/70" />
+      </button>
 
       <div className="text-center max-w-md w-full space-y-6">
         {/* Logo & Header */}
@@ -324,11 +456,12 @@ const TotemAccess = () => {
           <div className="flex items-center justify-center gap-2 text-white/60">
             <Store className="h-5 w-5" />
             <span className="text-lg">{config.unitName}</span>
+            {session.unitCity && <span className="text-sm">• {session.unitCity}/{session.unitState}</span>}
           </div>
         </div>
 
         {/* Clock */}
-        <div className="flex items-center justify-center gap-2 text-white/60 cursor-default" onClick={handleSettingsTap}>
+        <div className="flex items-center justify-center gap-2 text-white/60">
           <Clock className="h-5 w-5" />
           <span className="text-2xl font-mono">
             {currentTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -343,7 +476,7 @@ const TotemAccess = () => {
           </div>
         </div>
 
-        {/* ═══ Confirmation Step: show photo after CPF lookup ═══ */}
+        {/* Lookup loading */}
         {lookupLoading && (
           <div className="flex flex-col items-center gap-3 py-6">
             <Loader2 className="h-12 w-12 animate-spin text-white/70" />
@@ -351,6 +484,7 @@ const TotemAccess = () => {
           </div>
         )}
 
+        {/* Lookup error */}
         {lookupError && (
           <div className="rounded-2xl p-6 backdrop-blur text-center" style={{ backgroundColor: "#dc262644", border: "2px solid #dc262666" }}>
             <XCircle className="h-16 w-16 mx-auto mb-3 text-red-300" />
@@ -362,10 +496,11 @@ const TotemAccess = () => {
           </div>
         )}
 
+        {/* Confirmation step */}
         {lookupResult && (
           <div className="rounded-2xl p-6 backdrop-blur animate-in fade-in zoom-in-95 duration-300"
             style={{ backgroundColor: lookupResult.has_open_entry ? "#f59e0b22" : `${config.primaryColor}22`, border: `2px solid ${lookupResult.has_open_entry ? "#f59e0b55" : `${config.primaryColor}55`}` }}>
-            
+
             {lookupResult.has_open_entry ? (
               <p className="text-amber-300 text-sm mb-4 uppercase tracking-wider font-semibold">⏱ Você já está no PDV — Registrar saída?</p>
             ) : (
@@ -424,7 +559,7 @@ const TotemAccess = () => {
           </div>
         )}
 
-        {/* Numpad — hidden during confirmation */}
+        {/* Numpad */}
         {!lookupResult && !lookupError && !lookupLoading && (
           <>
             <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
@@ -467,17 +602,26 @@ const TotemAccess = () => {
               <Settings className="h-5 w-5" /> Configuração do Totem
             </DialogTitle>
           </DialogHeader>
+
+          {/* Connection info */}
+          {session && (
+            <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">PDV conectado:</span>
+                <span className="font-medium">{session.unitName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Usuário:</span>
+                <span className="font-medium">{session.userName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">E-mail:</span>
+                <span className="text-xs">{session.userEmail}</span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
-            <div>
-              <Label>Token do Totem *</Label>
-              <Input value={configForm.token} onChange={e => setConfigForm(f => ({ ...f, token: e.target.value }))}
-                placeholder="Cole aqui o token gerado na aba Unidades" className="font-mono text-xs" />
-              <p className="text-xs text-muted-foreground mt-1">Obtido no painel Admin → Controle de Acesso → Unidades</p>
-            </div>
-            <div>
-              <Label>Nome da Unidade</Label>
-              <Input value={configForm.unitName} onChange={e => setConfigForm(f => ({ ...f, unitName: e.target.value }))} placeholder="Ex: Supermercado Central" />
-            </div>
             <div>
               <Label>Texto do Cabeçalho</Label>
               <Input value={configForm.headerText} onChange={e => setConfigForm(f => ({ ...f, headerText: e.target.value }))} />
@@ -525,9 +669,32 @@ const TotemAccess = () => {
               </div>
             </div>
           </div>
-          <DialogFooter>
+
+          <Separator />
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="destructive" onClick={() => setDisconnectConfirm(true)} className="gap-2">
+              <Unplug className="h-4 w-4" /> Desconectar Totem
+            </Button>
+            <div className="flex-1" />
             <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveConfig} disabled={!configForm.token}>Salvar Configuração</Button>
+            <Button onClick={handleSaveConfig}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disconnect confirmation */}
+      <Dialog open={disconnectConfirm} onOpenChange={setDisconnectConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Desconectar Totem?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            O totem será desconectado deste PDV. Será necessário fazer login novamente para reativá-lo.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisconnectConfirm(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDisconnect}>Desconectar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
