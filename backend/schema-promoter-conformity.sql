@@ -19,13 +19,9 @@ CREATE TABLE IF NOT EXISTS promoter_conformity (
   notified_at TIMESTAMPTZ, -- quando a agência foi notificada
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_conformity_promoter CHECK (agency_promoter_id IS NOT NULL OR employee_id IS NOT NULL)
+  CONSTRAINT chk_conformity_promoter CHECK (agency_promoter_id IS NOT NULL OR employee_id IS NOT NULL),
+  CONSTRAINT promoter_conformity_unique UNIQUE (agency_promoter_id, employee_id, network_id)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_conformity_promoter_network
-  ON promoter_conformity (COALESCE(agency_promoter_id, '00000000-0000-0000-0000-000000000000'),
-                          COALESCE(employee_id, '00000000-0000-0000-0000-000000000000'),
-                          network_id);
 
 CREATE INDEX IF NOT EXISTS idx_conformity_org ON promoter_conformity(organization_id, status);
 
