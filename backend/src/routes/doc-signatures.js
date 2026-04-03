@@ -1320,12 +1320,17 @@ router.post('/', async (req, res) => {
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
 
     // Check plan limit
-    const planCheck = await query(
-      `SELECT p.doc_signatures_limit 
-       FROM organizations o JOIN plans p ON p.id = o.plan_id 
-       WHERE o.id = $1`, [orgId]
-    );
-    const limit = planCheck.rows[0]?.doc_signatures_limit || 0;
+    let limit = 0;
+    try {
+      const planCheck = await query(
+        `SELECT p.doc_signatures_limit 
+         FROM organizations o LEFT JOIN plans p ON p.id = o.plan_id 
+         WHERE o.id = $1`, [orgId]
+      );
+      limit = planCheck.rows[0]?.doc_signatures_limit || 0;
+    } catch (planErr) {
+      console.log('[doc-signatures] Plan check skipped:', planErr.message);
+    }
     if (limit > 0) {
       const countResult = await query(
         `SELECT COUNT(*) as cnt FROM doc_signature_documents 
@@ -1366,11 +1371,22 @@ router.post('/', async (req, res) => {
     const userResult = await query(`SELECT name, email FROM users WHERE id = $1`, [req.userId]);
     const user = userResult.rows[0];
 
-    const result = await query(
-      `INSERT INTO doc_signature_documents (organization_id, title, description, file_url, created_by, deal_id, require_cnh_validation, hash_sha256)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [orgId, title, description || null, normalizedFileUrl, req.userId, deal_id || null, require_cnh_validation || false, hashSha256]
-    );
+    let result;
+    try {
+      result = await query(
+        `INSERT INTO doc_signature_documents (organization_id, title, description, file_url, created_by, deal_id, require_cnh_validation, hash_sha256)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [orgId, title, description || null, normalizedFileUrl, req.userId, deal_id || null, require_cnh_validation || false, hashSha256]
+      );
+    } catch (insertErr) {
+      // Fallback: try without optional columns that may not exist yet
+      console.log('[doc-signatures] Full insert failed, trying minimal:', insertErr.message);
+      result = await query(
+        `INSERT INTO doc_signature_documents (organization_id, title, description, file_url, created_by, hash_sha256)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [orgId, title, description || null, normalizedFileUrl, req.userId, hashSha256]
+      );
+    }
 
     const doc = result.rows[0];
 
@@ -1389,7 +1405,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('[doc-signatures] Create error:', error);
-    res.status(500).json({ error: 'Erro ao criar documento' });
+    res.status(500).json({ error: 'Erro ao criar documento', detail: error.message });
   }
 });
 
