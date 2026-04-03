@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAgencies, useCreateAgency, useUpdateAgency, useUnits, useCreateAgencyUser, useSetAgencyUnits } from "@/hooks/use-access-control";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Users, Loader2, KeyRound, Eye, EyeOff, Store, FileSignature } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Pencil, Users, Loader2, KeyRound, Eye, EyeOff, Store, FileSignature, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 
