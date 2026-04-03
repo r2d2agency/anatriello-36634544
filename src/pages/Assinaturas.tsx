@@ -157,6 +157,7 @@ export default function Assinaturas() {
   };
 
   const allSigned = (doc: DocSignatureDocument) => doc.signers_count > 0 && doc.signed_count === doc.signers_count;
+  const canEditPositions = (doc: DocSignatureDocument) => doc.status === 'draft' || doc.signed_count === 0;
 
   return (
     <MainLayout>
@@ -489,7 +490,7 @@ export default function Assinaturas() {
                         signers={signers}
                         existingPositions={positions}
                         onSave={handleSavePositions}
-                        readOnly={selectedDoc.status !== 'draft'}
+                        readOnly={!canEditPositions(selectedDoc)}
                       />
                     ) : (
                       <p className="text-center text-muted-foreground py-8">Nenhum arquivo PDF encontrado</p>
