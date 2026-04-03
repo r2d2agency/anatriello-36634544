@@ -255,7 +255,43 @@ const AgenciesTab = () => {
                 <div><Label>Cidade</Label><Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
                 <div><Label>UF</Label><Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} maxLength={2} /></div>
               </div>
-              <div><Label>Limite de Promotores</Label><Input value={form.max_promoters} onChange={e => setForm(f => ({ ...f, max_promoters: e.target.value }))} type="number" /></div>
+              <Separator />
+              <p className="text-sm font-medium flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" /> Plano e Cobrança</p>
+              <div>
+                <Label>Plano de Cobrança</Label>
+                <Select value={form.plan_id} onValueChange={v => {
+                  setForm(f => ({ ...f, plan_id: v }));
+                  const plan = (plans as any[])?.find((p: any) => p.id === v);
+                  if (plan) {
+                    setForm(f => ({ ...f, plan_id: v, max_promoters: plan.max_promoters?.toString() || f.max_promoters }));
+                  }
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um plano..." /></SelectTrigger>
+                  <SelectContent>
+                    {(plans as any[])?.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} — R$ {Number(p.price_per_promoter || 0).toFixed(2)}/promotor
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Qtd. Promotores Contratados</Label>
+                <Input type="number" value={form.contracted_promoters} onChange={e => setForm(f => ({ ...f, contracted_promoters: e.target.value }))} placeholder="Ex: 10" />
+                <p className="text-xs text-muted-foreground mt-1">Quantidade que a agência deseja contratar. As faturas serão geradas com base nesse número.</p>
+              </div>
+              {form.plan_id && form.contracted_promoters && (() => {
+                const plan = (plans as any[])?.find((p: any) => p.id === form.plan_id);
+                const total = (parseInt(form.contracted_promoters) || 0) * (parseFloat(plan?.price_per_promoter) || 0);
+                return (
+                  <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Valor mensal estimado:</span><span className="font-bold text-primary">R$ {total.toFixed(2)}</span></div>
+                  </div>
+                );
+              })()}
+              <Separator />
+              <div><Label>Limite Máx. de Promotores</Label><Input value={form.max_promoters} onChange={e => setForm(f => ({ ...f, max_promoters: e.target.value }))} type="number" /></div>
               {editing && (
                 <div className="flex items-center gap-2">
                   <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
