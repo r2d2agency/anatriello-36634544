@@ -49,6 +49,7 @@ interface ApiOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
   auth?: boolean;
+  headers?: Record<string, string>;
 }
 
 export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
