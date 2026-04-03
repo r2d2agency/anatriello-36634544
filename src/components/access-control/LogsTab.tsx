@@ -23,10 +23,10 @@ const LogsTab = () => {
         <div className="flex flex-wrap gap-4">
           <div className="w-60">
             <Label>Unidade</Label>
-            <Select value={unitId} onValueChange={setUnitId}>
+            <Select value={unitId || "__all__"} onValueChange={v => setUnitId(v === "__all__" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="__all__">Todas</SelectItem>
                 {units.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
               </SelectContent>
             </Select>
