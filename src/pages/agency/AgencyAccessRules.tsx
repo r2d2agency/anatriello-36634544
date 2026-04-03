@@ -48,7 +48,7 @@ export default function AgencyAccessRules() {
 
   const { data: promoters = [] } = useQuery({
     queryKey: ['agency-promoters'],
-    queryFn: () => api<any[]>('/api/access-control/agency-portal/promoters', { headers: getHeaders() }),
+    queryFn: () => api<any[]>('/api/access-control/agency/promoters', { headers: getHeaders() }),
     enabled: !!user,
   });
 
