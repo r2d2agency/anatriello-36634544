@@ -62,6 +62,8 @@ interface AuthConfig {
   security_level: string;
   require_lgpd_consent: boolean;
   consent_text: string | null;
+  facial_min_confidence: number;
+  allow_low_confidence_entry: boolean;
 }
 
 const DEFAULT_CONFIG: TotemConfig = {
