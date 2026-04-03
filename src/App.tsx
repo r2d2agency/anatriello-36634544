@@ -251,6 +251,7 @@ const App = () => (
             <Route path="/supermercado/login" element={<SupermarketAuthProvider><SupermarketLogin /></SupermarketAuthProvider>} />
             <Route path="/supermercado" element={<SupermarketAuthProvider><SupermarketLayout /></SupermarketAuthProvider>}>
               <Route path="dashboard" element={<SupermarketDashboard />} />
+              <Route path="ocorrencias" element={<SupermarketIncidents />} />
               <Route path="visitas" element={<SupermarketVisitRequests />} />
               <Route path="historico" element={<SupermarketHistory />} />
             </Route>
