@@ -94,6 +94,8 @@ import PromotorEnviar from "./pages/promotor/PromotorEnviar";
 import PromotorConfig from "./pages/promotor/PromotorConfig";
 import PromotorTrocarSenha from "./pages/promotor/PromotorTrocarSenha";
 import NotFound from "./pages/NotFound";
+import TotemAccess from "./pages/TotemAccess";
+import AccessControlAdmin from "./pages/AccessControlAdmin";
 
 const queryClient = new QueryClient();
 
