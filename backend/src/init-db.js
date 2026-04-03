@@ -4267,6 +4267,33 @@ CREATE TABLE IF NOT EXISTS agency_billing_logs (
 );
 `;
 
+const step47VisitRequests = `
+-- Solicitações de visita (agência -> supermercado)
+CREATE TABLE IF NOT EXISTS visit_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agency_id UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+  supermarket_unit_id UUID NOT NULL REFERENCES supermarket_units(id) ON DELETE CASCADE,
+  promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+  promoter_name VARCHAR(255),
+  brand_name VARCHAR(255),
+  status VARCHAR(20) DEFAULT 'pending',
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  weekdays JSONB DEFAULT '[1,2,3,4,5]',
+  start_time TIME DEFAULT '08:00',
+  end_time TIME DEFAULT '18:00',
+  notes TEXT,
+  rejection_reason TEXT,
+  reviewed_by UUID,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_visit_requests_agency ON visit_requests(agency_id);
+CREATE INDEX IF NOT EXISTS idx_visit_requests_unit ON visit_requests(supermarket_unit_id);
+CREATE INDEX IF NOT EXISTS idx_visit_requests_status ON visit_requests(status);
+`;
 const migrationSteps = [
   { name: 'Enums', sql: step1Enums, critical: true },
   { name: 'Core Tables (users, plans)', sql: step2CoreTables, critical: true },
