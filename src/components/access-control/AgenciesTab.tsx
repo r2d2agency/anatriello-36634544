@@ -20,6 +20,10 @@ import { api } from "@/lib/api";
 const AgenciesTab = () => {
   const { data: agencies = [], isLoading } = useAgencies();
   const { data: units = [] } = useUnits();
+  const { data: plans = [] } = useQuery({
+    queryKey: ['billing-plans'],
+    queryFn: () => api<any[]>('/api/access-control/billing/plans'),
+  });
   const createMutation = useCreateAgency();
   const updateMutation = useUpdateAgency();
   const createUserMutation = useCreateAgencyUser();
@@ -31,6 +35,7 @@ const AgenciesTab = () => {
   const [form, setForm] = useState({
     name: "", cnpj: "", responsible_name: "", contact_email: "", contact_phone: "",
     max_promoters: "50", is_active: true, address: "", city: "", state: "",
+    plan_id: "", contracted_promoters: "",
   });
 
   // Login fields
