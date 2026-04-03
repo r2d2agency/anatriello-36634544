@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAgencies, useCreateAgency, useUpdateAgency, useUnits, useCreateAgencyUser, useSetAgencyUnits } from "@/hooks/use-access-control";
 import { useQuery } from "@tanstack/react-query";
@@ -72,6 +72,7 @@ const AgenciesTab = () => {
   const [contractSignerCpf, setContractSignerCpf] = useState("");
   const [orgResponsible, setOrgResponsible] = useState<any>(null);
   const [orgSignerCpf, setOrgSignerCpf] = useState("");
+  const [orgResponsibleLoading, setOrgResponsibleLoading] = useState(false);
 
   const [sendAccessOpen, setSendAccessOpen] = useState(false);
   const [sendAccessAgency, setSendAccessAgency] = useState<any>(null);
@@ -208,13 +209,40 @@ const AgenciesTab = () => {
     setContractSignerName(a.responsible_name || a.name || "");
     setContractSignerEmail((a.contact_email || a.responsible_email || "").trim().toLowerCase());
     setContractSignerCpf(formatCpf(a.responsible_cpf || ""));
+    setOrgResponsible(null);
+    setOrgSignerCpf("");
     setContractDialogOpen(true);
-    // Fetch org responsible data
-    try {
-      const data = await api<any>("/api/doc-signatures/org-responsible");
-      setOrgResponsible(data);
-    } catch { setOrgResponsible(null); }
   };
+
+  useEffect(() => {
+    if (!contractDialogOpen) {
+      setOrgResponsibleLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const loadOrgResponsible = async () => {
+      setOrgResponsibleLoading(true);
+      try {
+        const data = await api<any>("/api/doc-signatures/org-responsible");
+        if (!active) return;
+        setOrgResponsible(data || null);
+        setOrgSignerCpf(formatCpf(data?.responsible_cpf || ""));
+      } catch {
+        if (!active) return;
+        setOrgResponsible(null);
+      } finally {
+        if (active) setOrgResponsibleLoading(false);
+      }
+    };
+
+    loadOrgResponsible();
+
+    return () => {
+      active = false;
+    };
+  }, [contractDialogOpen]);
 
   const handleGenerateContract = async () => {
     if (!contractAgency) return;
@@ -291,7 +319,7 @@ const AgenciesTab = () => {
         });
       }
 
-      // Auto-position signatures on last page
+      // Auto-position signatures on first page; user can adjust in Assinaturas before the first assinatura
       const positions: any[] = [
         { signer_id: agencySigner.id, page: 1, x: 320, y: 680, width: 200, height: 70 },
       ];
@@ -540,7 +568,12 @@ const AgenciesTab = () => {
               <Separator />
               <div className="space-y-3">
                 <p className="text-sm font-medium">Signatário da {orgResponsible?.org_name || 'Organização'} (Contratante)</p>
-                {orgResponsible ? (
+                {orgResponsibleLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Carregando dados da contratante...
+                  </div>
+                ) : orgResponsible ? (
                   <>
                     <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                       <div className="flex justify-between"><span className="text-muted-foreground">Nome:</span><span className="font-medium">{orgResponsible.responsible_name}</span></div>
@@ -549,7 +582,7 @@ const AgenciesTab = () => {
                     <div><Label>CPF do contratante *</Label><Input value={orgSignerCpf} onChange={e => setOrgSignerCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" /></div>
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Carregando dados do responsável...</p>
+                  <p className="text-xs text-muted-foreground">Preencha os dados em Modelo de Contrato → Dados da Contratante para assinar automaticamente pela Ayratech.</p>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
