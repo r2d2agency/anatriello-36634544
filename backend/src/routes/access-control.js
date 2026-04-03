@@ -262,8 +262,12 @@ router.get('/agencies', authenticate, async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
     const r = await query(
-      `SELECT a.*, (SELECT COUNT(*) FROM agency_promoters ap WHERE ap.agency_id = a.id AND ap.status = 'active') as promoter_count
-       FROM agencies a WHERE a.organization_id = $1 ORDER BY a.name`, [orgId]);
+      `SELECT a.*, s.plan_id, s.promoter_count as contracted_promoters,
+              (SELECT COUNT(*) FROM agency_promoters ap WHERE ap.agency_id = a.id AND ap.status = 'active') as promoter_count
+       FROM agencies a
+       LEFT JOIN agency_subscriptions s ON s.agency_id = a.id
+       WHERE a.organization_id = $1
+       ORDER BY a.name`, [orgId]);
     res.json(r.rows);
   } catch (err) { logError('access.agencies.list', err); res.status(500).json({ error: 'Erro ao listar agências' }); }
 });
