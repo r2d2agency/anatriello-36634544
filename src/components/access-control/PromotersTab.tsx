@@ -25,8 +25,10 @@ const PromotersTab = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
+  const [letterDialogOpen, setLetterDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [selectedPromoter, setSelectedPromoter] = useState<any>(null);
+  const [letterPromoter, setLetterPromoter] = useState<any>(null);
   const [form, setForm] = useState({ full_name: "", cpf: "", phone: "", agency_id: "", is_active: true });
   const [ruleForm, setRuleForm] = useState({ unit_id: "", allowed_weekdays: [1, 2, 3, 4, 5], time_start: "08:00", time_end: "18:00", brands: "" });
 
