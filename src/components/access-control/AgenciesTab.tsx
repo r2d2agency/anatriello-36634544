@@ -70,6 +70,8 @@ const AgenciesTab = () => {
   const [contractSignerName, setContractSignerName] = useState("");
   const [contractSignerEmail, setContractSignerEmail] = useState("");
   const [contractSignerCpf, setContractSignerCpf] = useState("");
+  const [orgResponsible, setOrgResponsible] = useState<any>(null);
+  const [orgSignerCpf, setOrgSignerCpf] = useState("");
 
   const [sendAccessOpen, setSendAccessOpen] = useState(false);
   const [sendAccessAgency, setSendAccessAgency] = useState<any>(null);
@@ -201,12 +203,17 @@ const AgenciesTab = () => {
     }
   };
 
-  const openContractDialog = (a: any) => {
+  const openContractDialog = async (a: any) => {
     setContractAgency(a);
     setContractSignerName(a.responsible_name || a.name || "");
     setContractSignerEmail((a.contact_email || a.responsible_email || "").trim().toLowerCase());
     setContractSignerCpf(formatCpf(a.responsible_cpf || ""));
     setContractDialogOpen(true);
+    // Fetch org responsible data
+    try {
+      const data = await api<any>("/api/doc-signatures/org-responsible");
+      setOrgResponsible(data);
+    } catch { setOrgResponsible(null); }
   };
 
   const handleGenerateContract = async () => {
@@ -252,10 +259,12 @@ const AgenciesTab = () => {
           title: `Contrato de Prestação de Serviços — ${contractAgency.name}`,
           description: `Contrato da agência ${contractAgency.name}`,
           file_url: fileUrl,
+          agency_id: contractAgency.id,
         },
       });
 
-      await api(`/api/doc-signatures/${document.id}/signers`, {
+      // Signer 1: Agency responsible
+      const agencySigner = await api<any>(`/api/doc-signatures/${document.id}/signers`, {
         method: "POST",
         body: {
           name: contractSignerName.trim(),
@@ -263,7 +272,35 @@ const AgenciesTab = () => {
           cpf: onlyDigits(contractSignerCpf),
           phone: onlyDigits(contractAgency.contact_phone || contractAgency.responsible_phone || "") || null,
           role: "signer",
+          sign_order: 1,
         },
+      });
+
+      // Signer 2: Org responsible (Ayratech)
+      let orgSigner: any = null;
+      if (orgResponsible?.responsible_name && orgResponsible?.responsible_email && orgSignerCpf) {
+        orgSigner = await api<any>(`/api/doc-signatures/${document.id}/signers`, {
+          method: "POST",
+          body: {
+            name: orgResponsible.responsible_name,
+            email: orgResponsible.responsible_email,
+            cpf: onlyDigits(orgSignerCpf),
+            role: "signer",
+            sign_order: 2,
+          },
+        });
+      }
+
+      // Auto-position signatures on last page
+      const positions: any[] = [
+        { signer_id: agencySigner.id, page: 1, x: 320, y: 680, width: 200, height: 70 },
+      ];
+      if (orgSigner) {
+        positions.push({ signer_id: orgSigner.id, page: 1, x: 36, y: 680, width: 200, height: 70 });
+      }
+      await api(`/api/doc-signatures/${document.id}/positions`, {
+        method: "PUT",
+        body: { positions },
       });
 
       let emailSent = true;
@@ -276,11 +313,10 @@ const AgenciesTab = () => {
       toast({
         title: emailSent ? "Contrato gerado!" : "Contrato criado",
         description: emailSent
-          ? "O contrato foi criado e enviado para assinatura digital. Redirecionando..."
+          ? "O contrato foi criado com posições de assinatura e enviado. Redirecionando..."
           : "O contrato foi criado. Redirecionando para Assinaturas...",
       });
       setContractDialogOpen(false);
-      // Redireciona para a página de assinaturas
       setTimeout(() => navigate("/assinaturas"), 600);
     } catch (error: any) {
       toast({ title: "Erro ao gerar contrato", description: error?.message || "Tente novamente", variant: "destructive" });
@@ -495,12 +531,28 @@ const AgenciesTab = () => {
               </div>
               <Separator />
               <div className="space-y-3">
+                <p className="text-sm font-medium">Signatário da Agência (Contratada)</p>
                 <div><Label>Responsável signatário *</Label><Input value={contractSignerName} onChange={e => setContractSignerName(e.target.value)} placeholder="Nome do responsável" /></div>
                 <div><Label>E-mail para assinatura *</Label><Input type="email" value={contractSignerEmail} onChange={e => setContractSignerEmail(e.target.value)} placeholder="responsavel@agencia.com" /></div>
                 <div><Label>CPF do signatário *</Label><Input value={contractSignerCpf} onChange={e => setContractSignerCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" /></div>
               </div>
+              <Separator />
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Signatário da {orgResponsible?.org_name || 'Organização'} (Contratante)</p>
+                {orgResponsible ? (
+                  <>
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nome:</span><span className="font-medium">{orgResponsible.responsible_name}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">E-mail:</span><span>{orgResponsible.responsible_email}</span></div>
+                    </div>
+                    <div><Label>CPF do contratante *</Label><Input value={orgSignerCpf} onChange={e => setOrgSignerCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" /></div>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Carregando dados do responsável...</p>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                O contrato será criado no módulo de Assinaturas Digitais. Se o SMTP estiver configurado, o link seguirá por e-mail automaticamente.
+                O contrato será criado no módulo de Assinaturas Digitais com as posições já configuradas. Ambas as partes receberão o link para assinar.
               </p>
             </div>
           )}

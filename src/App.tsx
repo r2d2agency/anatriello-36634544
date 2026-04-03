@@ -58,6 +58,7 @@ import RespostasRapidas from "./pages/RespostasRapidas";
 import ApiDocumentation from "./pages/ApiDocumentation";
 import MetaTemplates from "./pages/MetaTemplates";
 import Assinaturas from "./pages/Assinaturas";
+import ModeloContrato from "./pages/ModeloContrato";
 import AssinarDocumento from "./pages/AssinarDocumento";
 import VerificarDocumento from "./pages/VerificarDocumento";
 import RHColaboradores from "./pages/RHColaboradores";
@@ -209,6 +210,7 @@ const App = () => (
             <Route path="/respostas-rapidas" element={<ProtectedRoute><RespostasRapidas /></ProtectedRoute>} />
             <Route path="/meta-templates" element={<ProtectedRoute><MetaTemplates /></ProtectedRoute>} />
             <Route path="/assinaturas" element={<ProtectedRoute><Assinaturas /></ProtectedRoute>} />
+            <Route path="/modelo-contrato" element={<ProtectedRoute><ModeloContrato /></ProtectedRoute>} />
             <Route path="/rh/colaboradores" element={<ProtectedRoute><RHColaboradores /></ProtectedRoute>} />
             <Route path="/rh/dashboard" element={<ProtectedRoute><RHDashboard /></ProtectedRoute>} />
             <Route path="/rh/ponto" element={<ProtectedRoute><RHPonto /></ProtectedRoute>} />
