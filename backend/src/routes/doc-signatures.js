@@ -1864,6 +1864,39 @@ router.delete('/contract-templates/:templateId', async (req, res) => {
   }
 });
 
+// ======= Company Info (contratante) =======
+router.get('/company-info', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    const result = await query(`SELECT * FROM contract_company_info WHERE organization_id = $1`, [orgId]);
+    res.json(result.rows[0] || {});
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar dados da empresa' });
+  }
+});
+
+router.put('/company-info', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    const { company_name, cnpj, address, city, state, zip_code, responsible_name, responsible_cpf, responsible_email, responsible_phone } = req.body;
+    const result = await query(
+      `INSERT INTO contract_company_info (organization_id, company_name, cnpj, address, city, state, zip_code, responsible_name, responsible_cpf, responsible_email, responsible_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (organization_id) DO UPDATE SET
+         company_name=$2, cnpj=$3, address=$4, city=$5, state=$6, zip_code=$7,
+         responsible_name=$8, responsible_cpf=$9, responsible_email=$10, responsible_phone=$11, updated_at=NOW()
+       RETURNING *`,
+      [orgId, company_name, cnpj, address, city, state, zip_code, responsible_name, responsible_cpf, responsible_email, responsible_phone]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('[doc-signatures] Company info save error:', error);
+    res.status(500).json({ error: 'Erro ao salvar dados da empresa' });
+  }
+});
+
 // Get org responsible data (for co-signing)
 router.get('/org-responsible', async (req, res) => {
   try {
