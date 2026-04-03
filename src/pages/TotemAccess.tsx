@@ -276,6 +276,35 @@ const TotemAccess = () => {
               agency_promoter_id: lookupResult?.agency_promoter_id, employee_id: lookupResult?.employee_id,
             }),
           }).catch(() => {});
+
+          // If facial recognition is enabled, run comparison
+          if (authConfig.facial_recognition_enabled) {
+            try {
+              const facialRes = await fetch(`${API_URL}/api/access-control/totem/facial-compare`, {
+                method: "POST", headers: { "Content-Type": "application/json", "x-totem-token": config.token },
+                body: JSON.stringify({
+                  agency_promoter_id: lookupResult?.agency_promoter_id,
+                  employee_id: lookupResult?.employee_id,
+                  entry_log_id: data.entry_id,
+                  captured_image_url: selfieCapture,
+                  comparison_type: "entry_vs_base",
+                }),
+              });
+              const facialData = await facialRes.json();
+              if (facialData.result === "divergent") {
+                // Block if divergent
+                setResult({ status: "blocked", block_reason: `Identidade não confirmada (confiança: ${facialData.confidence}%)` });
+                setLoading(false); setLookupResult(null); setSelfieRequired(false); setSelfieCapture(null);
+                return;
+              }
+              // If suspect but allowed, continue with warning
+              if (facialData.result === "suspect" && !authConfig.allow_low_confidence_entry) {
+                setResult({ status: "blocked", block_reason: `Confiança facial abaixo do mínimo (${facialData.confidence}% < ${facialData.threshold}%)` });
+                setLoading(false); setLookupResult(null); setSelfieRequired(false); setSelfieCapture(null);
+                return;
+              }
+            } catch { /* facial comparison failed, continue */ }
+          }
         }
         // Log auth attempt
         fetch(`${API_URL}/api/access-control/totem/auth-attempt`, {
@@ -285,6 +314,7 @@ const TotemAccess = () => {
             auth_steps: [
               { step: authMode, result: "ok" },
               ...(selfieCapture ? [{ step: "selfie", result: "ok" }] : []),
+              ...(selfieCapture && authConfig.facial_recognition_enabled ? [{ step: "facial", result: "ok" }] : []),
             ],
             overall_result: "approved", entry_log_id: data.entry_id,
           }),
