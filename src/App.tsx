@@ -102,11 +102,13 @@ import AgencyLayout from "./pages/agency/AgencyLayout";
 import AgencyDashboard from "./pages/agency/AgencyDashboard";
 import AgencyPromoters from "./pages/agency/AgencyPromoters";
 import AgencyAccessRules from "./pages/agency/AgencyAccessRules";
+import AgencyVisitRequests from "./pages/agency/AgencyVisitRequests";
 import { SupermarketAuthProvider } from "./contexts/SupermarketAuthContext";
 import SupermarketLogin from "./pages/supermarket/SupermarketLogin";
 import SupermarketLayout from "./pages/supermarket/SupermarketLayout";
 import SupermarketDashboard from "./pages/supermarket/SupermarketDashboard";
 import SupermarketHistory from "./pages/supermarket/SupermarketHistory";
+import SupermarketVisitRequests from "./pages/supermarket/SupermarketVisitRequests";
 
 const queryClient = new QueryClient();
 
@@ -237,12 +239,14 @@ const App = () => (
             <Route path="/agencia" element={<AgencyAuthProvider><AgencyLayout /></AgencyAuthProvider>}>
               <Route path="dashboard" element={<AgencyDashboard />} />
               <Route path="promotores" element={<AgencyPromoters />} />
+              <Route path="visitas" element={<AgencyVisitRequests />} />
               <Route path="regras" element={<AgencyAccessRules />} />
             </Route>
             {/* Supermarket Portal */}
             <Route path="/supermercado/login" element={<SupermarketAuthProvider><SupermarketLogin /></SupermarketAuthProvider>} />
             <Route path="/supermercado" element={<SupermarketAuthProvider><SupermarketLayout /></SupermarketAuthProvider>}>
               <Route path="dashboard" element={<SupermarketDashboard />} />
+              <Route path="visitas" element={<SupermarketVisitRequests />} />
               <Route path="historico" element={<SupermarketHistory />} />
             </Route>
             {/* Promotor App */}

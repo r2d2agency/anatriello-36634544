@@ -849,6 +849,120 @@ router.post('/agency/access-rules', authenticateAgency, async (req, res) => {
 });
 
 // =====================================================================
+// VISIT REQUESTS (Agency side)
+// =====================================================================
+
+// Agency: list visit requests
+router.get('/agency/visit-requests', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT vr.*, su.name as unit_name FROM visit_requests vr
+       JOIN supermarket_units su ON su.id = vr.supermarket_unit_id
+       WHERE vr.agency_id = $1 ORDER BY vr.created_at DESC`,
+      [req.agencyId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('agency.visit_requests.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Agency: create visit request
+router.post('/agency/visit-requests', authenticateAgency, async (req, res) => {
+  try {
+    const { supermarket_unit_id, promoter_id, promoter_name, brand_name, period_start, period_end, weekdays, start_time, end_time, notes } = req.body;
+    if (!supermarket_unit_id || !period_start || !period_end) return res.status(400).json({ error: 'Unidade e período são obrigatórios' });
+
+    // Verify unit is in allowed list
+    const allowed = await query('SELECT id FROM agency_allowed_units WHERE agency_id=$1 AND supermarket_unit_id=$2', [req.agencyId, supermarket_unit_id]);
+    if (!allowed.rows.length) return res.status(403).json({ error: 'Esta unidade não está na lista de PDVs autorizados para sua agência' });
+
+    if (promoter_id) {
+      const pCheck = await query('SELECT id FROM agency_promoters WHERE id=$1 AND agency_id=$2', [promoter_id, req.agencyId]);
+      if (!pCheck.rows.length) return res.status(403).json({ error: 'Promotor não pertence a esta agência' });
+    }
+
+    const r = await query(
+      `INSERT INTO visit_requests (organization_id, agency_id, supermarket_unit_id, promoter_id, promoter_name, brand_name, period_start, period_end, weekdays, start_time, end_time, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [req.orgId, req.agencyId, supermarket_unit_id, promoter_id || null, promoter_name || null, brand_name || null,
+       period_start, period_end, JSON.stringify(weekdays || [1,2,3,4,5]), start_time || '08:00', end_time || '18:00', notes || null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { logError('agency.visit_requests.create', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Agency: list allowed units
+router.get('/agency/allowed-units', authenticateAgency, async (req, res) => {
+  try {
+    const r = await query(
+      `SELECT su.id, su.name, su.city, su.state, sn.name as network_name
+       FROM agency_allowed_units aau
+       JOIN supermarket_units su ON su.id = aau.supermarket_unit_id
+       LEFT JOIN supermarket_networks sn ON sn.id = su.network_id
+       WHERE aau.agency_id = $1 AND su.active = true ORDER BY su.name`,
+      [req.agencyId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('agency.allowed_units.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// =====================================================================
+// VISIT REQUESTS (Supermarket side)
+// =====================================================================
+
+// Supermarket: list visit requests for this unit
+router.get('/supermarket/visit-requests', authenticateSupermarket, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let sql = `SELECT vr.*, a.name as agency_name FROM visit_requests vr
+               JOIN agencies a ON a.id = vr.agency_id
+               WHERE vr.supermarket_unit_id = $1`;
+    const params = [req.unitId];
+    if (status) { sql += ` AND vr.status = $2`; params.push(status); }
+    sql += ' ORDER BY vr.created_at DESC';
+    const r = await query(sql, params);
+    res.json(r.rows);
+  } catch (err) { logError('supermarket.visit_requests.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Supermarket: approve/reject visit requests (supports bulk)
+router.post('/supermarket/visit-requests/review', authenticateSupermarket, async (req, res) => {
+  try {
+    const { ids, action, rejection_reason } = req.body;
+    if (!ids?.length || !['approved', 'rejected'].includes(action)) {
+      return res.status(400).json({ error: 'IDs e ação (approved/rejected) são obrigatórios' });
+    }
+    // Verify all requests belong to this unit
+    const check = await query(
+      `SELECT id FROM visit_requests WHERE id = ANY($1) AND supermarket_unit_id = $2`,
+      [ids, req.unitId]
+    );
+    if (check.rows.length !== ids.length) return res.status(403).json({ error: 'Algumas solicitações não pertencem a esta unidade' });
+
+    const r = await query(
+      `UPDATE visit_requests SET status=$1, rejection_reason=$2, reviewed_by=$3, reviewed_at=NOW(), updated_at=NOW()
+       WHERE id = ANY($4) RETURNING *`,
+      [action, action === 'rejected' ? (rejection_reason || null) : null, req.supermarketUserId, ids]
+    );
+    res.json({ updated: r.rows.length, requests: r.rows });
+  } catch (err) { logError('supermarket.visit_requests.review', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Admin: list all visit requests
+router.get('/visit-requests', authenticate, async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    const r = await query(
+      `SELECT vr.*, a.name as agency_name, su.name as unit_name FROM visit_requests vr
+       JOIN agencies a ON a.id = vr.agency_id
+       JOIN supermarket_units su ON su.id = vr.supermarket_unit_id
+       WHERE vr.organization_id = $1 ORDER BY vr.created_at DESC`,
+      [orgId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('visit_requests.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// =====================================================================
 // SUPERMARKET LOGIN & PANEL
 // =====================================================================
 
