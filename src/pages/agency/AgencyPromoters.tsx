@@ -22,6 +22,8 @@ export default function AgencyPromoters() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [letterOpen, setLetterOpen] = useState(false);
+  const [letterPromoter, setLetterPromoter] = useState<any>(null);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: '', cpf: '', phone: '', photo_url: '' });
 
