@@ -62,6 +62,7 @@ import { executeTaskReminders } from './task-reminder-scheduler.js';
 import { executeSecretaryFollowups } from './secretary-followup-scheduler.js';
 import { executeSecretaryDigest } from './secretary-digest-scheduler.js';
 import { checkInactivityTimeouts } from './lib/ai-agent-processor.js';
+import { executeScoreCalculation } from './score-scheduler.js';
 import { requestContext } from './request-context.js';
 import { log, logError } from './logger.js';
 
