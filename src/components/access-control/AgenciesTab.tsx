@@ -276,10 +276,12 @@ const AgenciesTab = () => {
       toast({
         title: emailSent ? "Contrato gerado!" : "Contrato criado",
         description: emailSent
-          ? "O contrato foi criado e enviado para assinatura digital."
-          : "O contrato foi criado no módulo de Assinaturas, mas o envio por e-mail falhou. Verifique o SMTP.",
+          ? "O contrato foi criado e enviado para assinatura digital. Redirecionando..."
+          : "O contrato foi criado. Redirecionando para Assinaturas...",
       });
       setContractDialogOpen(false);
+      // Redireciona para a página de assinaturas
+      setTimeout(() => navigate("/assinaturas"), 600);
     } catch (error: any) {
       toast({ title: "Erro ao gerar contrato", description: error?.message || "Tente novamente", variant: "destructive" });
     } finally {
