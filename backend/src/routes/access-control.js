@@ -2637,7 +2637,7 @@ router.get('/supermarket-portal/schedule', authenticateSupermarket, async (req, 
 router.get('/agency/incidents', authenticateAgency, async (req, res) => {
   try {
     await ensureIncidentsInfra();
-    const r = await query(`SELECT i.*, ap.name AS promoter_name, a.name AS agency_name, u.name AS unit_name, (SELECT json_agg(ir ORDER BY ir.created_at) FROM incident_responses ir WHERE ir.incident_id = i.id) AS responses FROM incidents i LEFT JOIN agency_promoters ap ON ap.id = i.agency_promoter_id LEFT JOIN agencies a ON a.id = i.agency_id LEFT JOIN units u ON u.id = i.reported_by_unit_id WHERE i.agency_id = $1 ORDER BY i.created_at DESC LIMIT 100`, [req.agencyUser.agency_id]);
+    const r = await query(`SELECT i.*, ap.name AS promoter_name, a.name AS agency_name, u.name AS unit_name, (SELECT json_agg(ir ORDER BY ir.created_at) FROM incident_responses ir WHERE ir.incident_id = i.id) AS responses FROM incidents i LEFT JOIN agency_promoters ap ON ap.id = i.agency_promoter_id LEFT JOIN agencies a ON a.id = i.agency_id LEFT JOIN units u ON u.id = i.reported_by_unit_id WHERE i.agency_id = $1 ORDER BY i.created_at DESC LIMIT 100`, [req.agencyId]);
     res.json(r.rows);
   } catch (err) { logError('agency.incidents.list', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -2655,7 +2655,7 @@ router.post('/agency/incidents/:id/respond', authenticateAgency, async (req, res
 router.get('/agency/scores', authenticateAgency, async (req, res) => {
   try {
     await ensureIncidentsInfra();
-    const r = await query(`SELECT ps.*, ap.name AS promoter_name FROM promoter_scores ps JOIN agency_promoters ap ON ap.id = ps.agency_promoter_id WHERE ap.agency_id = $1 ORDER BY ps.score DESC`, [req.agencyUser.agency_id]);
+    const r = await query(`SELECT ps.*, ap.name AS promoter_name FROM promoter_scores ps JOIN agency_promoters ap ON ap.id = ps.agency_promoter_id WHERE ap.agency_id = $1 ORDER BY ps.score DESC`, [req.agencyId]);
     res.json(r.rows);
   } catch (err) { logError('agency.scores', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -2664,9 +2664,9 @@ router.get('/agency/schedule', authenticateAgency, async (req, res) => {
   try {
     const hasTable = await tableExists('visit_requests');
     if (!hasTable) return res.json({ today: [], tomorrow: [], week: [] });
-    const today = await query(`SELECT vr.*, ap.name AS promoter_name, u.name AS unit_name FROM visit_requests vr LEFT JOIN agency_promoters ap ON ap.id = vr.agency_promoter_id LEFT JOIN units u ON u.id = vr.unit_id WHERE vr.agency_id = $1 AND vr.visit_date = CURRENT_DATE ORDER BY vr.scheduled_time`, [req.agencyUser.agency_id]);
-    const tomorrow = await query(`SELECT vr.*, ap.name AS promoter_name, u.name AS unit_name FROM visit_requests vr LEFT JOIN agency_promoters ap ON ap.id = vr.agency_promoter_id LEFT JOIN units u ON u.id = vr.unit_id WHERE vr.agency_id = $1 AND vr.visit_date = CURRENT_DATE + INTERVAL '1 day' ORDER BY vr.scheduled_time`, [req.agencyUser.agency_id]);
-    const week = await query(`SELECT vr.*, ap.name AS promoter_name, u.name AS unit_name FROM visit_requests vr LEFT JOIN agency_promoters ap ON ap.id = vr.agency_promoter_id LEFT JOIN units u ON u.id = vr.unit_id WHERE vr.agency_id = $1 AND vr.visit_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' ORDER BY vr.visit_date, vr.scheduled_time`, [req.agencyUser.agency_id]);
+    const today = await query(`SELECT vr.*, ap.name AS promoter_name, u.name AS unit_name FROM visit_requests vr LEFT JOIN agency_promoters ap ON ap.id = vr.agency_promoter_id LEFT JOIN units u ON u.id = vr.unit_id WHERE vr.agency_id = $1 AND vr.visit_date = CURRENT_DATE ORDER BY vr.scheduled_time`, [req.agencyId]);
+    const tomorrow = await query(`SELECT vr.*, ap.name AS promoter_name, u.name AS unit_name FROM visit_requests vr LEFT JOIN agency_promoters ap ON ap.id = vr.agency_promoter_id LEFT JOIN units u ON u.id = vr.unit_id WHERE vr.agency_id = $1 AND vr.visit_date = CURRENT_DATE + INTERVAL '1 day' ORDER BY vr.scheduled_time`, [req.agencyId]);
+    const week = await query(`SELECT vr.*, ap.name AS promoter_name, u.name AS unit_name FROM visit_requests vr LEFT JOIN agency_promoters ap ON ap.id = vr.agency_promoter_id LEFT JOIN units u ON u.id = vr.unit_id WHERE vr.agency_id = $1 AND vr.visit_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' ORDER BY vr.visit_date, vr.scheduled_time`, [req.agencyId]);
     res.json({ today: today.rows, tomorrow: tomorrow.rows, week: week.rows });
   } catch (err) { logError('agency.schedule', err); res.json({ today: [], tomorrow: [], week: [] }); }
 });
