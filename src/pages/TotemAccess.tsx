@@ -358,29 +358,49 @@ const TotemAccess = () => {
 
         {lookupResult && (
           <div className="rounded-2xl p-6 backdrop-blur animate-in fade-in zoom-in-95 duration-300"
-            style={{ backgroundColor: `${config.primaryColor}22`, border: `2px solid ${config.primaryColor}55` }}>
-            <p className="text-white/70 text-sm mb-4 uppercase tracking-wider">Confirme sua identidade</p>
+            style={{ backgroundColor: lookupResult.has_open_entry ? "#f59e0b22" : `${config.primaryColor}22`, border: `2px solid ${lookupResult.has_open_entry ? "#f59e0b55" : `${config.primaryColor}55`}` }}>
+            
+            {lookupResult.has_open_entry ? (
+              <p className="text-amber-300 text-sm mb-4 uppercase tracking-wider font-semibold">⏱ Você já está no PDV — Registrar saída?</p>
+            ) : (
+              <p className="text-white/70 text-sm mb-4 uppercase tracking-wider">Confirme sua identidade</p>
+            )}
+
             {lookupResult.photo_url ? (
               <img src={lookupResult.photo_url} alt="Foto" className="w-32 h-32 rounded-full mx-auto mb-4 border-4 object-cover shadow-xl"
-                style={{ borderColor: config.primaryColor }} />
+                style={{ borderColor: lookupResult.has_open_entry ? "#f59e0b" : config.primaryColor }} />
             ) : (
               <div className="w-32 h-32 rounded-full mx-auto mb-4 border-4 flex items-center justify-center"
-                style={{ borderColor: config.primaryColor, backgroundColor: `${config.primaryColor}33` }}>
+                style={{ borderColor: lookupResult.has_open_entry ? "#f59e0b" : config.primaryColor, backgroundColor: `${config.primaryColor}33` }}>
                 <UserCheck className="h-16 w-16 text-white/60" />
               </div>
             )}
             <p className="text-white text-2xl font-bold mb-1">{lookupResult.name}</p>
             {lookupResult.agency_name && <p className="text-white/70 text-lg">Agência: {lookupResult.agency_name}</p>}
 
+            {lookupResult.has_open_entry && lookupResult.entry_at && (
+              <p className="text-amber-300/80 text-sm mt-2">
+                Entrada: {new Date(lookupResult.entry_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+
             <div className="flex gap-3 mt-6">
               <Button onClick={handleReset} variant="outline" className="flex-1 h-14 text-lg border-white/30 text-white hover:bg-white/10">
                 Não sou eu
               </Button>
-              <Button onClick={handleConfirmCheckin} disabled={loading}
-                className="flex-1 h-14 text-lg font-bold" style={btnStyle}>
-                {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <UserCheck className="h-5 w-5 mr-2" />}
-                {loading ? "Validando..." : "Check-in"}
-              </Button>
+              {lookupResult.has_open_entry ? (
+                <Button onClick={handleConfirmCheckout} disabled={loading}
+                  className="flex-1 h-14 text-lg font-bold bg-amber-500 hover:bg-amber-600 text-white">
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LogOut className="h-5 w-5 mr-2" />}
+                  {loading ? "Saindo..." : "Check-out"}
+                </Button>
+              ) : (
+                <Button onClick={handleConfirmCheckin} disabled={loading}
+                  className="flex-1 h-14 text-lg font-bold" style={btnStyle}>
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
+                  {loading ? "Validando..." : "Check-in"}
+                </Button>
+              )}
             </div>
           </div>
         )}
