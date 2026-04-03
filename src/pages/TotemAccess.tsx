@@ -182,6 +182,31 @@ const TotemAccess = () => {
     }
   };
 
+  const handleConfirmCheckout = async () => {
+    if (!lookupResult?.open_entry_id) return;
+    setLoading(true);
+    try {
+      const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+      await fetch(`${API_URL}/api/access-control/totem/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-totem-token": config.token },
+        body: JSON.stringify({ entry_id: lookupResult.open_entry_id }),
+      });
+      setResult({
+        status: "authorized",
+        promoter_name: lookupResult.name,
+        promoter_photo: lookupResult.photo_url,
+        agency_name: lookupResult.agency_name,
+        block_reason: "SAÍDA REGISTRADA",
+      });
+    } catch {
+      setResult({ status: "blocked", block_reason: "Erro ao registrar saída" });
+    } finally {
+      setLoading(false);
+      setLookupResult(null);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!result?.entry_id) return;
     try {
