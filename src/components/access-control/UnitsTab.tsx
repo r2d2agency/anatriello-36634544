@@ -247,7 +247,8 @@ const UnitsTab = () => {
                         );
                       })()}
                     </TableCell>
-                       <TableCell>
+                    <TableCell>
+                       {u.totem_token ? (
                          <div className="flex items-center gap-2">
                            <Badge variant={u.totem_enabled ? "default" : "secondary"}>{u.totem_enabled ? "Ativo" : "Gerado"}</Badge>
                            <Button size="sm" variant="outline" onClick={() => copyTotemToken(u.totem_token)} className="gap-1">
