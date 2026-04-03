@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Ban, CheckCircle, Users } from 'lucide-react';
+import { Plus, Search, Edit, Ban, CheckCircle, Users, FileText } from 'lucide-react';
+import { AuthorizationLetterDialog } from '@/components/access-control/AuthorizationLetterDialog';
 
 const getHeaders = () => {
   const token = localStorage.getItem('agency_auth_token');
