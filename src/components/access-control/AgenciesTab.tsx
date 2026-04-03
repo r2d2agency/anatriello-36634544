@@ -259,10 +259,12 @@ const AgenciesTab = () => {
           title: `Contrato de Prestação de Serviços — ${contractAgency.name}`,
           description: `Contrato da agência ${contractAgency.name}`,
           file_url: fileUrl,
+          agency_id: contractAgency.id,
         },
       });
 
-      await api(`/api/doc-signatures/${document.id}/signers`, {
+      // Signer 1: Agency responsible
+      const agencySigner = await api<any>(`/api/doc-signatures/${document.id}/signers`, {
         method: "POST",
         body: {
           name: contractSignerName.trim(),
@@ -270,7 +272,35 @@ const AgenciesTab = () => {
           cpf: onlyDigits(contractSignerCpf),
           phone: onlyDigits(contractAgency.contact_phone || contractAgency.responsible_phone || "") || null,
           role: "signer",
+          sign_order: 1,
         },
+      });
+
+      // Signer 2: Org responsible (Ayratech)
+      let orgSigner: any = null;
+      if (orgResponsible?.responsible_name && orgResponsible?.responsible_email && orgSignerCpf) {
+        orgSigner = await api<any>(`/api/doc-signatures/${document.id}/signers`, {
+          method: "POST",
+          body: {
+            name: orgResponsible.responsible_name,
+            email: orgResponsible.responsible_email,
+            cpf: onlyDigits(orgSignerCpf),
+            role: "signer",
+            sign_order: 2,
+          },
+        });
+      }
+
+      // Auto-position signatures on last page
+      const positions: any[] = [
+        { signer_id: agencySigner.id, page: 1, x: 320, y: 680, width: 200, height: 70 },
+      ];
+      if (orgSigner) {
+        positions.push({ signer_id: orgSigner.id, page: 1, x: 36, y: 680, width: 200, height: 70 });
+      }
+      await api(`/api/doc-signatures/${document.id}/positions`, {
+        method: "PUT",
+        body: { positions },
       });
 
       let emailSent = true;
@@ -283,11 +313,10 @@ const AgenciesTab = () => {
       toast({
         title: emailSent ? "Contrato gerado!" : "Contrato criado",
         description: emailSent
-          ? "O contrato foi criado e enviado para assinatura digital. Redirecionando..."
+          ? "O contrato foi criado com posições de assinatura e enviado. Redirecionando..."
           : "O contrato foi criado. Redirecionando para Assinaturas...",
       });
       setContractDialogOpen(false);
-      // Redireciona para a página de assinaturas
       setTimeout(() => navigate("/assinaturas"), 600);
     } catch (error: any) {
       toast({ title: "Erro ao gerar contrato", description: error?.message || "Tente novamente", variant: "destructive" });
