@@ -27,7 +27,11 @@ async function ensureTables() {
   await query(`CREATE TABLE IF NOT EXISTS price_research_competitor_products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), mapping_id UUID NOT NULL, competitor_id UUID NOT NULL,
     competitor_product_name VARCHAR(255) NOT NULL, category VARCHAR(100), subcategory VARCHAR(100),
-    unit_measure VARCHAR(50), active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);
+    unit_measure VARCHAR(50), photo_url TEXT, active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);
+  // Ensure photo_url column exists
+  try { await query('ALTER TABLE price_research_competitor_products ADD COLUMN IF NOT EXISTS photo_url TEXT'); } catch {}
+  // Ensure frequency 'once' is supported
+  try { await query("ALTER TABLE price_research_rules DROP CONSTRAINT IF EXISTS price_research_rules_frequency_check"); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, schedule_id UUID,
     route_id UUID NOT NULL, brand_id UUID NOT NULL, pdv_id UUID NOT NULL, promoter_id UUID NOT NULL,
@@ -146,7 +150,7 @@ router.get('/product-mappings', authenticate, async (req, res) => {
     await ensureTables();
     const orgId = await getOrgId(req.userId);
     const { brand_id } = req.query;
-    let sql = `SELECT pm.*, p.name as product_name, p.sku FROM price_research_product_mappings pm
+    let sql = `SELECT pm.*, p.name as product_name, p.sku, p.photo_url, p.description FROM price_research_product_mappings pm
                LEFT JOIN products p ON p.id = pm.product_id WHERE pm.organization_id = $1`;
     const params = [orgId];
     if (brand_id) { sql += ' AND pm.brand_id = $2'; params.push(brand_id); }
@@ -187,9 +191,9 @@ router.delete('/product-mappings/:id', authenticate, async (req, res) => {
 router.post('/competitor-products', authenticate, async (req, res) => {
   try {
     await ensureTables();
-    const { mapping_id, competitor_id, competitor_product_name, category, subcategory, unit_measure } = req.body;
-    const r = await query('INSERT INTO price_research_competitor_products (mapping_id, competitor_id, competitor_product_name, category, subcategory, unit_measure) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [mapping_id, competitor_id, competitor_product_name, category, subcategory, unit_measure]);
+    const { mapping_id, competitor_id, competitor_product_name, category, subcategory, unit_measure, photo_url } = req.body;
+    const r = await query('INSERT INTO price_research_competitor_products (mapping_id, competitor_id, competitor_product_name, category, subcategory, unit_measure, photo_url) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+      [mapping_id, competitor_id, competitor_product_name, category, subcategory, unit_measure, photo_url]);
     res.json(r.rows[0]);
   } catch (err) { logError('price-research.competitor-products.create', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -236,10 +240,12 @@ router.get('/executions/:id', authenticate, async (req, res) => {
       WHERE e.id = $1`, [req.params.id])).rows[0];
     if (!exec) return res.status(404).json({ error: 'Não encontrado' });
     // Items with competitors
-    const items = (await query(`SELECT i.*, p.name as product_name FROM price_research_items i
+    const items = (await query(`SELECT i.*, p.name as product_name, p.photo_url, p.description FROM price_research_items i
       LEFT JOIN products p ON p.id = i.product_id WHERE i.execution_id = $1 ORDER BY p.name`, [exec.id])).rows;
     for (const item of items) {
-      item.competitors = (await query('SELECT * FROM price_research_item_competitors WHERE item_id = $1 ORDER BY competitor_brand_name', [item.id])).rows;
+      item.competitors = (await query(`SELECT ic.*, cp.photo_url FROM price_research_item_competitors ic
+        LEFT JOIN price_research_competitor_products cp ON cp.id = ic.competitor_product_id
+        WHERE ic.item_id = $1 ORDER BY ic.competitor_brand_name`, [item.id])).rows;
     }
     exec.items = items;
     exec.photos = (await query('SELECT * FROM price_research_photos WHERE execution_id = $1 ORDER BY created_at', [exec.id])).rows;
@@ -291,10 +297,12 @@ router.get('/route/:routeId', authenticate, async (req, res) => {
     let exec = (await query('SELECT * FROM price_research_executions WHERE route_id = $1', [routeId])).rows;
     if (exec.length > 0) {
       for (const e of exec) {
-        e.items = (await query(`SELECT i.*, p.name as product_name FROM price_research_items i
+        e.items = (await query(`SELECT i.*, p.name as product_name, p.photo_url, p.description FROM price_research_items i
           LEFT JOIN products p ON p.id = i.product_id WHERE i.execution_id = $1 ORDER BY p.name`, [e.id])).rows;
         for (const item of e.items) {
-          item.competitors = (await query('SELECT * FROM price_research_item_competitors WHERE item_id = $1', [item.id])).rows;
+          item.competitors = (await query(`SELECT ic.*, cp.photo_url FROM price_research_item_competitors ic
+            LEFT JOIN price_research_competitor_products cp ON cp.id = ic.competitor_product_id
+            WHERE ic.item_id = $1`, [item.id])).rows;
         }
         e.photos = (await query('SELECT * FROM price_research_photos WHERE execution_id = $1', [e.id])).rows;
       }
@@ -315,7 +323,33 @@ router.get('/route/:routeId', authenticate, async (req, res) => {
     const rules = (await query('SELECT * FROM price_research_rules WHERE brand_id = ANY($1) AND enabled = true', [brandIds])).rows;
     const result = [];
     for (const rule of rules) {
-      result.push({ brand_id: rule.brand_id, rule, status: 'not_started', items: [], photos: [] });
+      // Load mapped products with photos and competitor products
+      const mappings = (await query(`SELECT pm.*, p.name as product_name, p.photo_url, p.description
+        FROM price_research_product_mappings pm LEFT JOIN products p ON p.id = pm.product_id
+        WHERE pm.brand_id = $1 AND pm.enabled = true ORDER BY p.name`, [rule.brand_id])).rows;
+      const items = [];
+      for (const m of mappings) {
+        const compProducts = (await query(`SELECT cp.*, c.competitor_name as competitor_brand_name
+          FROM price_research_competitor_products cp
+          LEFT JOIN price_research_brand_competitors c ON c.id = cp.competitor_id
+          WHERE cp.mapping_id = $1 AND cp.active = true ORDER BY c.competitor_name`, [m.id])).rows;
+        items.push({
+          product_id: m.product_id,
+          product_name: m.product_name,
+          photo_url: m.photo_url,
+          description: m.description,
+          price: null,
+          competitors: compProducts.map(cp => ({
+            competitor_product_id: cp.id,
+            competitor_id: cp.competitor_id,
+            competitor_product_name: cp.competitor_product_name,
+            competitor_brand_name: cp.competitor_brand_name,
+            photo_url: cp.photo_url,
+            price: null,
+          })),
+        });
+      }
+      result.push({ brand_id: rule.brand_id, rule, status: 'not_started', items, photos: [] });
     }
     res.json(result);
   } catch (err) { logError('price-research.route', err); if (err.code === '42P01') return res.json([]); res.status(500).json({ error: 'Erro' }); }
