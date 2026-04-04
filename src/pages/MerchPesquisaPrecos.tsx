@@ -136,7 +136,7 @@ function ModelosTab({ brands, onSwitchTab }: { brands: any[]; onSwitchTab: (t: s
         {rules.map((r: any) => {
           const brandName = brands.find((b: any) => b.id === r.brand_id)?.name || r.brand_name || 'Marca';
           const productCount = r.selected_products?.length || r.products_count || 0;
-          const competitorCount = r.selected_competitors?.length || 0;
+          const competitorCount = r.competitor_config ? Object.values(r.competitor_config as Record<string, any[]>).reduce((s: number, a: any[]) => s + (a?.length || 0), 0) : (r.selected_competitors?.length || 0);
           return (
             <Card key={r.id} className="hover:shadow-md transition-shadow">
               <CardContent className="pt-4 pb-3">
