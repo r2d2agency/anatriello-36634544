@@ -58,11 +58,16 @@ router.post('/routes', authenticate, async (req, res) => {
 
     const { promoter_id, supervisor_id, pdv_id, brand_id, checklist_id, visit_date, scheduled_time,
             window_start, window_end, estimated_duration_min, priority, visit_type, notes,
-            recurrence_type, recurrence_interval, recurrence_until, recurrence_weekdays } = req.body;
+            recurrence_type, recurrence_interval, recurrence_until, recurrence_weekdays,
+            brands: multiBrands } = req.body;
+
+    // Determine if multi-brand
+    const isMultiBrand = Array.isArray(multiBrands) && multiBrands.length > 0;
+    const primaryBrandId = isMultiBrand ? multiBrands[0].brand_id : brand_id;
 
     // Resolve effective checklist for this brand when not explicitly passed
     let effectiveChecklistId = checklist_id || null;
-    if (!effectiveChecklistId && brand_id) {
+    if (!effectiveChecklistId && primaryBrandId && !isMultiBrand) {
       try {
         const checklistRes = await query(
           `SELECT id FROM brand_checklists
