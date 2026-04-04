@@ -85,11 +85,15 @@ router.get('/rules', authenticate, async (req, res) => {
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
     const { brand_id } = req.query;
-    let sql = `SELECT r.*, b.name as brand_name FROM price_research_rules r
-               LEFT JOIN merch_brands b ON b.id = r.brand_id WHERE r.organization_id = $1`;
+    let sql = `SELECT r.*, b.name as brand_name,
+      (SELECT COUNT(*) FROM price_research_product_mappings pm WHERE pm.brand_id = r.brand_id AND pm.enabled = true) as products_count,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id) as executions_count,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id AND ex.status IN ('completed','validated')) as completed_count
+      FROM price_research_rules r
+      LEFT JOIN merch_brands b ON b.id = r.brand_id WHERE r.organization_id = $1`;
     const params = [orgId];
     if (brand_id) { sql += ' AND r.brand_id = $2'; params.push(brand_id); }
-    sql += ' ORDER BY b.name';
+    sql += ' ORDER BY r.created_at DESC';
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (err) { logError('price-research.rules.list', err); res.status(500).json({ error: 'Erro' }); }
