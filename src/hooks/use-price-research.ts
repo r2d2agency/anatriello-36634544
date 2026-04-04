@@ -36,11 +36,22 @@ export function useShareRule() {
   });
 }
 
-// ===== Validate execution =====
+// ===== Validate / Publish =====
 export function useValidateExecution() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api<any>(`/api/price-research/executions/${id}/validate`, { method: 'PUT' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['price-research-executions'] });
+      qc.invalidateQueries({ queryKey: ['price-research-rules'] });
+    },
+  });
+}
+
+export function usePublishExecution() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<any>(`/api/price-research/executions/${id}/publish`, { method: 'PUT' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['price-research-executions'] });
       qc.invalidateQueries({ queryKey: ['price-research-rules'] });
@@ -134,6 +145,14 @@ export function useCreateCompetitorProduct() {
   });
 }
 
+export function useUpdateCompetitorProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: any) => api<any>(`/api/price-research/competitor-products/${id}`, { method: 'PUT', body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['price-research-mappings'] }),
+  });
+}
+
 export function useDeleteCompetitorProduct() {
   const qc = useQueryClient();
   return useMutation({
@@ -143,7 +162,10 @@ export function useDeleteCompetitorProduct() {
 }
 
 // ===== Executions =====
-export function usePriceResearchExecutions(filters?: { brand_id?: string; pdv_id?: string; promoter_id?: string; status?: string; date_from?: string; date_to?: string; rule_id?: string }) {
+export function usePriceResearchExecutions(filters?: {
+  brand_id?: string; pdv_id?: string; promoter_id?: string; status?: string;
+  date_from?: string; date_to?: string; rule_id?: string;
+}) {
   const params = new URLSearchParams();
   if (filters?.brand_id) params.set('brand_id', filters.brand_id);
   if (filters?.pdv_id) params.set('pdv_id', filters.pdv_id);
@@ -213,6 +235,15 @@ export function useJustifyResearch() {
   return useMutation({
     mutationFn: (data: any) => api<any>('/api/price-research/justify', { method: 'POST', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['price-research'] }),
+  });
+}
+
+// ===== Schedule =====
+export function useScheduleResearch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api<any>('/api/price-research/schedule', { method: 'POST', body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['price-research-executions'] }),
   });
 }
 
