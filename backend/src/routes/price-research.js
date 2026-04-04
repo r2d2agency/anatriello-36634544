@@ -46,6 +46,8 @@ async function ensureTables() {
     completed_items INTEGER DEFAULT 0, started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`);
   try { await query('ALTER TABLE price_research_executions ADD COLUMN IF NOT EXISTS rule_id UUID'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ADD COLUMN IF NOT EXISTS scheduled_date DATE'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ADD COLUMN IF NOT EXISTS scheduled_time TIME'); } catch {}
   try { await query('ALTER TABLE price_research_executions ALTER COLUMN route_id DROP NOT NULL'); } catch {}
   try { await query('ALTER TABLE price_research_executions ALTER COLUMN pdv_id DROP NOT NULL'); } catch {}
   try { await query('ALTER TABLE price_research_executions ALTER COLUMN promoter_id DROP NOT NULL'); } catch {}
