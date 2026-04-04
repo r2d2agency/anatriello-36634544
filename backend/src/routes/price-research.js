@@ -151,6 +151,7 @@ router.post('/rules', authenticate, async (req, res) => {
       competitor_config, status,
     } = req.body;
     const cols = {
+      brand_id: brand_id || null,
       name: name || 'Pesquisa de Preços', description, enabled: enabled ?? false,
       frequency: frequency ?? 'weekly', preferred_weekday: preferred_weekday ?? 1, preferred_time,
       require_photo: require_photo ?? false, require_justification: require_justification ?? true,
