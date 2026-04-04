@@ -24,6 +24,7 @@ import {
   usePriceResearchCompetitors, useCreateCompetitor,
   usePriceResearchExecutions, useValidateExecution, usePublishExecution,
   usePriceResearchDashboard, usePriceResearchExecutionDetail, useUpdateExecution,
+  useRedes, useCreateRede, useUpdateRede, useDeleteRede,
 } from "@/hooks/use-price-research";
 import { useUpload } from "@/hooks/use-upload";
 import { resolveMediaUrl } from "@/lib/media";
