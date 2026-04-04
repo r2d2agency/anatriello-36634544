@@ -850,7 +850,7 @@ function RedesTab() {
   // All PDVs
   const { data: allPdvs = [] } = useQuery({
     queryKey: ['all-pdvs-for-rede'],
-    queryFn: () => api<any[]>('/api/merchandising/pdvs'),
+    queryFn: () => api<any[]>('/api/rh/pdvs'),
   });
 
   const openEditor = (rede?: any) => {
