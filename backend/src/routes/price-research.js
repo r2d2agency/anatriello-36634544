@@ -521,14 +521,6 @@ router.post('/schedule', authenticate, async (req, res) => {
     }
     logInfo('price-research.schedule', `Scheduled ${results.length} research(es) rule=${rule_id} pdvs=${targetPdvIds.length}`);
     res.json(results.length === 1 ? results[0] : results);
-        await query('UPDATE price_research_executions SET total_items=$1 WHERE id=$2', [totalItems, exec.id]);
-        exec.total_items = totalItems;
-      }
-
-      results.push(exec);
-    }
-    logInfo('price-research.schedule', `Scheduled ${results.length} research(es) rule=${rule_id} pdv=${pdv_id}`);
-    res.json(results.length === 1 ? results[0] : results);
   } catch (err) { logError('price-research.schedule', err); res.status(500).json({ error: 'Erro ao agendar pesquisa' }); }
 });
 
