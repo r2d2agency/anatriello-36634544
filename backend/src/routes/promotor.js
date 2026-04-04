@@ -1501,7 +1501,7 @@ router.get('/supervisor/team', authenticatePromotor, requireSupervisor, async (r
 });
 
 // Get pending overtime requests from subordinates
-router.get('/supervisor/overtime-requests', requireSupervisor, async (req, res) => {
+router.get('/supervisor/overtime-requests', authenticatePromotor, requireSupervisor, async (req, res) => {
   try {
     const result = await query(
       `SELECT otr.*, e.full_name as employee_name, e.position, e.work_schedule
