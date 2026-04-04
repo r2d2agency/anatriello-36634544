@@ -245,6 +245,15 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
   const [newComp, setNewComp] = useState<Partial<ProductCompetitor>>({});
   const [uploadTargetProductId, setUploadTargetProductId] = useState<string | null>(null);
   const [uploadTargetCompIdx, setUploadTargetCompIdx] = useState<number | null>(null);
+  const [newCompDragOver, setNewCompDragOver] = useState(false);
+  const newCompFileRef = useRef<HTMLInputElement>(null);
+
+  const uploadNewCompPhoto = async (file: File) => {
+    try {
+      const url = await uploadFile(file);
+      if (url) setNewComp(p => ({ ...p, photo_url: url }));
+    } catch { toast.error('Erro ao enviar foto'); }
+  };
 
   const { data: products = [] } = useQuery({
     queryKey: ['merch-products-brand', brandId],
