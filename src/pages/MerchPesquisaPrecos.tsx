@@ -295,12 +295,12 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
   const handlePhotoUpload = async (file: File) => {
     if (!uploadTargetProductId || uploadTargetCompIdx === null) return;
     try {
-      const result = await upload(file);
-      if (result?.url) {
+      const url = await uploadFile(file);
+      if (url) {
         setCompetitorConfig(prev => {
           const comps = [...(prev[uploadTargetProductId] || [])];
           if (comps[uploadTargetCompIdx]) {
-            comps[uploadTargetCompIdx] = { ...comps[uploadTargetCompIdx], photo_url: result.url };
+            comps[uploadTargetCompIdx] = { ...comps[uploadTargetCompIdx], photo_url: url };
           }
           return { ...prev, [uploadTargetProductId]: comps };
         });
@@ -326,7 +326,7 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
         break;
       }
     }
-  }, [upload]);
+  }, [uploadFile]);
 
   const totalCompetitors = Object.values(competitorConfig).reduce((sum, arr) => sum + arr.length, 0);
 
