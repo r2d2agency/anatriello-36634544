@@ -973,6 +973,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
     try {
       await api(`/api/price-research/item-competitors/${compId}`, { method: 'DELETE' });
       toast.success('Removido');
+      qc.invalidateQueries({ queryKey: ['price-research-execution', id] });
     } catch (err: any) { toast.error(err.message || 'Erro'); }
   };
 
