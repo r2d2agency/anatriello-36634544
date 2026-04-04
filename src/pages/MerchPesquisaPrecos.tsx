@@ -927,7 +927,8 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
   const startEditing = () => {
     if (!exec) return;
     setEditPromoterId(exec.promoter_id || '');
-    setEditDate(exec.scheduled_date || '');
+    const rawDate = exec.scheduled_date || '';
+    setEditDate(rawDate ? rawDate.split('T')[0] : '');
     setEditTime(exec.scheduled_time ? String(exec.scheduled_time).slice(0, 5) : '');
     setEditPdvId(exec.pdv_id || '');
     setEditProducts(exec.items?.map((i: any) => i.product_id) || []);
