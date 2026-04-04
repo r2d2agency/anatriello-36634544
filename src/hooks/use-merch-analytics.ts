@@ -9,7 +9,7 @@ interface DashboardFilters {
   promoter_id?: string;
 }
 
-function buildQS(filters?: Record<string, string | undefined>) {
+function buildQS(filters?: Record<string, string | undefined>): string {
   if (!filters) return '';
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(filters)) { if (v) params.set(k, v); }
