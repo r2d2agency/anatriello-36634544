@@ -13,6 +13,7 @@ import { useTheme, Theme } from "@/hooks/use-theme";
 import { useNotificationSound, NOTIFICATION_SOUNDS, NotificationSoundId } from "@/hooks/use-notification-sound";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { isPWAInstalled } from "@/lib/pwa";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { SMTPConfigPanel } from "@/components/email/SMTPConfigPanel";
@@ -473,13 +474,21 @@ const Configuracoes = () => {
                           (window as any).deferredPrompt = null;
                         });
                       } else {
-                        toast.info('Use o menu do navegador para instalar o app');
+                         const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                         if (isIOSDevice) {
+                           toast.info('No Safari, toque em 📤 (Compartilhar) e depois em "Adicionar à Tela de Início"');
+                         } else {
+                           toast.info('No menu do navegador (⋮), toque em "Instalar app" ou "Adicionar à tela inicial"');
+                         }
                       }
                     }}
                   >
                     <Smartphone className="h-4 w-4 mr-2" />
                     Instalar Glee-go Whats
                   </Button>
+                  {isPWAInstalled() && (
+                    <p className="text-sm text-green-600 font-medium text-center">✅ App já está instalado!</p>
+                  )}
                 </CardContent>
               </Card>
 
