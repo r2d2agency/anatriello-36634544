@@ -167,6 +167,7 @@ export default function RHDashboard() {
     analyzeWithAI(docUrl);
   }, [analyzeWithAI]);
 
+  const overtimePendingCount = useOvertimePendingCount();
   const summary = dashboard?.summary || {};
   const lateArrivals = dashboard?.late_arrivals || [];
   const absencesToday = dashboard?.absences_today || [];
