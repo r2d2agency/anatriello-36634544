@@ -103,8 +103,12 @@ export default function MerchExecucao() {
                           <div className="text-xs text-muted-foreground flex items-center gap-2">
                             <span className="flex items-center gap-1"><User className="h-3 w-3" />{r.promoter_name}</span>
                             <span>•</span>
-                            <span>{r.brand_name}</span>
-                            {r.checklist_name && <><span>•</span><span>{r.checklist_name}</span></>}
+                            {r.is_multi_brand ? (
+                              <span className="flex items-center gap-1">🏷️ {r.route_brands?.length || 0} marcas</span>
+                            ) : (
+                              <span>{r.brand_name}</span>
+                            )}
+                            {!r.is_multi_brand && r.checklist_name && <><span>•</span><span>{r.checklist_name}</span></>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -118,6 +122,18 @@ export default function MerchExecucao() {
                         </div>
                       </div>
                       <Progress value={r.progress_pct || 0} className="h-1.5" />
+                      {/* Multi-brand mini progress */}
+                      {r.is_multi_brand && r.route_brands?.length > 0 && (
+                        <div className="flex gap-2 mt-2">
+                          {r.route_brands.map((rb: any) => (
+                            <div key={rb.brand_id} className="flex-1 text-center">
+                              <div className="text-[9px] text-muted-foreground truncate">{rb.brand_name}</div>
+                              <Progress value={rb.progress_pct || 0} className="h-1 mt-0.5" />
+                              <div className="text-[9px] font-mono">{Math.round(rb.progress_pct || 0)}%</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {r.checkin_at && (
                         <div className="text-[10px] text-muted-foreground mt-1">
                           Check-in: {new Date(r.checkin_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
