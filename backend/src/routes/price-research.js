@@ -108,23 +108,22 @@ router.post('/rules', authenticate, async (req, res) => {
     await ensureTables();
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
-    const { id, brand_id, name, description, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion, scheduled_date, schedule_dates } = req.body;
+    const { id, brand_id, name, description, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion, scheduled_date, schedule_dates, selected_products, selected_competitors } = req.body;
     let result;
     if (id) {
-      // Update existing
       result = await query(
         `UPDATE price_research_rules SET name=COALESCE($1,name), description=$2, enabled=$3, frequency=$4,
          preferred_weekday=$5, preferred_time=$6, require_photo=$7, require_justification=$8,
-         block_route_completion=$9, scheduled_date=$10, schedule_dates=$11, updated_at=NOW()
-         WHERE id=$12 RETURNING *`,
-        [name, description, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false, scheduled_date, schedule_dates ? JSON.stringify(schedule_dates) : null, id]
+         block_route_completion=$9, scheduled_date=$10, schedule_dates=$11, selected_products=$12, selected_competitors=$13, updated_at=NOW()
+         WHERE id=$14 RETURNING *`,
+        [name, description, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false, scheduled_date, schedule_dates ? JSON.stringify(schedule_dates) : null, selected_products ? JSON.stringify(selected_products) : null, selected_competitors ? JSON.stringify(selected_competitors) : null, id]
       );
     } else {
       result = await query(
-        `INSERT INTO price_research_rules (organization_id, brand_id, name, description, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion, scheduled_date, schedule_dates)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        `INSERT INTO price_research_rules (organization_id, brand_id, name, description, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion, scheduled_date, schedule_dates, selected_products, selected_competitors)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING *`,
-        [orgId, brand_id, name || 'Pesquisa de Preços', description, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false, scheduled_date, schedule_dates ? JSON.stringify(schedule_dates) : null]
+        [orgId, brand_id, name || 'Pesquisa de Preços', description, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false, scheduled_date, schedule_dates ? JSON.stringify(schedule_dates) : null, selected_products ? JSON.stringify(selected_products) : null, selected_competitors ? JSON.stringify(selected_competitors) : null]
       );
     }
     res.json(result.rows[0]);
