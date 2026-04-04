@@ -25,6 +25,8 @@ async function ensureTables() {
   try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS schedule_dates JSONB'); } catch {}
   try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS shared_with_brand BOOLEAN DEFAULT false'); } catch {}
   try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS validated BOOLEAN DEFAULT false'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS selected_products JSONB'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS selected_competitors JSONB'); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_brand_competitors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, brand_id UUID NOT NULL,
     competitor_name VARCHAR(255) NOT NULL, category VARCHAR(100), active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);

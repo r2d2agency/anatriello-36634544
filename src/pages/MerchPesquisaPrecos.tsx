@@ -11,23 +11,23 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { useBrands, useBrandPdvs } from "@/hooks/use-merchandising";
 import { useEmployees } from "@/hooks/use-rh";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   usePriceResearchRules, useUpsertPriceResearchRule, useDeletePriceResearchRule, useShareRule,
-  usePriceResearchCompetitors, useCreateCompetitor, useUpdateCompetitor, useDeleteCompetitor,
-  usePriceResearchMappings, useCreateProductMapping, useDeleteProductMapping,
-  useCreateCompetitorProduct, useDeleteCompetitorProduct,
+  usePriceResearchCompetitors, useCreateCompetitor,
   usePriceResearchExecutions, useValidateExecution,
 } from "@/hooks/use-price-research";
 import { useUpload } from "@/hooks/use-upload";
 import { resolveMediaUrl } from "@/lib/media";
 import {
   DollarSign, Plus, Trash2, Image as ImageIcon, Upload, FileText, List, CheckCircle2,
-  Calendar, Settings, Building2, Package, Eye, Share2, Edit, Clock, BarChart3, CalendarPlus, MapPin, User,
+  Calendar, Building2, Package, Share2, Edit, Clock, BarChart3, CalendarPlus, MapPin, User, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
@@ -68,26 +68,18 @@ export default function MerchPesquisaPrecos() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="modelos"><FileText className="h-4 w-4 mr-1" />Modelos</TabsTrigger>
-            <TabsTrigger value="pesquisas"><List className="h-4 w-4 mr-1" />Pesquisas</TabsTrigger>
+            <TabsTrigger value="agendamentos"><Calendar className="h-4 w-4 mr-1" />Agendamentos</TabsTrigger>
             <TabsTrigger value="resultados"><BarChart3 className="h-4 w-4 mr-1" />Resultados</TabsTrigger>
-            <TabsTrigger value="concorrentes"><Building2 className="h-4 w-4 mr-1" />Concorrentes</TabsTrigger>
-            <TabsTrigger value="produtos"><Package className="h-4 w-4 mr-1" />Produtos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="modelos">
             <ModelosTab brands={brands} />
           </TabsContent>
-          <TabsContent value="pesquisas">
-            <PesquisasTab brands={brands} />
+          <TabsContent value="agendamentos">
+            <AgendamentosTab brands={brands} />
           </TabsContent>
           <TabsContent value="resultados">
             <ResultadosTab brands={brands} />
-          </TabsContent>
-          <TabsContent value="concorrentes">
-            <ConcorrentesTab brands={brands} />
-          </TabsContent>
-          <TabsContent value="produtos">
-            <ProdutosTab brands={brands} />
           </TabsContent>
         </Tabs>
       </div>
@@ -98,77 +90,27 @@ export default function MerchPesquisaPrecos() {
 // ===== Modelos Tab =====
 function ModelosTab({ brands }: { brands: any[] }) {
   const { data: rules = [] } = usePriceResearchRules();
-  const upsert = useUpsertPriceResearchRule();
   const deleteRule = useDeletePriceResearchRule();
   const shareRule = useShareRule();
   const [showEditor, setShowEditor] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [showSchedule, setShowSchedule] = useState<any>(null);
 
-  // Editor state
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [brandId, setBrandId] = useState('');
-  const [enabled, setEnabled] = useState(true);
-  const [frequency, setFrequency] = useState('once');
-  const [preferredWeekday, setPreferredWeekday] = useState('1');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [requirePhoto, setRequirePhoto] = useState(false);
-  const [requireJustification, setRequireJustification] = useState(true);
-  const [blockRouteCompletion, setBlockRouteCompletion] = useState(false);
-
-  const openNew = () => {
-    setEditingRule(null);
-    setName(''); setDescription(''); setBrandId(''); setEnabled(true);
-    setFrequency('once'); setPreferredWeekday('1'); setScheduledDate('');
-    setRequirePhoto(false); setRequireJustification(true); setBlockRouteCompletion(false);
-    setShowEditor(true);
-  };
-
-  const openEdit = (rule: any) => {
-    setEditingRule(rule);
-    setName(rule.name || '');
-    setDescription(rule.description || '');
-    setBrandId(rule.brand_id);
-    setEnabled(rule.enabled);
-    setFrequency(rule.frequency || 'once');
-    setPreferredWeekday(String(rule.preferred_weekday ?? 1));
-    setScheduledDate(rule.scheduled_date || '');
-    setRequirePhoto(rule.require_photo);
-    setRequireJustification(rule.require_justification);
-    setBlockRouteCompletion(rule.block_route_completion);
-    setShowEditor(true);
-  };
-
-  const handleSave = () => {
-    if (!brandId) return toast.error('Selecione uma marca');
-    if (!name.trim()) return toast.error('Nome obrigatório');
-    upsert.mutate({
-      id: editingRule?.id,
-      brand_id: brandId,
-      name, description, enabled, frequency,
-      preferred_weekday: parseInt(preferredWeekday),
-      scheduled_date: scheduledDate || null,
-      require_photo: requirePhoto,
-      require_justification: requireJustification,
-      block_route_completion: blockRouteCompletion,
-    }, {
-      onSuccess: () => { setShowEditor(false); toast.success(editingRule ? 'Modelo atualizado!' : 'Modelo criado!'); },
-    });
-  };
-
-  const isRecurring = frequency !== 'once';
+  const openNew = () => { setEditingRule(null); setShowEditor(true); };
+  const openEdit = (rule: any) => { setEditingRule(rule); setShowEditor(true); };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">Crie modelos de pesquisa de preços e agende para execução.</p>
+        <p className="text-sm text-muted-foreground">Modelos definem marca, produtos e concorrentes para a pesquisa.</p>
         <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" />Novo Modelo</Button>
       </div>
 
       <div className="grid gap-3">
         {rules.map((r: any) => {
           const brandName = brands.find((b: any) => b.id === r.brand_id)?.name || r.brand_name || 'Marca';
+          const productCount = r.selected_products?.length || r.products_count || 0;
+          const competitorCount = r.selected_competitors?.length || 0;
           return (
             <Card key={r.id} className="hover:shadow-md transition-shadow">
               <CardContent className="pt-4 pb-3">
@@ -185,9 +127,9 @@ function ModelosTab({ brands }: { brands: any[] }) {
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {FREQUENCIES.find(f => f.value === r.frequency)?.label || r.frequency}
-                        {r.scheduled_date && ` — ${safeFormatDate(r.scheduled_date + 'T12:00:00')}`}
                       </span>
-                      <span className="flex items-center gap-1"><Package className="h-3 w-3" />{r.products_count || 0} produtos</span>
+                      <span className="flex items-center gap-1"><Package className="h-3 w-3" />{productCount} produtos</span>
+                      <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{competitorCount} concorrentes</span>
                       <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{r.completed_count || 0}/{r.executions_count || 0} pesquisas</span>
                     </div>
                   </div>
@@ -215,31 +157,136 @@ function ModelosTab({ brands }: { brands: any[] }) {
         )}
       </div>
 
-      {/* Model Editor Dialog */}
-      <Dialog open={showEditor} onOpenChange={setShowEditor}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editingRule ? 'Editar Modelo' : 'Novo Modelo de Pesquisa'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div>
-              <Label>Nome do modelo</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Pesquisa Semanal Limpeza" />
-            </div>
-            <div>
-              <Label>Descrição (opcional)</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição do objetivo desta pesquisa" rows={2} />
-            </div>
-            <div>
-              <Label>Marca</Label>
-              <Select value={brandId} onValueChange={setBrandId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{brands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>Ativa</Label>
-              <Switch checked={enabled} onCheckedChange={setEnabled} />
-            </div>
+      {showEditor && (
+        <ModelEditorDialog
+          rule={editingRule}
+          brands={brands}
+          open={showEditor}
+          onClose={() => setShowEditor(false)}
+        />
+      )}
+
+      {showSchedule && (
+        <ScheduleResearchDialog
+          rule={showSchedule}
+          brands={brands}
+          open={!!showSchedule}
+          onClose={() => setShowSchedule(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ===== Model Editor Dialog (full: brand + products + competitors) =====
+function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands: any[]; open: boolean; onClose: () => void }) {
+  const upsert = useUpsertPriceResearchRule();
+  const qc = useQueryClient();
+
+  // Basic fields
+  const [name, setName] = useState(rule?.name || '');
+  const [description, setDescription] = useState(rule?.description || '');
+  const [brandId, setBrandId] = useState(rule?.brand_id || '');
+  const [enabled, setEnabled] = useState(rule?.enabled ?? true);
+  const [frequency, setFrequency] = useState(rule?.frequency || 'once');
+  const [preferredWeekday, setPreferredWeekday] = useState(String(rule?.preferred_weekday ?? 1));
+  const [requirePhoto, setRequirePhoto] = useState(rule?.require_photo ?? false);
+  const [requireJustification, setRequireJustification] = useState(rule?.require_justification ?? true);
+  const [blockRouteCompletion, setBlockRouteCompletion] = useState(rule?.block_route_completion ?? false);
+
+  // Product & competitor selections stored on the model
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(rule?.selected_products || []);
+  const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>(rule?.selected_competitors || []);
+
+  // Section visibility
+  const [showProducts, setShowProducts] = useState(false);
+  const [showCompetitors, setShowCompetitors] = useState(false);
+  const [showAddCompetitor, setShowAddCompetitor] = useState(false);
+  const [newCompName, setNewCompName] = useState('');
+  const [newCompCategory, setNewCompCategory] = useState('');
+  const createCompetitor = useCreateCompetitor();
+
+  // Load brand products
+  const { data: products = [] } = useQuery({
+    queryKey: ['merch-products-brand', brandId],
+    queryFn: () => api<any[]>(`/api/merchandising/products?brand_id=${brandId}`),
+    enabled: !!brandId,
+  });
+
+  // Load brand competitors
+  const { data: competitors = [] } = usePriceResearchCompetitors(brandId || undefined);
+
+  const isRecurring = frequency !== 'once';
+
+  const toggleProduct = (id: string) => {
+    setSelectedProducts(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
+
+  const toggleCompetitor = (id: string) => {
+    setSelectedCompetitors(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const handleSave = () => {
+    if (!brandId) return toast.error('Selecione uma marca');
+    if (!name.trim()) return toast.error('Nome obrigatório');
+    if (selectedProducts.length === 0) return toast.error('Selecione pelo menos um produto');
+
+    upsert.mutate({
+      id: rule?.id,
+      brand_id: brandId,
+      name, description, enabled, frequency,
+      preferred_weekday: parseInt(preferredWeekday),
+      require_photo: requirePhoto,
+      require_justification: requireJustification,
+      block_route_completion: blockRouteCompletion,
+      selected_products: selectedProducts,
+      selected_competitors: selectedCompetitors,
+    }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ['price-research-rules'] });
+        onClose();
+        toast.success(rule ? 'Modelo atualizado!' : 'Modelo criado!');
+      },
+    });
+  };
+
+  const handleAddCompetitor = () => {
+    if (!brandId) return toast.error('Selecione a marca primeiro');
+    if (!newCompName.trim()) return toast.error('Nome obrigatório');
+    createCompetitor.mutate({ brand_id: brandId, competitor_name: newCompName, category: newCompCategory }, {
+      onSuccess: (data: any) => {
+        setShowAddCompetitor(false);
+        setNewCompName('');
+        setNewCompCategory('');
+        if (data?.id) setSelectedCompetitors(prev => [...prev, data.id]);
+        toast.success('Concorrente criado e selecionado');
+      },
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh]">
+        <DialogHeader><DialogTitle>{rule ? 'Editar Modelo' : 'Novo Modelo de Pesquisa'}</DialogTitle></DialogHeader>
+        <ScrollArea className="max-h-[70vh] pr-4">
+          <div className="space-y-4">
+            {/* Basic info */}
             <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Label>Nome do modelo *</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Pesquisa Semanal Limpeza" />
+              </div>
+              <div className="col-span-2">
+                <Label>Descrição (opcional)</Label>
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              </div>
+              <div>
+                <Label>Marca *</Label>
+                <Select value={brandId} onValueChange={(v) => { setBrandId(v); setSelectedProducts([]); setSelectedCompetitors([]); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{brands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label>Recorrência</Label>
                 <Select value={frequency} onValueChange={setFrequency}>
@@ -257,14 +304,99 @@ function ModelosTab({ brands }: { brands: any[] }) {
                 </div>
               )}
             </div>
-            {frequency === 'once' && (
-              <div>
-                <Label>Data da pesquisa</Label>
-                <Input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+
+            {/* Products section */}
+            {brandId && (
+              <div className="border rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setShowProducts(!showProducts)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="flex items-center gap-2 font-medium text-sm">
+                    <Package className="h-4 w-4" />
+                    Produtos ({selectedProducts.length} selecionados)
+                  </span>
+                  {showProducts ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {showProducts && (
+                  <div className="border-t p-3 space-y-2 max-h-60 overflow-y-auto">
+                    {products.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum produto cadastrado nesta marca</p>}
+                    {products.map((p: any) => (
+                      <label key={p.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          checked={selectedProducts.includes(p.id)}
+                          onCheckedChange={() => toggleProduct(p.id)}
+                        />
+                        {p.photo_url ? (
+                          <img src={resolveMediaUrl(p.photo_url) || ''} alt={p.name} className="h-10 w-10 rounded object-cover border flex-shrink-0" />
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.name}</p>
+                          {p.description && <p className="text-xs text-muted-foreground truncate">{p.description}</p>}
+                          {p.sku && <p className="text-xs text-muted-foreground">SKU: {p.sku}</p>}
+                        </div>
+                      </label>
+                    ))}
+                    {products.length > 0 && (
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedProducts(products.map((p: any) => p.id))}>Selecionar todos</Button>
+                        <Button size="sm" variant="outline" onClick={() => setSelectedProducts([])}>Limpar</Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
-            <div className="space-y-3 pt-2 border-t">
+
+            {/* Competitors section */}
+            {brandId && (
+              <div className="border rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setShowCompetitors(!showCompetitors)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="flex items-center gap-2 font-medium text-sm">
+                    <Building2 className="h-4 w-4" />
+                    Concorrentes ({selectedCompetitors.length} selecionados)
+                  </span>
+                  {showCompetitors ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {showCompetitors && (
+                  <div className="border-t p-3 space-y-2 max-h-60 overflow-y-auto">
+                    {competitors.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">Nenhum concorrente cadastrado</p>}
+                    {competitors.filter((c: any) => c.active).map((c: any) => (
+                      <label key={c.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                        <Checkbox
+                          checked={selectedCompetitors.includes(c.id)}
+                          onCheckedChange={() => toggleCompetitor(c.id)}
+                        />
+                        <div>
+                          <p className="text-sm font-medium">{c.competitor_name}</p>
+                          {c.category && <p className="text-xs text-muted-foreground">{c.category}</p>}
+                        </div>
+                      </label>
+                    ))}
+                    <Button size="sm" variant="outline" onClick={() => setShowAddCompetitor(true)} className="w-full mt-2">
+                      <Plus className="h-3 w-3 mr-1" />Novo Concorrente
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Execution rules */}
+            <div className="space-y-3 border rounded-lg p-3">
               <p className="text-sm font-medium">Regras de execução</p>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Ativa</Label>
+                <Switch checked={enabled} onCheckedChange={setEnabled} />
+              </div>
               <div className="flex items-center justify-between">
                 <Label className="text-sm">Foto obrigatória</Label>
                 <Switch checked={requirePhoto} onCheckedChange={setRequirePhoto} />
@@ -279,23 +411,25 @@ function ModelosTab({ brands }: { brands: any[] }) {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditor(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={upsert.isPending}>{editingRule ? 'Salvar' : 'Criar Modelo'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </ScrollArea>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={upsert.isPending}>{rule ? 'Salvar' : 'Criar Modelo'}</Button>
+        </DialogFooter>
 
-      {/* Schedule Research Dialog */}
-      {showSchedule && (
-        <ScheduleResearchDialog
-          rule={showSchedule}
-          brands={brands}
-          open={!!showSchedule}
-          onClose={() => setShowSchedule(null)}
-        />
-      )}
-    </div>
+        {/* Inline add competitor mini-dialog */}
+        <Dialog open={showAddCompetitor} onOpenChange={setShowAddCompetitor}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Novo Concorrente</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label>Nome</Label><Input value={newCompName} onChange={e => setNewCompName(e.target.value)} placeholder="Ex: Marca X" /></div>
+              <div><Label>Categoria (opcional)</Label><Input value={newCompCategory} onChange={e => setNewCompCategory(e.target.value)} /></div>
+            </div>
+            <DialogFooter><Button onClick={handleAddCompetitor} disabled={createCompetitor.isPending}>Criar</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -304,6 +438,7 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
   const brandName = brands.find((b: any) => b.id === rule.brand_id)?.name || 'Marca';
   const { data: pdvs = [] } = useBrandPdvs(rule.brand_id);
   const { data: employees = [] } = useEmployees();
+  const qc = useQueryClient();
   const [pdvId, setPdvId] = useState('');
   const [promoterId, setPromoterId] = useState('');
   const [scheduleDate, setScheduleDate] = useState('');
@@ -325,12 +460,9 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
           promoter_id: promoterId,
           scheduled_date: scheduleDate,
           scheduled_time: scheduleTime || null,
-          frequency: rule.frequency,
-          require_photo: rule.require_photo,
-          require_justification: rule.require_justification,
-          block_route_completion: rule.block_route_completion,
         },
       });
+      qc.invalidateQueries({ queryKey: ['price-research-executions'] });
       toast.success('Pesquisa agendada com sucesso!');
       onClose();
     } catch (err: any) {
@@ -339,6 +471,9 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
       setIsSubmitting(false);
     }
   };
+
+  const productCount = rule.selected_products?.length || 0;
+  const competitorCount = rule.selected_competitors?.length || 0;
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
@@ -354,10 +489,10 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
             <CardContent className="pt-3 pb-2">
               <p className="font-medium text-sm">{rule.name || 'Pesquisa de Preços'}</p>
               <p className="text-xs text-muted-foreground">{brandName} • {FREQUENCIES.find(f => f.value === rule.frequency)?.label}</p>
-              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+              <div className="flex gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+                <Badge variant="outline" className="text-[10px] h-5">{productCount} produtos</Badge>
+                <Badge variant="outline" className="text-[10px] h-5">{competitorCount} concorrentes</Badge>
                 {rule.block_route_completion && <Badge variant="destructive" className="text-[10px] h-5">Obrigatória</Badge>}
-                {rule.require_photo && <Badge variant="outline" className="text-[10px] h-5">Foto obrigatória</Badge>}
-                {rule.require_justification && <Badge variant="outline" className="text-[10px] h-5">Justificativa obrigatória</Badge>}
               </div>
             </CardContent>
           </Card>
@@ -408,8 +543,8 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
   );
 }
 
-// ===== Pesquisas Tab =====
-function PesquisasTab({ brands }: { brands: any[] }) {
+// ===== Agendamentos Tab =====
+function AgendamentosTab({ brands }: { brands: any[] }) {
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { data: executions = [] } = usePriceResearchExecutions({
@@ -438,8 +573,8 @@ function PesquisasTab({ brands }: { brands: any[] }) {
           <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_STATUS_VALUE}>Todos</SelectItem>
-            <SelectItem value="pending">Pendente</SelectItem>
             <SelectItem value="scheduled">Agendada</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
             <SelectItem value="in_progress">Em andamento</SelectItem>
             <SelectItem value="completed">Concluída</SelectItem>
             <SelectItem value="validated">Validada</SelectItem>
@@ -467,8 +602,9 @@ function PesquisasTab({ brands }: { brands: any[] }) {
                 <TableRow key={e.id}>
                   <TableCell className="text-sm">
                     {e.scheduled_date ? safeFormatDate(e.scheduled_date + 'T12:00:00') : safeFormatDate(e.created_at)}
+                    {e.scheduled_time && <span className="text-xs text-muted-foreground ml-1">{e.scheduled_time.slice(0, 5)}</span>}
                   </TableCell>
-                  <TableCell className="text-sm">{e.rule_name || '-'}</TableCell>
+                  <TableCell className="text-sm font-medium">{e.rule_name || '-'}</TableCell>
                   <TableCell>{e.brand_name || '-'}</TableCell>
                   <TableCell>{e.pdv_name || '-'}</TableCell>
                   <TableCell>{e.promoter_name || '-'}</TableCell>
@@ -505,7 +641,7 @@ function PesquisasTab({ brands }: { brands: any[] }) {
                 </TableRow>
               ))}
               {executions.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhuma pesquisa encontrada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum agendamento encontrado. Crie um modelo e clique em "Agendar".</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -551,21 +687,19 @@ function ResultadosTab({ brands }: { brands: any[] }) {
                     <p className="text-sm text-muted-foreground">{brandName}</p>
                     <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
                       <span><CheckCircle2 className="h-3 w-3 inline mr-1" />{r.completed_count} concluídas</span>
-                      <span><Package className="h-3 w-3 inline mr-1" />{r.products_count || 0} produtos</span>
+                      <span><Package className="h-3 w-3 inline mr-1" />{r.selected_products?.length || r.products_count || 0} produtos</span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant={r.shared_with_brand ? 'default' : 'outline'}
-                      onClick={() => shareRule.mutate({ id: r.id, shared: !r.shared_with_brand }, {
-                        onSuccess: () => toast.success(r.shared_with_brand ? 'Compartilhamento removido' : 'Resultados compartilhados com a marca!'),
-                      })}
-                    >
-                      <Share2 className="h-4 w-4 mr-1" />
-                      {r.shared_with_brand ? 'Compartilhada' : 'Compartilhar'}
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant={r.shared_with_brand ? 'default' : 'outline'}
+                    onClick={() => shareRule.mutate({ id: r.id, shared: !r.shared_with_brand }, {
+                      onSuccess: () => toast.success(r.shared_with_brand ? 'Compartilhamento removido' : 'Resultados compartilhados com a marca!'),
+                    })}
+                  >
+                    <Share2 className="h-4 w-4 mr-1" />
+                    {r.shared_with_brand ? 'Compartilhada' : 'Compartilhar'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -575,296 +709,6 @@ function ResultadosTab({ brands }: { brands: any[] }) {
           <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhuma pesquisa com resultados concluídos.</CardContent></Card>
         )}
       </div>
-    </div>
-  );
-}
-
-// ===== Concorrentes Tab =====
-function ConcorrentesTab({ brands }: { brands: any[] }) {
-  const [selectedBrandId, setSelectedBrandId] = useState('');
-  const { data: competitors = [] } = usePriceResearchCompetitors(selectedBrandId || undefined);
-  const create = useCreateCompetitor();
-  const update = useUpdateCompetitor();
-  const del = useDeleteCompetitor();
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-
-  const handleAdd = () => {
-    if (!selectedBrandId) return toast.error('Selecione uma marca');
-    if (!name.trim()) return toast.error('Nome obrigatório');
-    create.mutate({ brand_id: selectedBrandId, competitor_name: name, category }, {
-      onSuccess: () => { setShowAdd(false); setName(''); setCategory(''); toast.success('Concorrente adicionado'); },
-    });
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-3 items-center justify-between flex-wrap">
-        <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Selecione uma marca" /></SelectTrigger>
-          <SelectContent>{brands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-        </Select>
-        {selectedBrandId && <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />Adicionar</Button>}
-      </div>
-
-      {selectedBrandId ? (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-20"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {competitors.map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.competitor_name}</TableCell>
-                    <TableCell>{c.category || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant={c.active ? 'default' : 'secondary'} className="cursor-pointer"
-                        onClick={() => update.mutate({ id: c.id, active: !c.active })}>
-                        {c.active ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('Excluir?')) del.mutate(c.id); }}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {competitors.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Nenhum concorrente cadastrado</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Selecione uma marca para gerenciar concorrentes</CardContent></Card>
-      )}
-
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Concorrente</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>Nome da marca concorrente</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
-            <div><Label>Categoria (opcional)</Label><Input value={category} onChange={e => setCategory(e.target.value)} /></div>
-          </div>
-          <DialogFooter><Button onClick={handleAdd} disabled={create.isPending}>Adicionar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// ===== Produtos Tab =====
-function ProdutosTab({ brands }: { brands: any[] }) {
-  const [selectedBrandId, setSelectedBrandId] = useState('');
-  const { data: mappings = [] } = usePriceResearchMappings(selectedBrandId || undefined);
-  const { data: competitors = [] } = usePriceResearchCompetitors(selectedBrandId || undefined);
-  const createMapping = useCreateProductMapping();
-  const deleteMapping = useDeleteProductMapping();
-  const createCP = useCreateCompetitorProduct();
-  const deleteCP = useDeleteCompetitorProduct();
-  const { data: products = [] } = useQuery({
-    queryKey: ['merch-products-brand', selectedBrandId],
-    queryFn: () => api<any[]>(`/api/merchandising/products?brand_id=${selectedBrandId}`),
-    enabled: !!selectedBrandId,
-  });
-
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState('');
-  const [showAddComp, setShowAddComp] = useState<string | null>(null);
-  const [compName, setCompName] = useState('');
-  const [compCompetitorId, setCompCompetitorId] = useState('');
-  const [compPhotoUrl, setCompPhotoUrl] = useState('');
-  const { uploadFile, isUploading } = useUpload();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleFileUpload = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) { toast.error('Apenas imagens são permitidas'); return; }
-    try {
-      const url = await uploadFile(file);
-      if (url) setCompPhotoUrl(url);
-    } catch (err: any) { toast.error(err.message || 'Erro ao enviar foto'); }
-  }, [uploadFile]);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault(); setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileUpload(file);
-  }, [handleFileUpload]);
-
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items;
-    for (const item of items) {
-      if (item.type.startsWith('image/')) { const file = item.getAsFile(); if (file) { handleFileUpload(file); break; } }
-    }
-  }, [handleFileUpload]);
-
-  const mappedProductIds = new Set(mappings.map((m: any) => m.product_id));
-  const availableProducts = products.filter((p: any) => !mappedProductIds.has(p.id));
-  const selectedProductData = products.find((p: any) => p.id === selectedProduct);
-
-  const handleAddProduct = () => {
-    if (!selectedProduct) return;
-    createMapping.mutate({ brand_id: selectedBrandId, product_id: selectedProduct }, {
-      onSuccess: () => { setShowAddProduct(false); setSelectedProduct(''); toast.success('Produto adicionado à pesquisa'); },
-    });
-  };
-
-  const handleAddCompetitorProduct = () => {
-    if (!compName.trim() || !compCompetitorId || !showAddComp) return;
-    createCP.mutate({ mapping_id: showAddComp, competitor_id: compCompetitorId, competitor_product_name: compName, photo_url: compPhotoUrl || null }, {
-      onSuccess: () => { setShowAddComp(null); setCompName(''); setCompCompetitorId(''); setCompPhotoUrl(''); toast.success('Produto concorrente adicionado'); },
-    });
-  };
-
-  const getProductInfo = (productId: string) => products.find((p: any) => p.id === productId);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-3 items-center justify-between flex-wrap">
-        <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Selecione uma marca" /></SelectTrigger>
-          <SelectContent>{brands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-        </Select>
-        {selectedBrandId && <Button size="sm" onClick={() => setShowAddProduct(true)}><Plus className="h-4 w-4 mr-1" />Adicionar Produto</Button>}
-      </div>
-
-      {selectedBrandId ? (
-        <div className="space-y-3">
-          {mappings.map((m: any) => {
-            const prodInfo = getProductInfo(m.product_id);
-            return (
-              <Card key={m.id} className="p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    {(prodInfo?.photo_url || m.photo_url) ? (
-                      <img src={resolveMediaUrl(prodInfo?.photo_url || m.photo_url) || ''} alt={m.product_name} className="h-12 w-12 rounded object-cover border" />
-                    ) : (
-                      <div className="h-12 w-12 rounded bg-muted flex items-center justify-center"><Package className="h-5 w-5 text-muted-foreground" /></div>
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{m.product_name || prodInfo?.name || m.product_id}</p>
-                      {(prodInfo?.description || m.sku) && <p className="text-xs text-muted-foreground">{prodInfo?.description || `SKU: ${m.sku}`}</p>}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => setShowAddComp(m.id)}><Plus className="h-3 w-3 mr-1" />Concorrente</Button>
-                    <Button size="icon" variant="ghost" onClick={() => { if (confirm('Remover?')) deleteMapping.mutate(m.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </div>
-                {m.competitor_products?.length > 0 && (
-                  <div className="ml-4 space-y-1">
-                    {m.competitor_products.map((cp: any) => (
-                      <div key={cp.id} className="flex items-center justify-between text-sm bg-muted/50 rounded px-2 py-1">
-                        <div className="flex items-center gap-2">
-                          {cp.photo_url ? <img src={resolveMediaUrl(cp.photo_url) || ''} alt={cp.competitor_product_name} className="h-8 w-8 rounded object-cover border" /> : <div className="h-8 w-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="h-3 w-3 text-muted-foreground" /></div>}
-                          <span>{cp.competitor_name} — {cp.competitor_product_name}</span>
-                        </div>
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteCP.mutate(cp.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {(!m.competitor_products || m.competitor_products.length === 0) && <p className="text-xs text-muted-foreground ml-4">Nenhum produto concorrente vinculado</p>}
-              </Card>
-            );
-          })}
-          {mappings.length === 0 && <Card><CardContent className="py-8 text-center text-muted-foreground">Nenhum produto adicionado à pesquisa</CardContent></Card>}
-        </div>
-      ) : (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Selecione uma marca para gerenciar produtos</CardContent></Card>
-      )}
-
-      {/* Add product dialog */}
-      <Dialog open={showAddProduct} onOpenChange={setShowAddProduct}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Produto à Pesquisa</DialogTitle></DialogHeader>
-          <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-            <SelectTrigger><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
-            <SelectContent>
-              {availableProducts.map((p: any) => (
-                <SelectItem key={p.id} value={p.id}>
-                  <div className="flex items-center gap-2">
-                    {p.photo_url && <img src={resolveMediaUrl(p.photo_url) || ''} alt="" className="h-5 w-5 rounded object-cover" />}
-                    <span>{p.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedProductData && (
-            <Card className="p-3">
-              <div className="flex items-center gap-3">
-                {selectedProductData.photo_url ? <img src={resolveMediaUrl(selectedProductData.photo_url) || ''} alt={selectedProductData.name} className="h-16 w-16 rounded object-cover border" /> : <div className="h-16 w-16 rounded bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>}
-                <div>
-                  <p className="font-medium">{selectedProductData.name}</p>
-                  {selectedProductData.sku && <p className="text-xs text-muted-foreground">SKU: {selectedProductData.sku}</p>}
-                  {selectedProductData.description && <p className="text-xs text-muted-foreground">{selectedProductData.description}</p>}
-                </div>
-              </div>
-            </Card>
-          )}
-          <DialogFooter><Button onClick={handleAddProduct} disabled={createMapping.isPending}>Adicionar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add competitor product dialog */}
-      <Dialog open={!!showAddComp} onOpenChange={() => setShowAddComp(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Produto Concorrente</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Marca concorrente</Label>
-              <Select value={compCompetitorId} onValueChange={setCompCompetitorId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{competitors.filter((c: any) => c.active).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.competitor_name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Nome do produto concorrente</Label>
-              <Input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Ex: Sabonete 85g" />
-            </div>
-            <div>
-              <Label>Foto do produto</Label>
-              <div
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                onPaste={handlePaste}
-                tabIndex={0}
-                onClick={() => fileInputRef.current?.click()}
-                className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-                  ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
-                  ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ''; }} />
-                {compPhotoUrl ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <img src={resolveMediaUrl(compPhotoUrl) || ''} alt="Preview" className="h-24 w-24 rounded object-cover border" />
-                    <p className="text-xs text-muted-foreground">Clique ou arraste para substituir</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 py-2">
-                    <Upload className="h-8 w-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">{isUploading ? 'Enviando...' : 'Arraste uma foto, cole (Ctrl+V) ou clique'}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter><Button onClick={handleAddCompetitorProduct} disabled={createCP.isPending}>Adicionar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
