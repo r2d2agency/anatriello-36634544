@@ -883,12 +883,10 @@ export default function PromotorRota() {
 
             {/* Complete Route button */}
             {(() => {
-              const allExecs = route?.executions || [];
-              const totalExecs = allExecs.length;
-              const completedExecs = allExecs.filter((e: any) => e.status === 'completed').length;
+              const totalExecs = filteredExecs.length;
+              const completedExecs = filteredExecs.filter((e: any) => e.status === 'completed').length;
               const allProductsDone = totalExecs > 0 && completedExecs === totalExecs;
               
-              // Check all categories have after photos
               const categoryEntries = Object.entries(groupedExecs);
               const categoriesMissingAfterPhoto = categoryEntries.filter(([, { catId, execs }]) => {
                 const catStatus = categoryStatusMap[catId];
@@ -940,7 +938,9 @@ export default function PromotorRota() {
 
             <p className="text-[10px] text-center text-muted-foreground">
               <Info className="h-3 w-3 inline mr-1" />
-              Concluir a rota finaliza o checklist desta marca. O checkout da loja só será feito na última rota do PDV.
+              {isMultiBrand
+                ? 'Concluir a rota finaliza todas as marcas. O checkout da loja só será feito na última rota do PDV.'
+                : 'Concluir a rota finaliza o checklist desta marca. O checkout da loja só será feito na última rota do PDV.'}
             </p>
           </div>
         )}
