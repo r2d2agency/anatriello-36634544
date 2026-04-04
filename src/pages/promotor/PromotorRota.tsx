@@ -769,56 +769,8 @@ export default function PromotorRota() {
           </Card>
         )}
 
-        {/* Check-in photo requirement */}
-        {needsCheckin && route.require_checkin_photo && (
-          <Card className="border-primary/30">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Camera className="h-4 w-4 text-primary" />
-                Foto obrigatória para check-in
-              </div>
-              {checkinPhotoUrl ? (
-                <div className="space-y-2">
-                  <img src={checkinPhotoUrl} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
-                  <Button variant="outline" size="sm" onClick={() => setCheckinPhotoUrl('')}>Tirar outra foto</Button>
-                </div>
-              ) : (
-                <CameraCapture
-                  onCapture={setCheckinPhotoUrl}
-                  watermark={{ pdvName: route.pdv_name, brandName: route.brand_name, photoType: 'Check-in' }}
-                  customTokenGetter={() => localStorage.getItem('promotor_token')}
-                  buttonLabel="Tirar foto de check-in"
-                  qualityConfig={photoQualityConfig}
-                />
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {needsCheckin && isFacialActiveCheckin && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-xs text-primary">
-            <ScanFace className="h-4 w-4" />
-            <span className="font-medium">Verificação facial obrigatória para check-in</span>
-          </div>
-        )}
-
-        {needsCheckin && (
-          <Button className="w-full h-14 text-lg" onClick={handleCheckin} disabled={checkin.isPending || (route.require_checkin_photo && !checkinPhotoUrl)}>
-            {isFacialActiveCheckin ? <ScanFace className="h-5 w-5 mr-2" /> : <MapPin className="h-5 w-5 mr-2" />}
-            {checkin.isPending ? 'Realizando check-in...' : route.require_checkin_photo ? 'Enviar foto e fazer check-in' : 'Fazer Check-in'}
-          </Button>
-        )}
-
-        {isActive && route.executions?.length === 0 && (
-          <Card>
-            <CardContent className="p-6 text-center text-sm text-muted-foreground">
-              Nenhum produto foi carregado para esta rota.
-            </CardContent>
-          </Card>
-        )}
-
         {/* Active route: categories with step-by-step flow */}
-        {isActive && (
+        {isActive && (!isMultiBrand || activeBrandId) && (
           <div className="space-y-4">
             {Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
               const catStatus = categoryStatusMap[catId];
