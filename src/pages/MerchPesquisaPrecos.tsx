@@ -964,7 +964,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
       setNewCompBrand('');
       setNewCompPhoto('');
       // Refetch
-      updateExecution.reset();
+      qc.invalidateQueries({ queryKey: ['price-research-execution', id] });
     } catch (err: any) { toast.error(err.message || 'Erro'); }
   };
 
