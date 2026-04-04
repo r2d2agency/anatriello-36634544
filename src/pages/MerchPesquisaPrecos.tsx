@@ -505,7 +505,64 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
 
                           {/* Add competitor form */}
                           {addingCompetitorFor === product.id ? (
-                            <div className="space-y-2 p-2 border rounded bg-background">
+                            <div className="space-y-2 p-2 border rounded bg-background"
+                              onPaste={(e) => {
+                                const items = e.clipboardData?.items;
+                                if (!items) return;
+                                for (const item of Array.from(items)) {
+                                  if (item.type.startsWith('image/')) {
+                                    e.preventDefault();
+                                    const file = item.getAsFile();
+                                    if (file) uploadNewCompPhoto(file);
+                                    break;
+                                  }
+                                }
+                              }}
+                            >
+                              {/* Photo upload area */}
+                              <div>
+                                <Label className="text-xs">Foto de referência</Label>
+                                <div
+                                  className={`relative mt-1 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
+                                    newCompDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-primary/50'
+                                  }`}
+                                  onDragOver={(e) => { e.preventDefault(); setNewCompDragOver(true); }}
+                                  onDragLeave={() => setNewCompDragOver(false)}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    setNewCompDragOver(false);
+                                    const file = e.dataTransfer.files?.[0];
+                                    if (file && file.type.startsWith('image/')) uploadNewCompPhoto(file);
+                                  }}
+                                  onClick={() => newCompFileRef.current?.click()}
+                                >
+                                  {newComp.photo_url ? (
+                                    <div className="flex items-center gap-3">
+                                      <img src={resolveMediaUrl(newComp.photo_url) || ''} alt="Preview" className="h-16 w-16 rounded object-cover border" />
+                                      <div className="text-left flex-1">
+                                        <p className="text-xs text-muted-foreground">Foto adicionada</p>
+                                        <Button size="sm" variant="ghost" className="h-6 text-xs mt-1 text-destructive" onClick={(e) => { e.stopPropagation(); setNewComp(p => ({ ...p, photo_url: '' })); }}>
+                                          <X className="h-3 w-3 mr-1" />Remover
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="py-2">
+                                      <Upload className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
+                                      <p className="text-xs text-muted-foreground">
+                                        {isUploading ? 'Enviando...' : 'Arraste uma imagem, cole (Ctrl+V) ou clique para selecionar'}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                                <input
+                                  ref={newCompFileRef}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadNewCompPhoto(f); e.target.value = ''; }}
+                                />
+                              </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <Label className="text-xs">Nome do produto concorrente *</Label>
@@ -527,7 +584,7 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <Button size="sm" onClick={() => addCompetitorToProduct(product.id)}>
+                                <Button size="sm" onClick={() => addCompetitorToProduct(product.id)} disabled={isUploading}>
                                   <Plus className="h-3 w-3 mr-1" />Adicionar
                                 </Button>
                                 <Button size="sm" variant="ghost" onClick={() => { setAddingCompetitorFor(null); setNewComp({}); }}>Cancelar</Button>
