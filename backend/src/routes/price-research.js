@@ -323,7 +323,33 @@ router.get('/route/:routeId', authenticate, async (req, res) => {
     const rules = (await query('SELECT * FROM price_research_rules WHERE brand_id = ANY($1) AND enabled = true', [brandIds])).rows;
     const result = [];
     for (const rule of rules) {
-      result.push({ brand_id: rule.brand_id, rule, status: 'not_started', items: [], photos: [] });
+      // Load mapped products with photos and competitor products
+      const mappings = (await query(`SELECT pm.*, p.name as product_name, p.photo_url, p.description
+        FROM price_research_product_mappings pm LEFT JOIN products p ON p.id = pm.product_id
+        WHERE pm.brand_id = $1 AND pm.enabled = true ORDER BY p.name`, [rule.brand_id])).rows;
+      const items = [];
+      for (const m of mappings) {
+        const compProducts = (await query(`SELECT cp.*, c.competitor_name as competitor_brand_name
+          FROM price_research_competitor_products cp
+          LEFT JOIN price_research_brand_competitors c ON c.id = cp.competitor_id
+          WHERE cp.mapping_id = $1 AND cp.active = true ORDER BY c.competitor_name`, [m.id])).rows;
+        items.push({
+          product_id: m.product_id,
+          product_name: m.product_name,
+          photo_url: m.photo_url,
+          description: m.description,
+          price: null,
+          competitors: compProducts.map(cp => ({
+            competitor_product_id: cp.id,
+            competitor_id: cp.competitor_id,
+            competitor_product_name: cp.competitor_product_name,
+            competitor_brand_name: cp.competitor_brand_name,
+            photo_url: cp.photo_url,
+            price: null,
+          })),
+        });
+      }
+      result.push({ brand_id: rule.brand_id, rule, status: 'not_started', items, photos: [] });
     }
     res.json(result);
   } catch (err) { logError('price-research.route', err); if (err.code === '42P01') return res.json([]); res.status(500).json({ error: 'Erro' }); }
