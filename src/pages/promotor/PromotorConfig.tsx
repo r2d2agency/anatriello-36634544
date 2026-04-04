@@ -110,7 +110,32 @@ export default function PromotorConfig() {
     }
   };
 
-  return (
+  const handleForceUpdate = async () => {
+    setUpdating(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      const token = localStorage.getItem('promotor_token');
+      const emp = localStorage.getItem('promotor_employee');
+      const thm = localStorage.getItem('promotor-theme');
+      localStorage.clear();
+      if (token) localStorage.setItem('promotor_token', token);
+      if (emp) localStorage.setItem('promotor_employee', emp);
+      if (thm) localStorage.setItem('promotor-theme', thm);
+      toast({ title: '✅ Sistema atualizado!', description: 'Recarregando...' });
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' });
+      setUpdating(false);
+    }
+  };
+
     <PromotorLayout>
       <div className="p-4 max-w-lg mx-auto space-y-4">
         <h1 className="text-lg font-bold flex items-center gap-2"><Settings className="h-5 w-5" /> Configurações</h1>
