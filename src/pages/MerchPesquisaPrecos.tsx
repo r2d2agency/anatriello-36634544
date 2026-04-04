@@ -32,7 +32,7 @@ import {
   DollarSign, Plus, Trash2, Image as ImageIcon, Upload, FileText, List, CheckCircle2,
   Calendar, Building2, Package, Share2, Edit, Clock, BarChart3, CalendarPlus, MapPin, User,
   ChevronDown, ChevronUp, Eye, Send, AlertTriangle, TrendingUp, TrendingDown, Target,
-  Copy, Settings, GripVertical, Camera, X, ArrowRight, Repeat,
+  Copy, Settings, GripVertical, Camera, X, ArrowRight, Repeat, Globe,
 } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
