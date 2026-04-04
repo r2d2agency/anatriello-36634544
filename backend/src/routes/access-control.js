@@ -1403,6 +1403,94 @@ router.get('/supermarket/dashboard', authenticateSupermarket, async (req, res) =
 });
 
 // Supermarket: access history
+// ============ SUPERMARKET-PORTAL: Live & Today Stats (aliases for dashboard) ============
+router.get('/supermarket-portal/live', authenticateSupermarket, async (req, res) => {
+  try {
+    const unitIds = [req.unitId];
+    if (req.canViewAllNetwork && req.networkId) {
+      const network = await query('SELECT id FROM supermarket_units WHERE network_id=$1 AND active=true', [req.networkId]);
+      unitIds.length = 0;
+      network.rows.forEach(r => unitIds.push(r.id));
+    }
+    const placeholders = unitIds.map((_, i) => `$${i + 1}`).join(',');
+
+    // Currently in store
+    const inStore = await query(
+      `SELECT el.*, ap.name as promoter_name, ap.photo_url, a.name as agency_name, su.name as unit_name,
+              EXTRACT(EPOCH FROM (NOW() - el.entry_at)) / 60 as duration_so_far,
+              TO_CHAR(el.entry_at, 'HH24:MI') as entry_time,
+              'cpf' as validation_method
+       FROM pdv_entry_logs el
+       LEFT JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
+       LEFT JOIN agencies a ON a.id = ap.agency_id
+       LEFT JOIN supermarket_units su ON su.id = el.supermarket_unit_id
+       WHERE el.supermarket_unit_id IN (${placeholders}) AND el.exit_at IS NULL AND el.status = 'authorized'
+       ORDER BY el.entry_at DESC`, unitIds);
+
+    // Brands today
+    const brands = await query(
+      `SELECT dbp.*, b.name as brand_name FROM daily_brand_presence dbp
+       JOIN brands b ON b.id = dbp.brand_id
+       WHERE dbp.supermarket_unit_id IN (${placeholders}) AND dbp.presence_date = CURRENT_DATE
+       ORDER BY b.name`, unitIds).catch(() => ({ rows: [] }));
+
+    // Blocked today
+    const blocked = await query(
+      `SELECT el.cpf, ap.name, el.block_reason, TO_CHAR(el.entry_at, 'HH24:MI') as time,
+              CASE el.block_reason WHEN 'fora_horario' THEN 'Fora do Horário' WHEN 'sem_autorizacao' THEN 'Sem Autorização' WHEN 'pdv_nao_permitido' THEN 'PDV Não Permitido' WHEN 'cadastro_inexistente' THEN 'Cadastro Inexistente' WHEN 'agencia_bloqueada' THEN 'Agência Bloqueada' ELSE el.block_reason END as block_reason_label
+       FROM pdv_entry_logs el LEFT JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
+       WHERE el.supermarket_unit_id IN (${placeholders}) AND el.status = 'blocked' AND el.entry_at::date = CURRENT_DATE
+       ORDER BY el.entry_at DESC LIMIT 20`, unitIds).catch(() => ({ rows: [] }));
+
+    res.json({
+      promoters_now: inStore.rows.map(p => ({ ...p, name: p.promoter_name, duration_so_far: Math.round(p.duration_so_far || 0) })),
+      brands_now: brands.rows.map(b => ({ ...b, promoter_count: 1, status: 'in_progress' })),
+      alerts: [],
+      blocked_today: blocked.rows,
+    });
+  } catch (err) { logError('sm.portal.live', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.get('/supermarket-portal/today-stats', authenticateSupermarket, async (req, res) => {
+  try {
+    const unitIds = [req.unitId];
+    if (req.canViewAllNetwork && req.networkId) {
+      const network = await query('SELECT id FROM supermarket_units WHERE network_id=$1 AND active=true', [req.networkId]);
+      unitIds.length = 0;
+      network.rows.forEach(r => unitIds.push(r.id));
+    }
+    const placeholders = unitIds.map((_, i) => `$${i + 1}`).join(',');
+
+    const stats = await query(
+      `SELECT COUNT(*) FILTER (WHERE status='authorized') as entries,
+              COUNT(*) FILTER (WHERE exit_at IS NOT NULL) as exits,
+              COUNT(*) FILTER (WHERE status='blocked') as blocked,
+              ROUND(AVG(duration_minutes) FILTER (WHERE duration_minutes IS NOT NULL)) as avg_duration
+       FROM pdv_entry_logs WHERE supermarket_unit_id IN (${placeholders}) AND entry_at::date = CURRENT_DATE`, unitIds);
+
+    const brands = await query(
+      `SELECT COUNT(DISTINCT brand_id) as active_brands FROM daily_brand_presence
+       WHERE supermarket_unit_id IN (${placeholders}) AND presence_date = CURRENT_DATE`, unitIds).catch(() => ({ rows: [{ active_brands: 0 }] }));
+
+    const agencies = await query(
+      `SELECT COUNT(DISTINCT a.id) as active_agencies FROM pdv_entry_logs el
+       JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
+       JOIN agencies a ON a.id = ap.agency_id
+       WHERE el.supermarket_unit_id IN (${placeholders}) AND el.entry_at::date = CURRENT_DATE AND el.status = 'authorized'`, unitIds).catch(() => ({ rows: [{ active_agencies: 0 }] }));
+
+    const s = stats.rows[0] || {};
+    res.json({
+      entries: parseInt(s.entries) || 0,
+      exits: parseInt(s.exits) || 0,
+      blocked: parseInt(s.blocked) || 0,
+      avg_duration: parseInt(s.avg_duration) || 0,
+      active_brands: parseInt(brands.rows[0]?.active_brands) || 0,
+      active_agencies: parseInt(agencies.rows[0]?.active_agencies) || 0,
+    });
+  } catch (err) { logError('sm.portal.today_stats', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Supermarket: access history
 router.get('/supermarket/history', authenticateSupermarket, async (req, res) => {
   try {
     const { date, status } = req.query;
