@@ -16,13 +16,15 @@ interface Props {
   onResult: (result: { match: boolean; score: number; imageDataUrl: string }) => void;
 }
 
-type Status = "loading" | "detecting" | "verifying" | "result" | "error";
+type Status = "loading" | "starting_camera" | "detecting" | "verifying" | "result" | "error";
 
 export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedPhotoUrl, personName, threshold = 70, onResult }: Props) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
+  const detectTimeoutRef = useRef<number>(0);
+  const detectSessionRef = useRef(0);
 
   const [status, setStatus] = useState<Status>("loading");
   const [score, setScore] = useState<number | null>(null);
@@ -32,13 +34,49 @@ export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedP
   const [faceDetected, setFaceDetected] = useState(false);
 
   const stopCamera = useCallback(() => {
+    detectSessionRef.current += 1;
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (detectTimeoutRef.current) window.clearTimeout(detectTimeoutRef.current);
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
   }, []);
 
+  const startCamera = useCallback(async () => {
+    setStatus("starting_camera");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      });
+
+      streamRef.current = stream;
+
+      if (!videoRef.current) {
+        setError("Não foi possível inicializar a câmera para teste facial.");
+        setStatus("error");
+        return;
+      }
+
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setStatus("detecting");
+    } catch {
+      setError("Câmera não disponível. Verifique as permissões do navegador.");
+      setStatus("error");
+    }
+  }, []);
+
   useEffect(() => {
-    if (!open) { stopCamera(); setStatus("loading"); setScore(null); setMatched(false); setCapturedImage(""); return; }
+    if (!open) {
+      stopCamera();
+      setStatus("loading");
+      setScore(null);
+      setMatched(false);
+      setCapturedImage("");
+      setFaceDetected(false);
+      setError("");
+      return;
+    }
 
     let cancelled = false;
     (async () => {
@@ -57,30 +95,22 @@ export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedP
       }
       if (cancelled) return;
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-          setStatus("detecting");
-        }
-      } catch {
-        setError("Câmera não disponível. Verifique as permissões do navegador.");
-        setStatus("error");
+      if (!cancelled) {
+        await startCamera();
       }
     })();
 
     return () => { cancelled = true; stopCamera(); };
-  }, [open, stopCamera]);
+  }, [open, startCamera, stopCamera]);
 
-  const detectLoop = useCallback(async () => {
-    if (!videoRef.current || status !== "detecting") return;
+  const detectLoop = useCallback(async (sessionId: number) => {
+    if (!videoRef.current || status !== "detecting" || detectSessionRef.current !== sessionId) return;
 
     try {
       const result = await detectFace(videoRef.current);
+
+      if (detectSessionRef.current !== sessionId) return;
+
       if (result && canvasRef.current) {
         const canvas = canvasRef.current;
         canvas.width = videoRef.current.videoWidth;
@@ -116,8 +146,14 @@ export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedP
         }
       }
 
-      animFrameRef.current = requestAnimationFrame(() => setTimeout(detectLoop, 300));
+      animFrameRef.current = requestAnimationFrame(() => {
+        detectTimeoutRef.current = window.setTimeout(() => {
+          void detectLoop(sessionId);
+        }, 300);
+      });
     } catch {
+      if (detectSessionRef.current !== sessionId) return;
+
       setFaceDetected(false);
       setError("O reconhecimento facial não conseguiu iniciar neste dispositivo. Tente novamente ou use outro navegador/dispositivo.");
       setStatus("error");
@@ -126,28 +162,25 @@ export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedP
   }, [status, storedDescriptor, threshold, onResult, stopCamera]);
 
   useEffect(() => {
-    if (status === "detecting") detectLoop();
+    if (status !== "detecting") return;
+
+    const sessionId = ++detectSessionRef.current;
+    void detectLoop(sessionId);
+
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (detectTimeoutRef.current) window.clearTimeout(detectTimeoutRef.current);
+    };
   }, [status, detectLoop]);
 
   const handleRetry = async () => {
+    stopCamera();
     setScore(null);
     setMatched(false);
     setCapturedImage("");
     setFaceDetected(false);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setStatus("detecting");
-      }
-    } catch {
-      setError("Câmera não disponível.");
-      setStatus("error");
-    }
+    setError("");
+    await startCamera();
   };
 
   return (
@@ -181,7 +214,7 @@ export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedP
             </div>
           )}
 
-          {(status === "detecting" || status === "verifying") && (
+          {(status === "starting_camera" || status === "detecting" || status === "verifying") && (
             <div className="relative rounded-lg overflow-hidden bg-muted aspect-video">
               <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
               <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
@@ -191,6 +224,14 @@ export const FaceVerifyDialog = ({ open, onOpenChange, storedDescriptor, storedP
                   {faceDetected ? "Rosto detectado" : "Procurando..."}
                 </Badge>
               </div>
+              {status === "starting_camera" && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Abrindo câmera...</p>
+                  </div>
+                </div>
+              )}
               {status === "verifying" && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/60">
                   <div className="flex flex-col items-center gap-2">
