@@ -646,9 +646,16 @@ export default function PromotorRota() {
           </Card>
         )}
 
+        {needsCheckin && isFacialActiveCheckin && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-xs text-primary">
+            <ScanFace className="h-4 w-4" />
+            <span className="font-medium">Verificação facial obrigatória para check-in</span>
+          </div>
+        )}
+
         {needsCheckin && (
           <Button className="w-full h-14 text-lg" onClick={handleCheckin} disabled={checkin.isPending || (route.require_checkin_photo && !checkinPhotoUrl)}>
-            <MapPin className="h-5 w-5 mr-2" />
+            {isFacialActiveCheckin ? <ScanFace className="h-5 w-5 mr-2" /> : <MapPin className="h-5 w-5 mr-2" />}
             {checkin.isPending ? 'Realizando check-in...' : route.require_checkin_photo ? 'Enviar foto e fazer check-in' : 'Fazer Check-in'}
           </Button>
         )}
