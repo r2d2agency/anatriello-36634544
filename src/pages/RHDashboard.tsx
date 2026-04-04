@@ -285,7 +285,7 @@ export default function RHDashboard() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {[
             { label: "Ativos", value: summary.total_active || 0, icon: Users, color: "text-green-600" },
             { label: "Em Férias", value: summary.on_vacation || 0, icon: Palmtree, color: "text-blue-600" },
