@@ -3,6 +3,14 @@ import { api } from '@/lib/api';
 
 // ===== ADMIN HOOKS (Fase 4 - Rotas & Execução) =====
 
+const LIVE_ROUTES_ALLOWED_PATHS = new Set(['/merch/execucao', '/live-maps']);
+
+const isLiveRoutesScreenActive = () => {
+  if (typeof window === 'undefined') return true;
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  return LIVE_ROUTES_ALLOWED_PATHS.has(pathname);
+};
+
 export function useMerchRoutes(filters?: {
   promoter_id?: string; brand_id?: string; pdv_id?: string;
   status?: string; date_from?: string; date_to?: string; supervisor_id?: string;
@@ -106,17 +114,23 @@ export function useDuplicateMerchRoute() {
 export function useLiveRoutes() {
   return useQuery({
     queryKey: ['merch-routes-live'],
+    enabled: isLiveRoutesScreenActive(),
     queryFn: async () => {
+      if (!isLiveRoutesScreenActive()) return [];
       try {
         return await api<any[]>('/api/merch/routes/live', { silent: true, fallbackToOtherBases: false });
       } catch {
         return [];
       }
     },
-    refetchInterval: (query) => (query.state.status === 'error' ? false : 15000),
+    refetchInterval: (query) => {
+      if (!isLiveRoutesScreenActive()) return false;
+      return query.state.status === 'error' ? false : 15000;
+    },
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    staleTime: 15000,
   });
 }
 
