@@ -247,11 +247,13 @@ router.get('/executions', authenticate, async (req, res) => {
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
     const { brand_id, pdv_id, promoter_id, status, date_from, date_to } = req.query;
-    let sql = `SELECT e.*, b.name as brand_name, p.name as pdv_name, emp.full_name as promoter_name
+    let sql = `SELECT e.*, b.name as brand_name, p.name as pdv_name, emp.full_name as promoter_name,
+               r.name as rule_name, r.frequency as rule_frequency, r.block_route_completion, r.require_photo, r.require_justification
                FROM price_research_executions e
                LEFT JOIN merch_brands b ON b.id = e.brand_id
                LEFT JOIN pdvs p ON p.id = e.pdv_id
                LEFT JOIN employees emp ON emp.id = e.promoter_id
+               LEFT JOIN price_research_rules r ON r.id = e.rule_id
                WHERE e.organization_id = $1`;
     const params = [orgId];
     let idx = 2;
@@ -261,7 +263,7 @@ router.get('/executions', authenticate, async (req, res) => {
     if (status) { sql += ` AND e.status = $${idx++}`; params.push(status); }
     if (date_from) { sql += ` AND e.created_at >= $${idx++}`; params.push(date_from); }
     if (date_to) { sql += ` AND e.created_at <= $${idx++}`; params.push(date_to + 'T23:59:59'); }
-    sql += ' ORDER BY e.created_at DESC LIMIT 500';
+    sql += ' ORDER BY COALESCE(e.scheduled_date, e.created_at::date) DESC, e.created_at DESC LIMIT 500';
     res.json((await query(sql, params)).rows);
   } catch (err) { logError('price-research.executions.list', err); res.status(500).json({ error: 'Erro' }); }
 });
