@@ -3,11 +3,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/hooks/use-branding";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Sun, Sunset, Moon, Building2 } from "lucide-react";
+import { Clock, Sun, Sunset, Moon, Building2, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { MessageNotifications } from "./MessageNotifications";
 import { CRMAlerts } from "./CRMAlerts";
 import { ConnectionStatusIndicator } from "./ConnectionStatusIndicator";
+import { OvertimeRequestsPanel, useOvertimePendingCount } from "@/components/rh/OvertimeRequestsPanel";
 
 function getGreeting(hour: number): { text: string; icon: typeof Sun } {
   if (hour >= 5 && hour < 12) {
