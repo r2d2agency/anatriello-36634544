@@ -40,7 +40,23 @@ router.get('/routes', authenticate, async (req, res) => {
 
     sql += ' ORDER BY r.visit_date, r.scheduled_time';
     const result = await query(sql, params);
-    res.json(result.rows);
+
+    // Enrich multi-brand routes
+    const rows = result.rows;
+    try {
+      const mbIds = rows.filter(r => !r.brand_id).map(r => r.id);
+      if (mbIds.length > 0) {
+        const rbRes = await query(
+          `SELECT rb.route_id, rb.brand_id, rb.status, rb.progress_pct, b.name as brand_name
+           FROM route_brands rb LEFT JOIN merch_brands b ON b.id = rb.brand_id
+           WHERE rb.route_id = ANY($1) ORDER BY rb.sort_order`, [mbIds]);
+        const rbMap = {};
+        for (const rb of rbRes.rows) { if (!rbMap[rb.route_id]) rbMap[rb.route_id] = []; rbMap[rb.route_id].push(rb); }
+        for (const r of rows) { if (rbMap[r.id]) { r.route_brands = rbMap[r.id]; r.is_multi_brand = true; r.brand_name = rbMap[r.id].map(b => b.brand_name).join(', '); } }
+      }
+    } catch {}
+
+    res.json(rows);
   } catch (err) {
     logError('routes.list', err);
     // If table doesn't exist yet, return empty
@@ -58,17 +74,23 @@ router.post('/routes', authenticate, async (req, res) => {
 
     const { promoter_id, supervisor_id, pdv_id, brand_id, checklist_id, visit_date, scheduled_time,
             window_start, window_end, estimated_duration_min, priority, visit_type, notes,
-            recurrence_type, recurrence_interval, recurrence_until, recurrence_weekdays } = req.body;
+            recurrence_type, recurrence_interval, recurrence_until, recurrence_weekdays,
+            brands: multiBrands } = req.body;
+
+    // Determine if multi-brand
+    const isMultiBrand = Array.isArray(multiBrands) && multiBrands.length > 0;
+    const primaryBrandId = isMultiBrand ? multiBrands[0].brand_id : brand_id;
 
     // Resolve effective checklist for this brand when not explicitly passed
     let effectiveChecklistId = checklist_id || null;
-    if (!effectiveChecklistId && brand_id) {
+    if (!effectiveChecklistId && primaryBrandId && !isMultiBrand) {
       try {
         const checklistRes = await query(
           `SELECT id FROM brand_checklists
            WHERE organization_id=$1 AND brand_id=$2 AND active=true
            ORDER BY created_at DESC LIMIT 1`,
           [orgId, brand_id]
+          [orgId, primaryBrandId]
         );
         effectiveChecklistId = checklistRes.rows[0]?.id || null;
       } catch { /* brand_checklists may not exist yet */ }
@@ -127,28 +149,44 @@ router.post('/routes', authenticate, async (req, res) => {
          visit_date, scheduled_time, window_start, window_end, estimated_duration_min, priority, visit_type,
          recurrence, notes, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
-        [orgId, promoter_id, supervisor_id, pdv_id, brand_id, effectiveChecklistId, d, scheduled_time,
+        [orgId, promoter_id, supervisor_id, pdv_id, isMultiBrand ? null : primaryBrandId, isMultiBrand ? null : effectiveChecklistId, d, scheduled_time,
          window_start, window_end, estimated_duration_min || 60, priority || 'normal', visit_type || 'regular',
          recurrence, notes, req.userId]
       );
 
-      try {
-        const mixProducts = await query(
-          `SELECT pbp.product_id, p.category_id
-           FROM merch_pdv_brand_products pbp
-           JOIN merch_products p ON p.id = pbp.product_id
-           WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
-          [pdv_id, brand_id]
-        );
-        for (const mp of mixProducts.rows) {
-          await query(
-            `INSERT INTO route_product_executions (route_id, product_id, category_id) VALUES ($1,$2,$3)
-             ON CONFLICT DO NOTHING`,
-            [result.rows[0].id, mp.product_id, mp.category_id]
+      const routeId = result.rows[0].id;
+
+      if (isMultiBrand) {
+        for (let i = 0; i < multiBrands.length; i++) {
+          const mb = multiBrands[i];
+          let mbChecklistId = mb.checklist_id || null;
+          if (!mbChecklistId && mb.brand_id) {
+            try {
+              const cr = await query(`SELECT id FROM brand_checklists WHERE organization_id=$1 AND brand_id=$2 AND active=true ORDER BY created_at DESC LIMIT 1`, [orgId, mb.brand_id]);
+              mbChecklistId = cr.rows[0]?.id || null;
+            } catch {}
+          }
+          const rbRes = await query(
+            `INSERT INTO route_brands (route_id, brand_id, checklist_id, sort_order) VALUES ($1,$2,$3,$4) RETURNING *`,
+            [routeId, mb.brand_id, mbChecklistId, i]
           );
+          if (rbRes.rows[0]) await hydrateRouteBrandProducts(routeId, rbRes.rows[0].id, pdv_id, mb.brand_id);
         }
-        logInfo('routes.products_hydrated', { route_id: result.rows[0].id, count: mixProducts.rows.length });
-      } catch (e) { logError('routes.hydrate_products', e); }
+        logInfo('routes.multi_brand_created', { route_id: routeId, brand_count: multiBrands.length });
+      } else {
+        try {
+          const mixProducts = await query(
+            `SELECT pbp.product_id, p.category_id FROM merch_pdv_brand_products pbp
+             JOIN merch_products p ON p.id = pbp.product_id
+             WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
+            [pdv_id, primaryBrandId]
+          );
+          for (const mp of mixProducts.rows) {
+            await query(`INSERT INTO route_product_executions (route_id, product_id, category_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [routeId, mp.product_id, mp.category_id]);
+          }
+          logInfo('routes.products_hydrated', { route_id: routeId, count: mixProducts.rows.length });
+        } catch (e) { logError('routes.hydrate_products', e); }
+      }
 
       created.push(result.rows[0]);
     }
@@ -443,6 +481,20 @@ router.get('/routes/:id', authenticate, async (req, res) => {
     const damages = await query('SELECT pd.*, pr.name as product_name FROM product_damages pd JOIN merch_products pr ON pr.id=pd.product_id WHERE pd.route_id=$1', [req.params.id]);
     const ruptures = await query('SELECT pr2.*, p.name as product_name FROM product_ruptures pr2 JOIN merch_products p ON p.id=pr2.product_id WHERE pr2.route_id=$1', [req.params.id]);
 
+    // Load route brands (multi-brand)
+    let routeBrands = [];
+    try {
+      const rbRes = await query(
+        `SELECT rb.*, b.name as brand_name, bc.name as checklist_name,
+         (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id) as total_products,
+         (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id AND rpe.status = 'completed') as completed_products
+         FROM route_brands rb
+         LEFT JOIN merch_brands b ON b.id = rb.brand_id
+         LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id
+         WHERE rb.route_id = $1 ORDER BY rb.sort_order`, [req.params.id]);
+      routeBrands = rbRes.rows;
+    } catch {}
+
     res.json({
       ...route.rows[0],
       executions: executions.rows,
@@ -450,6 +502,8 @@ router.get('/routes/:id', authenticate, async (req, res) => {
       logs: logs.rows,
       damages: damages.rows,
       ruptures: ruptures.rows,
+      route_brands: routeBrands,
+      is_multi_brand: routeBrands.length > 0,
     });
   } catch (err) { logError('routes.detail', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -1060,6 +1114,51 @@ async function ensureExecutionCategoryTables() {
 ensurePdvVisitTables().catch(() => {});
 ensureExecutionCategoryTables().catch(() => {});
 
+// Ensure multi-brand route tables exist
+async function ensureRouteBrandsTables() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS route_brands (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      route_id UUID NOT NULL REFERENCES merch_routes(id) ON DELETE CASCADE,
+      brand_id UUID NOT NULL,
+      checklist_id UUID,
+      status VARCHAR(30) DEFAULT 'pending',
+      progress_pct NUMERIC(5,2) DEFAULT 0,
+      started_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(route_id, brand_id)
+    )`);
+    await query(`ALTER TABLE route_product_executions ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
+    await query(`ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
+    try { await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID`); } catch {}
+  } catch (e) { logWarn('ensureRouteBrandsTables.failed', { error: e?.message }); }
+}
+ensureRouteBrandsTables().catch(() => {});
+
+// Helper: hydrate products for a route_brand
+async function hydrateRouteBrandProducts(routeId, routeBrandId, pdvId, brandId) {
+  try {
+    const mixProducts = await query(
+      `SELECT pbp.product_id, p.category_id
+       FROM merch_pdv_brand_products pbp
+       JOIN merch_products p ON p.id = pbp.product_id
+       WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
+      [pdvId, brandId]
+    );
+    for (const mp of mixProducts.rows) {
+      await query(
+        `INSERT INTO route_product_executions (route_id, product_id, category_id, route_brand_id)
+         VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+        [routeId, mp.product_id, mp.category_id, routeBrandId]
+      );
+    }
+    return mixProducts.rows.length;
+  } catch (e) { logError('hydrateRouteBrandProducts', e); return 0; }
+}
+
 // Promotor auth middleware
 function promotorAuth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -1093,7 +1192,21 @@ router.get('/promotor/agenda', promotorAuth, async (req, res) => {
     if (date_from) { sql += ` AND r.visit_date >= $${idx++}`; params.push(date_from); }
     if (date_to) { sql += ` AND r.visit_date <= $${idx++}`; params.push(date_to); }
     sql += ' ORDER BY r.visit_date, r.scheduled_time';
-    res.json((await query(sql, params)).rows);
+    const rows = (await query(sql, params)).rows;
+    // Enrich multi-brand
+    try {
+      const mbIds = rows.filter(r => !r.brand_id).map(r => r.id);
+      if (mbIds.length > 0) {
+        const rbRes = await query(
+          `SELECT rb.route_id, rb.brand_id, rb.status, rb.progress_pct, b.name as brand_name, b.logo_url as brand_logo
+           FROM route_brands rb LEFT JOIN merch_brands b ON b.id = rb.brand_id
+           WHERE rb.route_id = ANY($1) ORDER BY rb.sort_order`, [mbIds]);
+        const rbMap = {};
+        for (const rb of rbRes.rows) { if (!rbMap[rb.route_id]) rbMap[rb.route_id] = []; rbMap[rb.route_id].push(rb); }
+        for (const r of rows) { if (rbMap[r.id]) { r.route_brands = rbMap[r.id]; r.is_multi_brand = true; r.brand_name = rbMap[r.id].map(b => b.brand_name).join(' + '); } }
+      }
+    } catch {}
+    res.json(rows);
   } catch (err) {
     logError('promotor.agenda', err);
     if (err.code === '42P01') return res.json([]);
