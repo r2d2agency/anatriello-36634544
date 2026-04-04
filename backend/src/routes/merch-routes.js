@@ -481,6 +481,20 @@ router.get('/routes/:id', authenticate, async (req, res) => {
     const damages = await query('SELECT pd.*, pr.name as product_name FROM product_damages pd JOIN merch_products pr ON pr.id=pd.product_id WHERE pd.route_id=$1', [req.params.id]);
     const ruptures = await query('SELECT pr2.*, p.name as product_name FROM product_ruptures pr2 JOIN merch_products p ON p.id=pr2.product_id WHERE pr2.route_id=$1', [req.params.id]);
 
+    // Load route brands (multi-brand)
+    let routeBrands = [];
+    try {
+      const rbRes = await query(
+        `SELECT rb.*, b.name as brand_name, bc.name as checklist_name,
+         (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id) as total_products,
+         (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id AND rpe.status = 'completed') as completed_products
+         FROM route_brands rb
+         LEFT JOIN merch_brands b ON b.id = rb.brand_id
+         LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id
+         WHERE rb.route_id = $1 ORDER BY rb.sort_order`, [req.params.id]);
+      routeBrands = rbRes.rows;
+    } catch {}
+
     res.json({
       ...route.rows[0],
       executions: executions.rows,
@@ -488,6 +502,8 @@ router.get('/routes/:id', authenticate, async (req, res) => {
       logs: logs.rows,
       damages: damages.rows,
       ruptures: ruptures.rows,
+      route_brands: routeBrands,
+      is_multi_brand: routeBrands.length > 0,
     });
   } catch (err) { logError('routes.detail', err); res.status(500).json({ error: 'Erro' }); }
 });
