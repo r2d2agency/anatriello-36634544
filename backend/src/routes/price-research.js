@@ -18,6 +18,13 @@ async function ensureTables() {
     preferred_time TIME, require_photo BOOLEAN DEFAULT false, require_justification BOOLEAN DEFAULT true,
     block_route_completion BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(organization_id, brand_id))`);
+  // Add name/description/scheduled_date/schedule_dates to rules
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS name VARCHAR(255)'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS description TEXT'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS scheduled_date DATE'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS schedule_dates JSONB'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS shared_with_brand BOOLEAN DEFAULT false'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS validated BOOLEAN DEFAULT false'); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_brand_competitors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, brand_id UUID NOT NULL,
     competitor_name VARCHAR(255) NOT NULL, category VARCHAR(100), active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);
@@ -28,16 +35,20 @@ async function ensureTables() {
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), mapping_id UUID NOT NULL, competitor_id UUID NOT NULL,
     competitor_product_name VARCHAR(255) NOT NULL, category VARCHAR(100), subcategory VARCHAR(100),
     unit_measure VARCHAR(50), photo_url TEXT, active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);
-  // Ensure photo_url column exists
   try { await query('ALTER TABLE price_research_competitor_products ADD COLUMN IF NOT EXISTS photo_url TEXT'); } catch {}
-  // Ensure frequency 'once' is supported
   try { await query("ALTER TABLE price_research_rules DROP CONSTRAINT IF EXISTS price_research_rules_frequency_check"); } catch {}
+  // Drop unique constraint to allow multiple models per brand
+  try { await query("ALTER TABLE price_research_rules DROP CONSTRAINT IF EXISTS price_research_rules_organization_id_brand_id_key"); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, schedule_id UUID,
-    route_id UUID NOT NULL, brand_id UUID NOT NULL, pdv_id UUID NOT NULL, promoter_id UUID NOT NULL,
-    status VARCHAR(30) DEFAULT 'pending', progress_pct NUMERIC(5,2) DEFAULT 0, total_items INTEGER DEFAULT 0,
+    route_id UUID, brand_id UUID NOT NULL, pdv_id UUID, promoter_id UUID,
+    rule_id UUID, status VARCHAR(30) DEFAULT 'pending', progress_pct NUMERIC(5,2) DEFAULT 0, total_items INTEGER DEFAULT 0,
     completed_items INTEGER DEFAULT 0, started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`);
+  try { await query('ALTER TABLE price_research_executions ADD COLUMN IF NOT EXISTS rule_id UUID'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ALTER COLUMN route_id DROP NOT NULL'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ALTER COLUMN pdv_id DROP NOT NULL'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ALTER COLUMN promoter_id DROP NOT NULL'); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), execution_id UUID NOT NULL, product_id UUID NOT NULL,
     price NUMERIC(10,2), observation TEXT, collected_at TIMESTAMPTZ, collected_by UUID,
@@ -74,11 +85,15 @@ router.get('/rules', authenticate, async (req, res) => {
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
     const { brand_id } = req.query;
-    let sql = `SELECT r.*, b.name as brand_name FROM price_research_rules r
-               LEFT JOIN merch_brands b ON b.id = r.brand_id WHERE r.organization_id = $1`;
+    let sql = `SELECT r.*, b.name as brand_name,
+      (SELECT COUNT(*) FROM price_research_product_mappings pm WHERE pm.brand_id = r.brand_id AND pm.enabled = true) as products_count,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id) as executions_count,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id AND ex.status IN ('completed','validated')) as completed_count
+      FROM price_research_rules r
+      LEFT JOIN merch_brands b ON b.id = r.brand_id WHERE r.organization_id = $1`;
     const params = [orgId];
     if (brand_id) { sql += ' AND r.brand_id = $2'; params.push(brand_id); }
-    sql += ' ORDER BY b.name';
+    sql += ' ORDER BY r.created_at DESC';
     const result = await query(sql, params);
     res.json(result.rows);
   } catch (err) { logError('price-research.rules.list', err); res.status(500).json({ error: 'Erro' }); }
@@ -89,17 +104,25 @@ router.post('/rules', authenticate, async (req, res) => {
     await ensureTables();
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
-    const { brand_id, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion } = req.body;
-    const result = await query(
-      `INSERT INTO price_research_rules (organization_id, brand_id, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       ON CONFLICT (organization_id, brand_id) DO UPDATE SET enabled=EXCLUDED.enabled, frequency=EXCLUDED.frequency,
-       preferred_weekday=EXCLUDED.preferred_weekday, preferred_time=EXCLUDED.preferred_time,
-       require_photo=EXCLUDED.require_photo, require_justification=EXCLUDED.require_justification,
-       block_route_completion=EXCLUDED.block_route_completion, updated_at=NOW()
-       RETURNING *`,
-      [orgId, brand_id, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false]
-    );
+    const { id, brand_id, name, description, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion, scheduled_date, schedule_dates } = req.body;
+    let result;
+    if (id) {
+      // Update existing
+      result = await query(
+        `UPDATE price_research_rules SET name=COALESCE($1,name), description=$2, enabled=$3, frequency=$4,
+         preferred_weekday=$5, preferred_time=$6, require_photo=$7, require_justification=$8,
+         block_route_completion=$9, scheduled_date=$10, schedule_dates=$11, updated_at=NOW()
+         WHERE id=$12 RETURNING *`,
+        [name, description, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false, scheduled_date, schedule_dates ? JSON.stringify(schedule_dates) : null, id]
+      );
+    } else {
+      result = await query(
+        `INSERT INTO price_research_rules (organization_id, brand_id, name, description, enabled, frequency, preferred_weekday, preferred_time, require_photo, require_justification, block_route_completion, scheduled_date, schedule_dates)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         RETURNING *`,
+        [orgId, brand_id, name || 'Pesquisa de Preços', description, enabled ?? false, frequency ?? 'weekly', preferred_weekday ?? 1, preferred_time, require_photo ?? false, require_justification ?? true, block_route_completion ?? false, scheduled_date, schedule_dates ? JSON.stringify(schedule_dates) : null]
+      );
+    }
     res.json(result.rows[0]);
   } catch (err) { logError('price-research.rules.upsert', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -470,6 +493,81 @@ router.get('/history', authenticate, async (req, res) => {
     sql += ` ORDER BY e.created_at DESC LIMIT ${parseInt(lim) || 100}`;
     res.json((await query(sql, params)).rows);
   } catch (err) { logError('price-research.history', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== ADMIN: Delete rule/model =====
+router.delete('/rules/:id', authenticate, async (req, res) => {
+  try {
+    await ensureTables();
+    await query('DELETE FROM price_research_rules WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { logError('price-research.rules.delete', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== ADMIN: Validate research =====
+router.put('/executions/:id/validate', authenticate, async (req, res) => {
+  try {
+    await query("UPDATE price_research_executions SET status='validated', updated_at=NOW() WHERE id=$1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { logError('price-research.validate', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== ADMIN: Share rule results with brand =====
+router.put('/rules/:id/share', authenticate, async (req, res) => {
+  try {
+    const { shared } = req.body;
+    await query('UPDATE price_research_rules SET shared_with_brand=$1, updated_at=NOW() WHERE id=$2', [shared !== false, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { logError('price-research.share', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== BRAND: Get shared results =====
+router.get('/brand-results', authenticate, async (req, res) => {
+  try {
+    await ensureTables();
+    const orgId = await getOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    const { brand_id } = req.query;
+    let sql = `SELECT r.*, b.name as brand_name,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id AND ex.status IN ('completed','validated')) as completed_count,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id AND ex.status = 'in_progress') as in_progress_count,
+      (SELECT COUNT(*) FROM price_research_executions ex WHERE ex.rule_id = r.id) as total_count
+      FROM price_research_rules r
+      LEFT JOIN merch_brands b ON b.id = r.brand_id
+      WHERE r.organization_id = $1 AND r.shared_with_brand = true`;
+    const params = [orgId];
+    if (brand_id) { sql += ' AND r.brand_id = $2'; params.push(brand_id); }
+    sql += ' ORDER BY r.updated_at DESC';
+    res.json((await query(sql, params)).rows);
+  } catch (err) { logError('price-research.brand-results', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// ===== BRAND: Get detailed results for a specific rule =====
+router.get('/brand-results/:ruleId', authenticate, async (req, res) => {
+  try {
+    await ensureTables();
+    const orgId = await getOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    // Check rule is shared
+    const rule = (await query('SELECT * FROM price_research_rules WHERE id=$1 AND organization_id=$2 AND shared_with_brand=true', [req.params.ruleId, orgId])).rows[0];
+    if (!rule) return res.status(404).json({ error: 'Não encontrado' });
+    // Get executions
+    const execs = (await query(`SELECT e.*, p.name as pdv_name, emp.full_name as promoter_name
+      FROM price_research_executions e
+      LEFT JOIN pdvs p ON p.id = e.pdv_id
+      LEFT JOIN employees emp ON emp.id = e.promoter_id
+      WHERE e.rule_id = $1 AND e.status IN ('completed','validated')
+      ORDER BY e.completed_at DESC`, [rule.id])).rows;
+    // Get avg prices
+    const avgPrices = (await query(`SELECT i.product_id, p.name as product_name, AVG(i.price) as avg_price,
+      MIN(i.price) as min_price, MAX(i.price) as max_price, COUNT(*) as collections
+      FROM price_research_items i
+      JOIN price_research_executions e ON e.id = i.execution_id
+      LEFT JOIN products p ON p.id = i.product_id
+      WHERE e.rule_id = $1 AND i.price IS NOT NULL AND e.status IN ('completed','validated')
+      GROUP BY i.product_id, p.name ORDER BY p.name`, [rule.id])).rows;
+    res.json({ rule, executions: execs, avgPrices });
+  } catch (err) { logError('price-research.brand-results.detail', err); res.status(500).json({ error: 'Erro' }); }
 });
 
 export default router;
