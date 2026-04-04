@@ -794,7 +794,7 @@ export default function PromotorRota() {
                       categoryName={category}
                       routeId={id!}
                       pdvName={route.pdv_name}
-                      brandName={route.brand_name}
+                      brandName={currentBrand?.brand_name || route.brand_name}
                       promotorName={route.promotor_name}
                       qualityConfig={photoQualityConfig}
                       onUnlocked={() => refetch()}
