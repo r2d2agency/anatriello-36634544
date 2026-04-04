@@ -58,8 +58,13 @@ export function useUpload(customTokenGetter?: () => string | null) {
           try {
             const result: UploadResult = JSON.parse(xhr.responseText);
             setProgress(100);
-            console.log('[useUpload] Success, URL:', result.file.url);
-            resolve(result.file.url);
+            // Build full URL: if the returned url is relative, prepend API_URL
+            let fileUrl = result.file.url;
+            if (fileUrl.startsWith('/') && API_URL) {
+              fileUrl = `${API_URL}${fileUrl}`;
+            }
+            console.log('[useUpload] Success, URL:', fileUrl);
+            resolve(fileUrl);
           } catch (e) {
             console.error('[useUpload] Parse error:', e);
             reject(new Error('Erro ao processar resposta'));
