@@ -50,6 +50,31 @@ function buildDateFilter(params, paramIdx, dateFrom, dateTo, dateCol = 'r.visit_
   return { sql, paramIdx };
 }
 
+function buildRouteFiltersFromQuery(queryParams, params, startIdx, routeAlias = 'r') {
+  const { date_from, date_to, brand_id, pdv_id, promoter_id } = queryParams;
+  let idx = startIdx;
+  let filters = '';
+
+  if (date_from) { filters += ` AND ${routeAlias}.visit_date >= $${idx}`; params.push(date_from); idx++; }
+  if (date_to) { filters += ` AND ${routeAlias}.visit_date <= $${idx}`; params.push(date_to); idx++; }
+  if (brand_id) { filters += ` AND ${routeAlias}.brand_id = $${idx}`; params.push(brand_id); idx++; }
+  if (pdv_id) { filters += ` AND ${routeAlias}.pdv_id = $${idx}`; params.push(pdv_id); idx++; }
+  if (promoter_id) { filters += ` AND ${routeAlias}.promoter_id = $${idx}`; params.push(promoter_id); idx++; }
+
+  return { filters, idx };
+}
+
+const tableExistsCache = new Map();
+
+async function tableExists(tableName) {
+  if (tableExistsCache.has(tableName)) return tableExistsCache.get(tableName);
+
+  const result = await query('SELECT to_regclass($1) as table_name', [`public.${tableName}`]);
+  const exists = Boolean(result.rows[0]?.table_name);
+  tableExistsCache.set(tableName, exists);
+  return exists;
+}
+
 // ===== Dashboard KPIs (real-time from existing tables) =====
 router.get('/dashboard', authenticate, async (req, res) => {
   try {
@@ -349,33 +374,121 @@ router.get('/report/product', authenticate, async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
-    const { date_from, date_to, brand_id, product_id } = req.query;
-    const params = [orgId];
-    let idx = 2;
-    let filters = '';
-    if (date_from) { filters += ` AND r.visit_date >= $${idx}`; params.push(date_from); idx++; }
-    if (date_to) { filters += ` AND r.visit_date <= $${idx}`; params.push(date_to); idx++; }
-    if (brand_id) { filters += ` AND r.brand_id = $${idx}`; params.push(brand_id); idx++; }
-    if (product_id) { filters += ` AND rpe.product_id = $${idx}`; params.push(product_id); idx++; }
+    const { product_id } = req.query;
+
+    const routeParams = [orgId];
+    const { filters: routeFilters } = buildRouteFiltersFromQuery(req.query, routeParams, 2);
+
+    const productParams = [...routeParams];
+    let productFilter = '';
+    if (product_id) {
+      productFilter = ` AND rpe.product_id = $${productParams.length + 1}`;
+      productParams.push(product_id);
+    }
 
     const rows = (await query(`
-      SELECT p.id as product_id, p.name as product_name, p.sku, p.photo_url,
+      SELECT p.id as product_id, p.name as product_name, p.sku, p.image_url as photo_url,
         COUNT(DISTINCT r.pdv_id) as pdvs,
         COUNT(DISTINCT r.id) as routes,
         COUNT(*) FILTER (WHERE rpe.status='completed') as executed,
-        COALESCE(SUM(rpe.stock_qty_store),0) as stock_store,
-        COALESCE(SUM(rpe.stock_qty_stock),0) as stock_stock,
-        COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock),0) as damages,
-        COALESCE(SUM(rpe.stockout_qty_store + rpe.stockout_qty_stock),0) as stockouts,
-        COALESCE(SUM(rpe.expiry_qty_store + rpe.expiry_qty_stock),0) as expiries
+        COALESCE(SUM(rpe.qty_store),0) as stock_store,
+        COALESCE(SUM(rpe.qty_stock),0) as stock_stock
       FROM route_product_executions rpe
       JOIN merch_routes r ON r.id = rpe.route_id
       JOIN products p ON p.id = rpe.product_id
-      WHERE r.organization_id = $1 ${filters}
-      GROUP BY p.id, p.name, p.sku, p.photo_url
-      ORDER BY routes DESC
+      WHERE r.organization_id = $1 ${routeFilters} ${productFilter}
+      GROUP BY p.id, p.name, p.sku, p.image_url
+      ORDER BY routes DESC, p.name ASC
       LIMIT 200
-    `, params)).rows;
+    `, productParams)).rows;
+
+    rows.forEach((row) => {
+      row.photo_url = row.photo_url || row.image_url || null;
+      row.damages = 0;
+      row.stockouts = 0;
+      row.expiries = 0;
+    });
+
+    const byProductId = new Map(rows.map((row) => [row.product_id, row]));
+
+    if (rows.length > 0 && await tableExists('product_damages')) {
+      try {
+        const damageParams = [...routeParams];
+        let damageFilter = '';
+        if (product_id) {
+          damageFilter = ` AND pd.product_id = $${damageParams.length + 1}`;
+          damageParams.push(product_id);
+        }
+
+        const damageRows = (await query(`
+          SELECT pd.product_id, COALESCE(SUM(pd.qty_total), 0) as damages
+          FROM product_damages pd
+          JOIN merch_routes r ON r.id = pd.route_id
+          WHERE r.organization_id = $1 ${routeFilters} ${damageFilter}
+          GROUP BY pd.product_id
+        `, damageParams)).rows;
+
+        damageRows.forEach((row) => {
+          const product = byProductId.get(row.product_id);
+          if (product) product.damages = parseInt(row.damages, 10) || 0;
+        });
+      } catch (error) {
+        logInfo('merch-analytics.report.product.damage-fallback', { error: error.message });
+      }
+    }
+
+    if (rows.length > 0 && await tableExists('product_ruptures')) {
+      try {
+        const ruptureParams = [...routeParams];
+        let ruptureFilter = '';
+        if (product_id) {
+          ruptureFilter = ` AND pr.product_id = $${ruptureParams.length + 1}`;
+          ruptureParams.push(product_id);
+        }
+
+        const ruptureRows = (await query(`
+          SELECT pr.product_id, COALESCE(SUM(pr.qty_total), 0) as stockouts
+          FROM product_ruptures pr
+          JOIN merch_routes r ON r.id = pr.route_id
+          WHERE r.organization_id = $1 ${routeFilters} ${ruptureFilter}
+          GROUP BY pr.product_id
+        `, ruptureParams)).rows;
+
+        ruptureRows.forEach((row) => {
+          const product = byProductId.get(row.product_id);
+          if (product) product.stockouts = parseInt(row.stockouts, 10) || 0;
+        });
+      } catch (error) {
+        logInfo('merch-analytics.report.product.rupture-fallback', { error: error.message });
+      }
+    }
+
+    if (rows.length > 0 && await tableExists('product_validity_entries')) {
+      try {
+        const expiryParams = [...routeParams];
+        let expiryFilter = '';
+        if (product_id) {
+          expiryFilter = ` AND pve.product_id = $${expiryParams.length + 1}`;
+          expiryParams.push(product_id);
+        }
+
+        const expiryRows = (await query(`
+          SELECT pve.product_id, COALESCE(SUM(pve.qty_total), 0) as expiries
+          FROM product_validity_entries pve
+          JOIN merch_routes r ON r.id = pve.route_id
+          WHERE r.organization_id = $1 ${routeFilters} ${expiryFilter}
+          GROUP BY pve.product_id
+        `, expiryParams)).rows;
+
+        expiryRows.forEach((row) => {
+          const product = byProductId.get(row.product_id);
+          if (product) product.expiries = parseInt(row.expiries, 10) || 0;
+        });
+      } catch (error) {
+        logInfo('merch-analytics.report.product.expiry-fallback', { error: error.message });
+      }
+    }
+
     res.json(rows);
   } catch (err) { logError('merch-analytics.report.product', err); res.status(500).json({ error: 'Erro' }); }
 });
@@ -456,28 +569,72 @@ router.get('/ranking/issues', authenticate, async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
     if (!orgId) return res.status(403).json({ error: 'Sem organização' });
-    const { date_from, date_to } = req.query;
     const params = [orgId];
-    let idx = 2;
-    let filters = '';
-    if (date_from) { filters += ` AND r.visit_date >= $${idx}`; params.push(date_from); idx++; }
-    if (date_to) { filters += ` AND r.visit_date <= $${idx}`; params.push(date_to); idx++; }
+    const { filters } = buildRouteFiltersFromQuery(req.query, params, 2);
 
     const rows = (await query(`
-      SELECT p.id as pdv_id, p.name as pdv_name,
-        COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock),0) as damages,
-        COALESCE(SUM(rpe.stockout_qty_store + rpe.stockout_qty_stock),0) as stockouts,
-        COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock + rpe.stockout_qty_store + rpe.stockout_qty_stock),0) as total_issues
-      FROM route_product_executions rpe
-      JOIN merch_routes r ON r.id = rpe.route_id
-      JOIN pdvs p ON p.id = r.pdv_id
-      WHERE r.organization_id = $1 ${filters}
-      GROUP BY p.id, p.name
-      HAVING SUM(rpe.damage_qty_store + rpe.damage_qty_stock + rpe.stockout_qty_store + rpe.stockout_qty_stock) > 0
-      ORDER BY total_issues DESC
-      LIMIT 20
-    `, params)).rows;
-    res.json(rows);
+      WITH filtered_pdvs AS (
+        SELECT DISTINCT r.pdv_id
+        FROM merch_routes r
+        WHERE r.organization_id = $1 ${filters}
+      )
+      SELECT p.id as pdv_id, p.name as pdv_name
+      FROM filtered_pdvs fp
+      JOIN pdvs p ON p.id = fp.pdv_id
+      ORDER BY p.name ASC
+      LIMIT 200
+    `, params)).rows.map((row) => ({ ...row, damages: 0, stockouts: 0, total_issues: 0 }));
+
+    const byPdvId = new Map(rows.map((row) => [row.pdv_id, row]));
+
+    if (rows.length > 0 && await tableExists('product_damages')) {
+      try {
+        const damageRows = (await query(`
+          SELECT r.pdv_id, COALESCE(SUM(pd.qty_total), 0) as damages
+          FROM product_damages pd
+          JOIN merch_routes r ON r.id = pd.route_id
+          WHERE r.organization_id = $1 ${filters}
+          GROUP BY r.pdv_id
+        `, params)).rows;
+
+        damageRows.forEach((row) => {
+          const pdv = byPdvId.get(row.pdv_id);
+          if (pdv) pdv.damages = parseInt(row.damages, 10) || 0;
+        });
+      } catch (error) {
+        logInfo('merch-analytics.ranking.damage-fallback', { error: error.message });
+      }
+    }
+
+    if (rows.length > 0 && await tableExists('product_ruptures')) {
+      try {
+        const ruptureRows = (await query(`
+          SELECT r.pdv_id, COALESCE(SUM(pr.qty_total), 0) as stockouts
+          FROM product_ruptures pr
+          JOIN merch_routes r ON r.id = pr.route_id
+          WHERE r.organization_id = $1 ${filters}
+          GROUP BY r.pdv_id
+        `, params)).rows;
+
+        ruptureRows.forEach((row) => {
+          const pdv = byPdvId.get(row.pdv_id);
+          if (pdv) pdv.stockouts = parseInt(row.stockouts, 10) || 0;
+        });
+      } catch (error) {
+        logInfo('merch-analytics.ranking.rupture-fallback', { error: error.message });
+      }
+    }
+
+    const rankedRows = rows
+      .map((row) => ({
+        ...row,
+        total_issues: (parseInt(row.damages, 10) || 0) + (parseInt(row.stockouts, 10) || 0),
+      }))
+      .filter((row) => row.total_issues > 0)
+      .sort((a, b) => b.total_issues - a.total_issues || a.pdv_name.localeCompare(b.pdv_name))
+      .slice(0, 20);
+
+    res.json(rankedRows);
   } catch (err) { logError('merch-analytics.ranking', err); res.status(500).json({ error: 'Erro' }); }
 });
 
