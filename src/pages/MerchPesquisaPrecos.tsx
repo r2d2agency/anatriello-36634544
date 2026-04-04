@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,8 +20,9 @@ import {
   usePriceResearchMappings, useCreateProductMapping, useDeleteProductMapping,
   useCreateCompetitorProduct, useDeleteCompetitorProduct,
 } from "@/hooks/use-price-research";
+import { useUpload } from "@/hooks/use-upload";
 import {
-  DollarSign, Settings, Building2, Package, Plus, Trash2, Image as ImageIcon,
+  DollarSign, Settings, Building2, Package, Plus, Trash2, Image as ImageIcon, Upload,
 } from "lucide-react";
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -275,6 +276,40 @@ function ProductMappingsPanel({ brandId }: { brandId: string }) {
   const [compName, setCompName] = useState('');
   const [compCompetitorId, setCompCompetitorId] = useState('');
   const [compPhotoUrl, setCompPhotoUrl] = useState('');
+  const { uploadFile, isUploading } = useUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Apenas imagens são permitidas');
+      return;
+    }
+    try {
+      const url = await uploadFile(file);
+      if (url) setCompPhotoUrl(url);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao enviar foto');
+    }
+  }, [uploadFile]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  }, [handleFileUpload]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) { handleFileUpload(file); break; }
+      }
+    }
+  }, [handleFileUpload]);
 
   const mappedProductIds = new Set(mappings.map((m: any) => m.product_id));
   const availableProducts = products.filter((p: any) => !mappedProductIds.has(p.id));
@@ -433,14 +468,40 @@ function ProductMappingsPanel({ brandId }: { brandId: string }) {
               <Input value={compName} onChange={e => setCompName(e.target.value)} placeholder="Ex: Sabonete 85g" />
             </div>
             <div>
-              <Label>Foto do produto (URL)</Label>
-              <Input value={compPhotoUrl} onChange={e => setCompPhotoUrl(e.target.value)} placeholder="https://..." />
-              {compPhotoUrl && (
-                <div className="mt-2">
-                  <img src={compPhotoUrl} alt="Preview" className="h-20 w-20 rounded object-cover border"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                </div>
-              )}
+              <Label>Foto do produto</Label>
+              <div
+                ref={dropZoneRef}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onPaste={handlePaste}
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
+                  ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+                  ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ''; }}
+                />
+                {compPhotoUrl ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img src={compPhotoUrl} alt="Preview" className="h-24 w-24 rounded object-cover border" />
+                    <p className="text-xs text-muted-foreground">Clique ou arraste para substituir</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      {isUploading ? 'Enviando...' : 'Arraste uma foto, cole (Ctrl+V) ou clique para selecionar'}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter><Button onClick={handleAddCompetitorProduct} disabled={createCP.isPending}>Adicionar</Button></DialogFooter>
