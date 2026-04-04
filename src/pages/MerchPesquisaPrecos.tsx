@@ -25,6 +25,7 @@ import {
   usePriceResearchExecutions, useValidateExecution, usePublishExecution,
   usePriceResearchDashboard, usePriceResearchExecutionDetail, useUpdateExecution,
   useRedes, useCreateRede, useUpdateRede, useDeleteRede,
+  useDeleteExecution, useBulkDeleteExecutions,
 } from "@/hooks/use-price-research";
 import { useUpload } from "@/hooks/use-upload";
 import { resolveMediaUrl } from "@/lib/media";
@@ -996,11 +997,44 @@ function PesquisasTab({ brands }: { brands: any[] }) {
   });
   const validate = useValidateExecution();
   const publish = usePublishExecution();
+  const deleteExec = useDeleteExecution();
+  const bulkDelete = useBulkDeleteExecutions();
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === executions.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(executions.map((e: any) => e.id)));
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Apagar ${selectedIds.size} pesquisa(s)? Esta ação não pode ser desfeita.`)) return;
+    bulkDelete.mutate(Array.from(selectedIds), {
+      onSuccess: () => { toast.success(`${selectedIds.size} pesquisa(s) apagada(s)`); setSelectedIds(new Set()); },
+      onError: () => toast.error('Erro ao apagar'),
+    });
+  };
+
+  const handleDeleteOne = (id: string) => {
+    if (!confirm('Apagar esta pesquisa? Esta ação não pode ser desfeita.')) return;
+    deleteExec.mutate(id, {
+      onSuccess: () => toast.success('Pesquisa apagada'),
+      onError: () => toast.error('Erro ao apagar'),
+    });
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-center">
         <Select value={selectedBrandId || ALL_VALUE} onValueChange={v => setSelectedBrandId(v === ALL_VALUE ? '' : v)}>
           <SelectTrigger className="w-48"><SelectValue placeholder="Todas as marcas" /></SelectTrigger>
           <SelectContent>
@@ -1018,6 +1052,11 @@ function PesquisasTab({ brands }: { brands: any[] }) {
         <Badge variant="outline" className="h-9 px-3 flex items-center">
           {executions.length} pesquisa{executions.length !== 1 ? 's' : ''}
         </Badge>
+        {selectedIds.size > 0 && (
+          <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDelete.isPending}>
+            <Trash2 className="h-3 w-3 mr-1" />Apagar {selectedIds.size} selecionada(s)
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -1025,6 +1064,9 @@ function PesquisasTab({ brands }: { brands: any[] }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox checked={executions.length > 0 && selectedIds.size === executions.length} onCheckedChange={toggleAll} />
+                </TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Modelo</TableHead>
                 <TableHead>Marca</TableHead>
@@ -1032,7 +1074,7 @@ function PesquisasTab({ brands }: { brands: any[] }) {
                 <TableHead>Promotor</TableHead>
                 <TableHead>Progresso</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-32">Ações</TableHead>
+                <TableHead className="w-36">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1040,6 +1082,9 @@ function PesquisasTab({ brands }: { brands: any[] }) {
                 const st = STATUS_LABELS[e.status] || { label: e.status, color: 'outline' };
                 return (
                   <TableRow key={e.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailId(e.id)}>
+                    <TableCell onClick={ev => ev.stopPropagation()}>
+                      <Checkbox checked={selectedIds.has(e.id)} onCheckedChange={() => toggleSelect(e.id)} />
+                    </TableCell>
                     <TableCell className="text-sm">
                       {e.scheduled_date ? safeFormatDate(e.scheduled_date + 'T12:00:00') : safeFormatDate(e.created_at)}
                       {e.scheduled_time && <span className="text-xs text-muted-foreground ml-1">{String(e.scheduled_time).slice(0, 5)}</span>}
@@ -1069,13 +1114,16 @@ function PesquisasTab({ brands }: { brands: any[] }) {
                             <Send className="h-3 w-3 mr-1" />Publicar
                           </Button>
                         )}
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteOne(e.id)} disabled={deleteExec.isPending}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 );
               })}
               {executions.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   <Calendar className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                   Nenhuma pesquisa encontrada. Crie um modelo e clique em "Usar modelo".
                 </TableCell></TableRow>
