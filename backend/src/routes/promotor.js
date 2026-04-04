@@ -331,10 +331,10 @@ router.get('/home', authenticatePromotor, async (req, res) => {
 // =============================================
 router.post('/punch', authenticatePromotor, async (req, res) => {
   try {
-    const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id } = req.body;
+    const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified } = req.body;
 
     // ===== WORK SCHEDULE VALIDATION =====
-    const empRes = await query(`SELECT work_schedule FROM employees WHERE id = $1`, [req.employeeId]);
+    const empRes = await query(`SELECT work_schedule, face_descriptor FROM employees WHERE id = $1`, [req.employeeId]);
     const wsRaw = empRes.rows[0]?.work_schedule || '08:00-17:00';
     const now = is_offline && offline_local_time
       ? new Date(offline_local_time)
@@ -390,6 +390,44 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
           });
         }
       }
+    }
+
+    // ===== FACIAL VALIDATION =====
+    try {
+      const facialCfg = await query(
+        `SELECT enabled, use_for_attendance, allow_manual_fallback
+         FROM facial_recognition_config
+         WHERE organization_id = $1
+         LIMIT 1`,
+        [req.organizationId]
+      );
+
+      const cfg = facialCfg.rows[0];
+      const rawDescriptor = empRes.rows[0]?.face_descriptor;
+      const parsedDescriptor = typeof rawDescriptor === 'string'
+        ? JSON.parse(rawDescriptor)
+        : rawDescriptor;
+      const hasEnrollment = Array.isArray(parsedDescriptor)
+        ? parsedDescriptor.length > 0
+        : Array.isArray(parsedDescriptor?.descriptor)
+          ? parsedDescriptor.descriptor.length > 0
+          : false;
+
+      if (cfg?.enabled && cfg?.use_for_attendance && !hasEnrollment && cfg.allow_manual_fallback === false) {
+        return res.status(403).json({
+          error: 'Biometria facial obrigatória, mas este colaborador ainda não possui cadastro facial.',
+          code: 'FACIAL_ENROLLMENT_REQUIRED'
+        });
+      }
+
+      if (cfg?.enabled && cfg?.use_for_attendance && hasEnrollment && !facial_verified) {
+        return res.status(403).json({
+          error: 'Confirmação facial obrigatória para registrar o ponto.',
+          code: 'FACIAL_REQUIRED'
+        });
+      }
+    } catch (e) {
+      if (e.code !== '42P01' && e.code !== '42703') throw e;
     }
 
     // ===== GEO VALIDATION =====
@@ -1392,8 +1430,8 @@ router.get('/rh/trackable-employees', async (req, res) => {
 // Get facial recognition config for current promotor (used by app to decide if facial verification is required)
 router.get('/facial-config', authenticatePromotor, async (req, res) => {
   try {
-    const empId = req.promotor.employee_id;
-    const orgId = req.promotor.organization_id;
+    const empId = req.employeeId;
+    const orgId = req.organizationId;
 
     // Check if facial recognition is enabled for this org
     let enabled = false;
