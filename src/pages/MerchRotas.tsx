@@ -445,10 +445,13 @@ export default function MerchRotas() {
 // Route Form Dialog
 function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDelete, onDuplicate }: any) {
   const [form, setForm] = useState<any>({});
+  const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string }[]>([]);
   const { data: brands = [] } = useBrands();
-  const { data: checklists = [] } = useBrandChecklists(form.brand_id);
-  const { data: brandPromoters = [] } = useBrandPromoters(form.brand_id);
-  const { data: mixPreview = [] } = useRouteMixPreview(form.pdv_id, form.brand_id);
+  // For single-brand backward compat, use first brand for checklists/promoters
+  const activeBrandId = multiBrands.length > 0 ? multiBrands[0].brand_id : form.brand_id;
+  const { data: checklists = [] } = useBrandChecklists(activeBrandId);
+  const { data: brandPromoters = [] } = useBrandPromoters(activeBrandId);
+  const { data: mixPreview = [] } = useRouteMixPreview(form.pdv_id, activeBrandId);
   const { data: routeProducts = [] } = useRouteProducts(route?.id);
   const addProduct = useAddRouteProduct();
   const removeProduct = useRemoveRouteProduct();
@@ -465,11 +468,36 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
     });
   }, [employees, brandPromoters]);
 
-  // Products to show: for existing routes use routeProducts, for new routes use mixPreview
   const displayProducts = route?.id ? routeProducts : mixPreview;
   const routeProductIds = new Set(routeProducts.map((p: any) => p.product_id));
-
   const WEEKDAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+  // Per-brand checklists for multi-brand
+  const BrandChecklistSelector = ({ brandId, checklistId, onChange }: { brandId: string; checklistId?: string; onChange: (v: string) => void }) => {
+    const { data: cls = [] } = useBrandChecklists(brandId);
+    const brandName = brands.find((b: any) => b.id === brandId)?.name || brandId;
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-md border bg-background/50">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium truncate">{brandName}</div>
+          {cls.length > 0 ? (
+            <Select value={checklistId || ''} onValueChange={onChange}>
+              <SelectTrigger className="h-7 text-[10px] mt-1"><SelectValue placeholder="Checklist" /></SelectTrigger>
+              <SelectContent>
+                {cls.filter((c: any) => c?.id).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">Sem checklists</span>
+          )}
+        </div>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+          onClick={() => setMultiBrands(prev => prev.filter(b => b.brand_id !== brandId))}>
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (route) {
@@ -486,12 +514,21 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
         recurrence_until: rec?.until || '',
         recurrence_weekdays: rec?.weekdays || [],
       });
+      // Load multi-brand data
+      if (route.route_brands?.length > 0) {
+        setMultiBrands(route.route_brands.map((rb: any) => ({ brand_id: rb.brand_id, checklist_id: rb.checklist_id })));
+      } else if (route.brand_id) {
+        setMultiBrands([{ brand_id: route.brand_id, checklist_id: route.checklist_id }]);
+      } else {
+        setMultiBrands([]);
+      }
     } else {
       setForm({
         visit_date: format(new Date(), 'yyyy-MM-dd'), priority: 'normal', visit_type: 'regular',
         estimated_duration_min: 60, recurrence_type: 'none', recurrence_interval: 1,
         recurrence_weekdays: [], recurrence_until: '',
       });
+      setMultiBrands([]);
     }
   }, [route, open]);
 
@@ -524,16 +561,38 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
     }
   };
 
-  // Products from mix that are NOT yet in the route
   const availableToAdd = route?.id
     ? mixPreview.filter((mp: any) => !routeProductIds.has(mp.product_id))
     : [];
+
+  // Available brands not yet added
+  const availableBrands = (brands || []).filter((b: any) => b?.id && !multiBrands.some(mb => mb.brand_id === b.id));
+
+  const handleSave = () => {
+    const payload = { ...form };
+    if (multiBrands.length > 1) {
+      // Multi-brand route
+      payload.brands = multiBrands;
+      payload.brand_id = multiBrands[0].brand_id; // primary brand for backward compat
+      payload.checklist_id = multiBrands[0].checklist_id;
+    } else if (multiBrands.length === 1) {
+      payload.brand_id = multiBrands[0].brand_id;
+      payload.checklist_id = multiBrands[0].checklist_id;
+      payload.brands = multiBrands;
+    }
+    onSave(payload);
+  };
+
+  const isMultiBrand = multiBrands.length > 1;
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{route ? 'Editar Rota' : 'Nova Rota'}</DialogTitle>
+          {isMultiBrand && (
+            <Badge className="bg-primary/20 text-primary w-fit">🏷️ Multi-marca ({multiBrands.length} marcas)</Badge>
+          )}
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -560,14 +619,50 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
             </div>
           </div>
 
-          <div>
-            <Label className="text-xs">Marca *</Label>
-            <Select value={form.brand_id || ''} onValueChange={v => setForm({ ...form, brand_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
-              <SelectContent>
-                {(brands || []).filter((b: any) => b?.id).map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          {/* Multi-Brand Section */}
+          <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Package className="h-4 w-4 text-primary" />
+                Marcas {multiBrands.length > 0 && `(${multiBrands.length})`}
+              </div>
+              {availableBrands.length > 0 && (
+                <Select value="" onValueChange={(v) => {
+                  if (v) setMultiBrands(prev => [...prev, { brand_id: v }]);
+                }}>
+                  <SelectTrigger className="w-48 h-8 text-xs">
+                    <SelectValue placeholder="+ Adicionar marca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableBrands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {multiBrands.length === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-3 bg-background/50 rounded-md">
+                Selecione pelo menos uma marca para a rota
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              {multiBrands.map((mb) => (
+                <BrandChecklistSelector
+                  key={mb.brand_id}
+                  brandId={mb.brand_id}
+                  checklistId={mb.checklist_id}
+                  onChange={(v) => setMultiBrands(prev => prev.map(b => b.brand_id === mb.brand_id ? { ...b, checklist_id: v } : b))}
+                />
+              ))}
+            </div>
+
+            {isMultiBrand && (
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                O promotor fará check-in único e poderá alternar entre as marcas durante a visita.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -655,10 +750,12 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
               </Select>
             </div>
           </div>
-          {checklists.length > 0 && (
+
+          {/* Single-brand checklist (only when NOT multi-brand) */}
+          {!isMultiBrand && checklists.length > 0 && multiBrands.length === 1 && (
             <div>
               <Label className="text-xs">Checklist</Label>
-              <Select value={form.checklist_id || ''} onValueChange={v => setForm({ ...form, checklist_id: v })}>
+              <Select value={multiBrands[0]?.checklist_id || ''} onValueChange={v => setMultiBrands(prev => prev.map((b, i) => i === 0 ? { ...b, checklist_id: v } : b))}>
                 <SelectTrigger><SelectValue placeholder="Selecionar checklist" /></SelectTrigger>
                 <SelectContent>
                   {checklists.filter((c: any) => c?.id).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -666,6 +763,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
               </Select>
             </div>
           )}
+
           {route && (
             <div>
               <Label className="text-xs">Status</Label>
@@ -679,7 +777,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
           )}
 
           {/* Product Mix Section */}
-          {form.pdv_id && form.brand_id && (
+          {form.pdv_id && multiBrands.length > 0 && (
             <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -729,7 +827,6 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                 </div>
               )}
 
-              {/* Add products from mix that aren't in route yet */}
               {route?.id && availableToAdd.length > 0 && (
                 <div className="pt-2 border-t">
                   <Label className="text-xs text-muted-foreground mb-1 block">Adicionar do mix ({availableToAdd.length} disponíveis)</Label>
@@ -761,7 +858,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={() => onSave(form)} disabled={!form.promoter_id || !form.pdv_id || !form.brand_id || !form.visit_date}>
+            <Button onClick={handleSave} disabled={!form.promoter_id || !form.pdv_id || multiBrands.length === 0 || !form.visit_date}>
               {form.recurrence_type && form.recurrence_type !== 'none' ? 'Criar Rotas' : 'Salvar'}
             </Button>
           </div>
