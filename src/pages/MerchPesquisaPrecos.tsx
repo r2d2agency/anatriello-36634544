@@ -200,6 +200,7 @@ interface ProductCompetitor {
   description?: string;
   photo_url?: string;
   unit_measure?: string;
+  ean?: string;
 }
 
 type CompetitorConfig = Record<string, ProductCompetitor[]>;
@@ -284,6 +285,7 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
       description: newComp.description || '',
       photo_url: newComp.photo_url || '',
       unit_measure: newComp.unit_measure || '',
+      ean: newComp.ean || '',
     };
     setCompetitorConfig(prev => ({
       ...prev,
@@ -496,6 +498,7 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
                                 <p className="text-sm font-medium truncate">{comp.name}</p>
                                 <p className="text-xs text-muted-foreground">{comp.brand}</p>
                                 {comp.description && <p className="text-xs text-muted-foreground truncate">{comp.description}</p>}
+                                {comp.ean && <p className="text-xs text-muted-foreground font-mono">EAN: {comp.ean}</p>}
                               </div>
                               <div className="flex gap-1 flex-shrink-0">
                                 {comp.photo_url && (
@@ -582,7 +585,7 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
                                   <Input className="h-8 text-sm" value={newComp.brand || ''} onChange={e => setNewComp(p => ({ ...p, brand: e.target.value }))} placeholder="Ex: Marca Y" />
                                 </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="grid grid-cols-3 gap-2">
                                 <div>
                                   <Label className="text-xs">Descrição</Label>
                                   <Input className="h-8 text-sm" value={newComp.description || ''} onChange={e => setNewComp(p => ({ ...p, description: e.target.value }))} placeholder="Opcional" />
@@ -590,6 +593,10 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
                                 <div>
                                   <Label className="text-xs">Unidade</Label>
                                   <Input className="h-8 text-sm" value={newComp.unit_measure || ''} onChange={e => setNewComp(p => ({ ...p, unit_measure: e.target.value }))} placeholder="Ex: 500ml" />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Código EAN / Barras</Label>
+                                  <Input className="h-8 text-sm" value={newComp.ean || ''} onChange={e => setNewComp(p => ({ ...p, ean: e.target.value }))} placeholder="Ex: 7891234567890" />
                                 </div>
                               </div>
                               <div className="flex gap-2">
