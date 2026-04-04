@@ -26,23 +26,23 @@ interface PriceResearchCardProps {
 export function PriceResearchCard({ routeId, brandId, brandName, pdvId, promoterId, pdvName, promotorName }: PriceResearchCardProps) {
   const { data: researches = [] } = useRouteResearch(routeId);
   const executeResearch = useExecuteResearch();
-
-  // Find research for this brand
-  const research = researches.find((r: any) => r.brand_id === brandId);
-  if (!research) return null;
-
-  const status = research.status || 'not_started';
-  const isMandatory = research.rule?.block_route_completion || research.is_mandatory;
-
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Find research for this brand
+  const research = researches.find((r: any) => r.brand_id === brandId);
+
   useEffect(() => {
-    if (research.items?.length > 0) {
+    if (research?.items?.length > 0) {
       setItems(research.items);
     }
   }, [research]);
+
+  if (!research) return null;
+
+  const status = research.status || 'not_started';
+  const isMandatory = research.rule?.block_route_completion || research.is_mandatory;
 
   const completedCount = items.filter(i => i.price !== null && i.price !== undefined && i.price !== '').length;
   const totalCount = items.length;
