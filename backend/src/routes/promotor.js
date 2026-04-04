@@ -1040,9 +1040,9 @@ router.put('/rh/inbound-documents/:id', async (req, res) => {
 // =============================================
 // RH: MONITORAMENTO DE PONTO EM TEMPO REAL
 // =============================================
-router.get('/rh/punch-monitor', async (req, res) => {
+router.get('/rh/punch-monitor', authenticate, async (req, res) => {
   try {
-    const orgId = req.query.org_id || (await query(`SELECT organization_id FROM organization_members WHERE user_id = $1 LIMIT 1`, [req.userId])).rows[0]?.organization_id;
+    const orgId = await resolveOrganizationId(req);
     const today = new Date().toISOString().slice(0, 10);
 
     const [punched, notPunched, alerts, outsidePdv] = await Promise.all([
