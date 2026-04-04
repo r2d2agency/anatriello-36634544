@@ -23,6 +23,7 @@ import {
   Plus, CheckCircle, XCircle, Stethoscope, CalendarDays, Users, Timer,
   ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip, Sparkles, Search, ShieldCheck, ShieldX, ShieldQuestion
 } from "lucide-react";
+import { OvertimeRequestsPanel, useOvertimePendingCount } from "@/components/rh/OvertimeRequestsPanel";
 import { format } from "date-fns";
 
 const safeDate = (v: any): Date | null => {
