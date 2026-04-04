@@ -23,6 +23,7 @@ import {
   usePriceResearchExecutions, useValidateExecution,
 } from "@/hooks/use-price-research";
 import { useUpload } from "@/hooks/use-upload";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   DollarSign, Plus, Trash2, Image as ImageIcon, Upload, FileText, List, CheckCircle2,
   Calendar, Settings, Building2, Package, Eye, Share2, Edit, Clock, BarChart3,
@@ -604,7 +605,7 @@ function ProdutosTab({ brands }: { brands: any[] }) {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
                     {(prodInfo?.photo_url || m.photo_url) ? (
-                      <img src={prodInfo?.photo_url || m.photo_url} alt={m.product_name} className="h-12 w-12 rounded object-cover border" />
+                      <img src={resolveMediaUrl(prodInfo?.photo_url || m.photo_url) || ''} alt={m.product_name} className="h-12 w-12 rounded object-cover border" />
                     ) : (
                       <div className="h-12 w-12 rounded bg-muted flex items-center justify-center"><Package className="h-5 w-5 text-muted-foreground" /></div>
                     )}
@@ -623,7 +624,7 @@ function ProdutosTab({ brands }: { brands: any[] }) {
                     {m.competitor_products.map((cp: any) => (
                       <div key={cp.id} className="flex items-center justify-between text-sm bg-muted/50 rounded px-2 py-1">
                         <div className="flex items-center gap-2">
-                          {cp.photo_url ? <img src={cp.photo_url} alt={cp.competitor_product_name} className="h-8 w-8 rounded object-cover border" /> : <div className="h-8 w-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="h-3 w-3 text-muted-foreground" /></div>}
+                          {cp.photo_url ? <img src={resolveMediaUrl(cp.photo_url) || ''} alt={cp.competitor_product_name} className="h-8 w-8 rounded object-cover border" /> : <div className="h-8 w-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="h-3 w-3 text-muted-foreground" /></div>}
                           <span>{cp.competitor_name} — {cp.competitor_product_name}</span>
                         </div>
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteCP.mutate(cp.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
@@ -651,7 +652,7 @@ function ProdutosTab({ brands }: { brands: any[] }) {
               {availableProducts.map((p: any) => (
                 <SelectItem key={p.id} value={p.id}>
                   <div className="flex items-center gap-2">
-                    {p.photo_url && <img src={p.photo_url} alt="" className="h-5 w-5 rounded object-cover" />}
+                    {p.photo_url && <img src={resolveMediaUrl(p.photo_url) || ''} alt="" className="h-5 w-5 rounded object-cover" />}
                     <span>{p.name}</span>
                   </div>
                 </SelectItem>
@@ -661,7 +662,7 @@ function ProdutosTab({ brands }: { brands: any[] }) {
           {selectedProductData && (
             <Card className="p-3">
               <div className="flex items-center gap-3">
-                {selectedProductData.photo_url ? <img src={selectedProductData.photo_url} alt={selectedProductData.name} className="h-16 w-16 rounded object-cover border" /> : <div className="h-16 w-16 rounded bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>}
+                {selectedProductData.photo_url ? <img src={resolveMediaUrl(selectedProductData.photo_url) || ''} alt={selectedProductData.name} className="h-16 w-16 rounded object-cover border" /> : <div className="h-16 w-16 rounded bg-muted flex items-center justify-center"><Package className="h-6 w-6 text-muted-foreground" /></div>}
                 <div>
                   <p className="font-medium">{selectedProductData.name}</p>
                   {selectedProductData.sku && <p className="text-xs text-muted-foreground">SKU: {selectedProductData.sku}</p>}
@@ -706,7 +707,7 @@ function ProdutosTab({ brands }: { brands: any[] }) {
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ''; }} />
                 {compPhotoUrl ? (
                   <div className="flex flex-col items-center gap-2">
-                    <img src={compPhotoUrl} alt="Preview" className="h-24 w-24 rounded object-cover border" />
+                    <img src={resolveMediaUrl(compPhotoUrl) || ''} alt="Preview" className="h-24 w-24 rounded object-cover border" />
                     <p className="text-xs text-muted-foreground">Clique ou arraste para substituir</p>
                   </div>
                 ) : (
