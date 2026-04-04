@@ -485,6 +485,13 @@ export default function PromotorRota() {
       toast.error('Esta rota exige foto obrigatória no check-in');
       return;
     }
+    // Require facial verification if active
+    if (isFacialActiveCheckin && faceVerifyAction !== 'checkin') {
+      setFaceVerifyAction('checkin');
+      setShowFaceVerify(true);
+      return;
+    }
+    setFaceVerifyAction(null);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
@@ -495,6 +502,7 @@ export default function PromotorRota() {
         longitude: pos.coords.longitude,
         device: navigator.userAgent,
         photo_url: checkinPhotoUrl || undefined,
+        facial_verified: isFacialActiveCheckin || undefined,
       }, {
         onSuccess: () => toast.success('Check-in realizado!'),
         onError: (err: any) => toast.error(err.message),
@@ -502,10 +510,17 @@ export default function PromotorRota() {
     } catch {
       toast.error('Não foi possível obter localização');
     }
-  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl]);
+  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction]);
 
   const handleCompleteRoute = useCallback(() => {
     if (!id) return;
+    // Require facial verification if active
+    if (isFacialActiveCheckin && faceVerifyAction !== 'checkout') {
+      setFaceVerifyAction('checkout');
+      setShowFaceVerify(true);
+      return;
+    }
+    setFaceVerifyAction(null);
     checkout.mutate({ id, notes: actionForm.notes }, {
       onSuccess: (data: any) => {
         toast.success('Rota finalizada!');
@@ -520,10 +535,17 @@ export default function PromotorRota() {
       },
       onError: (err: any) => toast.error(err.message),
     });
-  }, [id, checkout, actionForm, navigate]);
+  }, [id, checkout, actionForm, navigate, isFacialActiveCheckin, faceVerifyAction]);
 
   const handlePdvCheckout = useCallback(async () => {
     if (!route?.pdv_id) return;
+    // Require facial verification if active
+    if (isFacialActiveCheckin && faceVerifyAction !== 'pdv_checkout') {
+      setFaceVerifyAction('pdv_checkout');
+      setShowFaceVerify(true);
+      return;
+    }
+    setFaceVerifyAction(null);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
