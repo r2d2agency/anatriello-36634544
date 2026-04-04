@@ -36,7 +36,7 @@ export default function SupermarketDashboard() {
   const { user } = useSupermarketAuth();
   const [showCreateIncident, setShowCreateIncident] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
-  const { incidents, createIncident, respondIncident } = useIncidents('supermarket');
+  const { incidents, createIncident, respondIncident, analyzeIncident } = useIncidents('supermarket');
   const { scores } = usePromoterScores('supermarket');
 
   const { data: live } = useQuery({
