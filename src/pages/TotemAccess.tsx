@@ -272,6 +272,12 @@ const TotemAccess = () => {
   };
 
   const handleConfirmCheckin = async () => {
+    // If facial recognition enabled and not yet verified, open facial dialog
+    if (authConfig.facial_recognition_enabled && lookupResult?.face_descriptor?.length && !facialVerified) {
+      setFacialPendingAction("checkin");
+      setShowFacialVerify(true);
+      return;
+    }
     // If selfie required and not captured yet, open camera
     if (selfieRequired && !selfieCapture) { startCamera(); return; }
     setLoading(true);
