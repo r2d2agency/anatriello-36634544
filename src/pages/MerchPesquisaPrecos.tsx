@@ -285,6 +285,7 @@ function ModelEditorDialog({ rule, brands, open, onClose }: { rule: any; brands:
       description: newComp.description || '',
       photo_url: newComp.photo_url || '',
       unit_measure: newComp.unit_measure || '',
+      ean: newComp.ean || '',
     };
     setCompetitorConfig(prev => ({
       ...prev,
