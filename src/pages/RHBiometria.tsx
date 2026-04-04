@@ -34,6 +34,8 @@ const RHBiometria = () => {
   const [filter, setFilter] = useState("all");
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollingName, setEnrollingName] = useState("");
+  const [testingEmp, setTestingEmp] = useState<EmployeeFace | null>(null);
+  const [testDescriptor, setTestDescriptor] = useState<number[]>([]);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["rh-facial-employees", filter],
