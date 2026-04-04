@@ -52,7 +52,6 @@ export default function PromotorHome() {
   const [pdvCheckoutLoading, setPdvCheckoutLoading] = useState(false);
   const [actionPdv, setActionPdv] = useState<{ pdv_id: string; pdv_name: string } | null>(null);
   const [showFaceVerify, setShowFaceVerify] = useState(false);
-  const [faceVerifyPending, setFaceVerifyPending] = useState(false);
 
   // Fetch facial config for this promotor
   const promotorToken = localStorage.getItem('promotor_token');
@@ -164,17 +163,16 @@ export default function PromotorHome() {
   const canPunch = scheduleStatus?.is_within_schedule || scheduleStatus?.has_overtime_approval;
   const isOutsideSchedule = scheduleStatus && !scheduleStatus.is_within_schedule;
 
-  const handlePunch = async () => {
+  const handlePunch = async (facialVerified = false) => {
     if (gpsStatus !== 'active' || !currentPos) {
       toast({ title: 'GPS necessário', description: 'Ative a localização para bater o ponto', variant: 'destructive' });
       return;
     }
     // If facial is active, require verification first
-    if (isFacialActive && !faceVerifyPending) {
+    if (isFacialActive && !facialVerified) {
       setShowFaceVerify(true);
       return;
     }
-    setFaceVerifyPending(false);
     setPunchLoading(true);
     try {
       const pdvId = dailyAssignment?.pdv_id || availablePdvs[0]?.id;
@@ -184,7 +182,7 @@ export default function PromotorHome() {
         longitude: currentPos.lng,
         accuracy_meters: currentPos.accuracy,
         pdv_id: pdvId,
-        facial_verified: isFacialActive || undefined,
+        facial_verified: facialVerified || undefined,
       });
       toast({ title: 'Ponto registrado!', description: PUNCH_LABELS[getNextPunchType()] });
     } catch (err: any) {
@@ -201,10 +199,9 @@ export default function PromotorHome() {
     setShowFaceVerify(false);
     if (result.match) {
       toast({ title: '✅ Identidade confirmada', description: `Similaridade: ${result.score.toFixed(1)}%` });
-      setFaceVerifyPending(true);
       // Trigger punch after successful facial
       setTimeout(() => {
-        handlePunch();
+        handlePunch(true);
       }, 300);
     } else {
       toast({ title: '❌ Identidade não confirmada', description: `Similaridade: ${result.score.toFixed(1)}%. Ponto bloqueado.`, variant: 'destructive' });
@@ -449,7 +446,7 @@ export default function PromotorHome() {
             <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <Button
-                  onClick={handlePunch}
+                  onClick={() => void handlePunch()}
                   disabled={punchLoading || gpsStatus !== 'active' || (!canPunch && isOutsideSchedule)}
                   className={`w-full h-24 rounded-none text-lg font-bold ${
                     !canPunch && isOutsideSchedule
@@ -535,7 +532,7 @@ export default function PromotorHome() {
               </div>
             )}
             <Button
-              onClick={handlePunch}
+              onClick={() => void handlePunch()}
               disabled={punchLoading || gpsStatus !== 'active' || (!canPunch && isOutsideSchedule)}
               className={`w-full h-20 rounded-none text-lg font-bold ${
                 !canPunch && isOutsideSchedule
