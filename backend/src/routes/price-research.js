@@ -354,7 +354,16 @@ router.get('/executions/:id', authenticate, async (req, res) => {
       LEFT JOIN price_research_rules r ON r.id = e.rule_id
       WHERE e.id = $1`, [req.params.id])).rows[0];
     if (!exec) return res.status(404).json({ error: 'Não encontrado' });
-    const items = (await query(`SELECT i.*, p.name as product_name, p.photo_url, p.description FROM price_research_items i
+
+    let productCols = 'p.name as product_name';
+    try {
+      const colCheck = await query(`SELECT column_name FROM information_schema.columns WHERE table_name='products' AND column_name IN ('photo_url','description')`);
+      const existing = colCheck.rows.map((r) => r.column_name);
+      if (existing.includes('photo_url')) productCols += ', p.photo_url';
+      if (existing.includes('description')) productCols += ', p.description';
+    } catch {}
+
+    const items = (await query(`SELECT i.*, ${productCols} FROM price_research_items i
       LEFT JOIN products p ON p.id = i.product_id WHERE i.execution_id = $1 ORDER BY p.name`, [exec.id])).rows;
     for (const item of items) {
       item.competitors = (await query(`SELECT ic.*, cp.photo_url FROM price_research_item_competitors ic
