@@ -1478,23 +1478,51 @@ function requireSupervisor(req, res, next) {
 // Get subordinates (team)
 router.get('/supervisor/team', authenticatePromotor, requireSupervisor, async (req, res) => {
   try {
-    const result = await query(
-      `SELECT e.id, e.full_name, e.position, e.photo_url, e.worker_profile, e.work_schedule,
-              e.status, e.phone,
+    // Base query using only the employees table (always exists)
+    let sql = `SELECT e.id, e.full_name, e.position, e.photo_url, e.worker_profile, e.work_schedule,
+              e.status, e.phone`;
+
+    // Check which optional tables exist to avoid 500 errors
+    const tablesCheck = await query(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name IN ('location_tracking', 'attendance_punches', 'merch_routes')`
+    );
+    const existingTables = new Set(tablesCheck.rows.map(r => r.table_name));
+
+    if (existingTables.has('location_tracking')) {
+      sql += `,
               lt.latitude as last_latitude, lt.longitude as last_longitude,
               lt.is_moving, lt.battery_level, lt.recorded_at as last_location_at,
-              CASE WHEN lt.recorded_at > NOW() - interval '10 minutes' THEN 'online' ELSE 'offline' END as live_status,
-              (SELECT p2.pdv_name FROM attendance_punches p2 WHERE p2.employee_id = e.id AND p2.punched_at::date = CURRENT_DATE ORDER BY p2.punched_at DESC LIMIT 1) as last_pdv_name,
-              (SELECT COUNT(*) FROM merch_routes mr WHERE mr.promoter_id = e.id AND mr.visit_date = CURRENT_DATE) as today_routes_count
-       FROM employees e
-       LEFT JOIN LATERAL (
+              CASE WHEN lt.recorded_at > NOW() - interval '10 minutes' THEN 'online' ELSE 'offline' END as live_status`;
+    } else {
+      sql += `, NULL as last_latitude, NULL as last_longitude, NULL as is_moving, NULL as battery_level, NULL as last_location_at, 'offline' as live_status`;
+    }
+
+    if (existingTables.has('attendance_punches')) {
+      sql += `, (SELECT p2.pdv_name FROM attendance_punches p2 WHERE p2.employee_id = e.id AND p2.punched_at::date = CURRENT_DATE ORDER BY p2.punched_at DESC LIMIT 1) as last_pdv_name`;
+    } else {
+      sql += `, NULL as last_pdv_name`;
+    }
+
+    if (existingTables.has('merch_routes')) {
+      sql += `, (SELECT COUNT(*) FROM merch_routes mr WHERE mr.promoter_id = e.id AND mr.visit_date = CURRENT_DATE) as today_routes_count`;
+    } else {
+      sql += `, 0 as today_routes_count`;
+    }
+
+    sql += ` FROM employees e`;
+
+    if (existingTables.has('location_tracking')) {
+      sql += ` LEFT JOIN LATERAL (
          SELECT latitude, longitude, is_moving, battery_level, recorded_at
          FROM location_tracking WHERE employee_id = e.id ORDER BY recorded_at DESC LIMIT 1
-       ) lt ON true
-       WHERE e.organization_id = $1 AND e.direct_manager_id = $2 AND e.status = 'ativo'
-       ORDER BY e.full_name`,
-      [req.organizationId, req.employeeId]
-    );
+       ) lt ON true`;
+    }
+
+    sql += ` WHERE e.organization_id = $1 AND e.direct_manager_id = $2 AND e.status = 'ativo'
+       ORDER BY e.full_name`;
+
+    const result = await query(sql, [req.organizationId, req.employeeId]);
     res.json(result.rows);
   } catch (err) {
     logError('supervisor.team', err);
