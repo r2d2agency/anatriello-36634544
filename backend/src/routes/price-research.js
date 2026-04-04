@@ -556,6 +556,26 @@ router.put('/executions/:id/publish', authenticate, async (req, res) => {
   } catch (err) { logError('price-research.publish', err); res.status(500).json({ error: 'Erro' }); }
 });
 
+// ===== Item Competitors CRUD =====
+router.post('/item-competitors', authenticate, async (req, res) => {
+  try {
+    const { item_id, competitor_product_name, competitor_brand_name, photo_url } = req.body;
+    if (!item_id || !competitor_product_name) return res.status(400).json({ error: 'item_id e nome obrigatórios' });
+    const result = await query(
+      `INSERT INTO price_research_item_competitors (item_id, competitor_product_name, competitor_brand_name, photo_url) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [item_id, competitor_product_name, competitor_brand_name || null, photo_url || null]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { logError('price-research.add-item-competitor', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.delete('/item-competitors/:id', authenticate, async (req, res) => {
+  try {
+    await query('DELETE FROM price_research_item_competitors WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { logError('price-research.delete-item-competitor', err); res.status(500).json({ error: 'Erro' }); }
+});
+
 // ===== Share rule =====
 router.put('/rules/:id/share', authenticate, async (req, res) => {
   try {
