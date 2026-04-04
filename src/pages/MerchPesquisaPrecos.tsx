@@ -88,9 +88,10 @@ export default function MerchPesquisaPrecos() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
             <TabsTrigger value="modelos"><FileText className="h-4 w-4 mr-1" />Modelos</TabsTrigger>
             <TabsTrigger value="agendamentos"><Calendar className="h-4 w-4 mr-1" />Pesquisas</TabsTrigger>
+            <TabsTrigger value="redes"><Globe className="h-4 w-4 mr-1" />Redes</TabsTrigger>
             <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1" />Dashboard</TabsTrigger>
             <TabsTrigger value="marcas"><Building2 className="h-4 w-4 mr-1" />Marcas</TabsTrigger>
           </TabsList>
@@ -100,6 +101,9 @@ export default function MerchPesquisaPrecos() {
           </TabsContent>
           <TabsContent value="agendamentos">
             <PesquisasTab brands={brands} />
+          </TabsContent>
+          <TabsContent value="redes">
+            <RedesTab />
           </TabsContent>
           <TabsContent value="dashboard">
             <DashboardTab brands={brands} />
