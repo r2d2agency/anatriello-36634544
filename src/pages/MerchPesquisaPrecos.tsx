@@ -20,8 +20,9 @@ import {
   usePriceResearchMappings, useCreateProductMapping, useDeleteProductMapping,
   useCreateCompetitorProduct, useDeleteCompetitorProduct,
 } from "@/hooks/use-price-research";
+import { useUpload } from "@/hooks/use-upload";
 import {
-  DollarSign, Settings, Building2, Package, Plus, Trash2, Image as ImageIcon,
+  DollarSign, Settings, Building2, Package, Plus, Trash2, Image as ImageIcon, Upload,
 } from "lucide-react";
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
