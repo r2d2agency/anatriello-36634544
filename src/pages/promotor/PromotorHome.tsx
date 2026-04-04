@@ -51,6 +51,26 @@ export default function PromotorHome() {
   const [pdvCheckoutNotes, setPdvCheckoutNotes] = useState('');
   const [pdvCheckoutLoading, setPdvCheckoutLoading] = useState(false);
   const [actionPdv, setActionPdv] = useState<{ pdv_id: string; pdv_name: string } | null>(null);
+  const [showFaceVerify, setShowFaceVerify] = useState(false);
+  const [faceVerifyPending, setFaceVerifyPending] = useState(false);
+
+  // Fetch facial config for this promotor
+  const promotorToken = localStorage.getItem('promotor_token');
+  const { data: facialConfig } = useQuery({
+    queryKey: ['promotor-facial-config'],
+    queryFn: async () => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (promotorToken) headers['Authorization'] = `Bearer ${promotorToken}`;
+      const url = `${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/promotor/facial-config`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+    staleTime: 300000,
+  });
+
+  const isFacialActive = facialConfig?.enabled && facialConfig?.use_for_attendance && facialConfig?.has_enrollment;
 
   const employee = data?.employee;
   const todayPunches = data?.today_punches || [];
