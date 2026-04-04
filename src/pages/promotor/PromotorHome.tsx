@@ -169,6 +169,12 @@ export default function PromotorHome() {
       toast({ title: 'GPS necessário', description: 'Ative a localização para bater o ponto', variant: 'destructive' });
       return;
     }
+    // If facial is active, require verification first
+    if (isFacialActive && !faceVerifyPending) {
+      setShowFaceVerify(true);
+      return;
+    }
+    setFaceVerifyPending(false);
     setPunchLoading(true);
     try {
       const pdvId = dailyAssignment?.pdv_id || availablePdvs[0]?.id;
@@ -178,6 +184,7 @@ export default function PromotorHome() {
         longitude: currentPos.lng,
         accuracy_meters: currentPos.accuracy,
         pdv_id: pdvId,
+        facial_verified: isFacialActive || undefined,
       });
       toast({ title: 'Ponto registrado!', description: PUNCH_LABELS[getNextPunchType()] });
     } catch (err: any) {
@@ -187,6 +194,20 @@ export default function PromotorHome() {
       toast({ title: 'Erro ao registrar ponto', description: err.message, variant: 'destructive' });
     } finally {
       setPunchLoading(false);
+    }
+  };
+
+  const handleFaceVerifyResult = (result: { match: boolean; score: number; imageDataUrl: string }) => {
+    setShowFaceVerify(false);
+    if (result.match) {
+      toast({ title: '✅ Identidade confirmada', description: `Similaridade: ${result.score.toFixed(1)}%` });
+      setFaceVerifyPending(true);
+      // Trigger punch after successful facial
+      setTimeout(() => {
+        handlePunch();
+      }, 300);
+    } else {
+      toast({ title: '❌ Identidade não confirmada', description: `Similaridade: ${result.score.toFixed(1)}%. Ponto bloqueado.`, variant: 'destructive' });
     }
   };
 
