@@ -2849,6 +2849,25 @@ router.get('/supermarket-portal/daily-summary', authenticateSupermarket, async (
 });
 
 // ============ SUPERMARKET: Authorized contacts ============
+// ============ SUPERMARKET-PORTAL: History (alias with from/to) ============
+router.get('/supermarket-portal/history', authenticateSupermarket, async (req, res) => {
+  try {
+    const { from, to, status } = req.query;
+    let sql = `SELECT el.*, ap.name as promoter_name, ap.photo_url, a.name as agency_name
+               FROM pdv_entry_logs el
+               LEFT JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
+               LEFT JOIN agencies a ON a.id = ap.agency_id
+               WHERE el.supermarket_unit_id = $1`;
+    const params = [req.unitId];
+    if (from) { params.push(from); sql += ` AND el.entry_at::date >= $${params.length}`; }
+    if (to) { params.push(to); sql += ` AND el.entry_at::date <= $${params.length}`; }
+    if (status) { params.push(status); sql += ` AND el.status = $${params.length}`; }
+    sql += ' ORDER BY el.entry_at DESC LIMIT 500';
+    const r = await query(sql, params);
+    res.json(r.rows);
+  } catch (err) { logError('sm.portal.history', err); res.status(500).json({ error: 'Erro ao buscar histórico' }); }
+});
+
 router.get('/supermarket-portal/authorized-contacts', authenticateSupermarket, async (req, res) => {
   try {
     await ensureAuthorizedContactsInfra();
