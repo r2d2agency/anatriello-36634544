@@ -1060,6 +1060,51 @@ async function ensureExecutionCategoryTables() {
 ensurePdvVisitTables().catch(() => {});
 ensureExecutionCategoryTables().catch(() => {});
 
+// Ensure multi-brand route tables exist
+async function ensureRouteBrandsTables() {
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS route_brands (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      route_id UUID NOT NULL REFERENCES merch_routes(id) ON DELETE CASCADE,
+      brand_id UUID NOT NULL,
+      checklist_id UUID,
+      status VARCHAR(30) DEFAULT 'pending',
+      progress_pct NUMERIC(5,2) DEFAULT 0,
+      started_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(route_id, brand_id)
+    )`);
+    await query(`ALTER TABLE route_product_executions ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
+    await query(`ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
+    try { await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID`); } catch {}
+  } catch (e) { logWarn('ensureRouteBrandsTables.failed', { error: e?.message }); }
+}
+ensureRouteBrandsTables().catch(() => {});
+
+// Helper: hydrate products for a route_brand
+async function hydrateRouteBrandProducts(routeId, routeBrandId, pdvId, brandId) {
+  try {
+    const mixProducts = await query(
+      `SELECT pbp.product_id, p.category_id
+       FROM merch_pdv_brand_products pbp
+       JOIN merch_products p ON p.id = pbp.product_id
+       WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.active=true`,
+      [pdvId, brandId]
+    );
+    for (const mp of mixProducts.rows) {
+      await query(
+        `INSERT INTO route_product_executions (route_id, product_id, category_id, route_brand_id)
+         VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+        [routeId, mp.product_id, mp.category_id, routeBrandId]
+      );
+    }
+    return mixProducts.rows.length;
+  } catch (e) { logError('hydrateRouteBrandProducts', e); return 0; }
+}
+
 // Promotor auth middleware
 function promotorAuth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
