@@ -276,6 +276,40 @@ function ProductMappingsPanel({ brandId }: { brandId: string }) {
   const [compName, setCompName] = useState('');
   const [compCompetitorId, setCompCompetitorId] = useState('');
   const [compPhotoUrl, setCompPhotoUrl] = useState('');
+  const { uploadFile, isUploading } = useUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Apenas imagens são permitidas');
+      return;
+    }
+    try {
+      const url = await uploadFile(file);
+      if (url) setCompPhotoUrl(url);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao enviar foto');
+    }
+  }, [uploadFile]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  }, [handleFileUpload]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) { handleFileUpload(file); break; }
+      }
+    }
+  }, [handleFileUpload]);
 
   const mappedProductIds = new Set(mappings.map((m: any) => m.product_id));
   const availableProducts = products.filter((p: any) => !mappedProductIds.has(p.id));
