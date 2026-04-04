@@ -36,6 +36,23 @@ export function useShareRule() {
   });
 }
 
+// ===== Delete Execution =====
+export function useDeleteExecution() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<any>(`/api/price-research/executions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['price-research-executions'] }),
+  });
+}
+
+export function useBulkDeleteExecutions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => api<any>('/api/price-research/executions/bulk-delete', { method: 'POST', body: { ids } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['price-research-executions'] }),
+  });
+}
+
 // ===== Validate / Publish =====
 export function useValidateExecution() {
   const qc = useQueryClient();
