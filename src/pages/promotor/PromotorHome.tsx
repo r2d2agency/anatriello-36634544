@@ -10,13 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { usePromotorHome, usePromotorPunch, usePromotorOvertimeRequest } from "@/hooks/use-promotor";
 import { CameraCapture } from "@/components/promotor/CameraCapture";
+import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDialog";
 import { PromotorLayout } from "./PromotorLayout";
 import {
   Clock, FileText, Bell, MapPin, Wifi, WifiOff, Navigation, AlertTriangle, CheckCircle2,
-  Loader2, ShieldAlert, Timer, ChevronRight, PlayCircle, Package, Store
+  Loader2, ShieldAlert, Timer, ChevronRight, PlayCircle, Package, Store, ScanFace
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-500/20 text-blue-700',
