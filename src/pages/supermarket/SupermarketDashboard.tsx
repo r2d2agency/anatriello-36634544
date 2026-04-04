@@ -302,7 +302,9 @@ export default function SupermarketDashboard() {
       <IncidentDetailDialog open={!!selectedIncident} onOpenChange={() => setSelectedIncident(null)}
         incident={selectedIncident} canRespond responderType="supermarket"
         responderName={user?.unit_name}
-        onRespond={(data) => respondIncident.mutate(data)} />
+        onRespond={(data) => respondIncident.mutate(data)}
+        onAnalyze={(id) => analyzeIncident.mutate(id)}
+        isAnalyzing={analyzeIncident.isPending} />
     </div>
   );
 }
