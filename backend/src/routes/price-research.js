@@ -18,6 +18,13 @@ async function ensureTables() {
     preferred_time TIME, require_photo BOOLEAN DEFAULT false, require_justification BOOLEAN DEFAULT true,
     block_route_completion BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(organization_id, brand_id))`);
+  // Add name/description/scheduled_date/schedule_dates to rules
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS name VARCHAR(255)'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS description TEXT'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS scheduled_date DATE'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS schedule_dates JSONB'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS shared_with_brand BOOLEAN DEFAULT false'); } catch {}
+  try { await query('ALTER TABLE price_research_rules ADD COLUMN IF NOT EXISTS validated BOOLEAN DEFAULT false'); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_brand_competitors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, brand_id UUID NOT NULL,
     competitor_name VARCHAR(255) NOT NULL, category VARCHAR(100), active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);
@@ -28,16 +35,20 @@ async function ensureTables() {
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), mapping_id UUID NOT NULL, competitor_id UUID NOT NULL,
     competitor_product_name VARCHAR(255) NOT NULL, category VARCHAR(100), subcategory VARCHAR(100),
     unit_measure VARCHAR(50), photo_url TEXT, active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT NOW())`);
-  // Ensure photo_url column exists
   try { await query('ALTER TABLE price_research_competitor_products ADD COLUMN IF NOT EXISTS photo_url TEXT'); } catch {}
-  // Ensure frequency 'once' is supported
   try { await query("ALTER TABLE price_research_rules DROP CONSTRAINT IF EXISTS price_research_rules_frequency_check"); } catch {}
+  // Drop unique constraint to allow multiple models per brand
+  try { await query("ALTER TABLE price_research_rules DROP CONSTRAINT IF EXISTS price_research_rules_organization_id_brand_id_key"); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL, schedule_id UUID,
-    route_id UUID NOT NULL, brand_id UUID NOT NULL, pdv_id UUID NOT NULL, promoter_id UUID NOT NULL,
-    status VARCHAR(30) DEFAULT 'pending', progress_pct NUMERIC(5,2) DEFAULT 0, total_items INTEGER DEFAULT 0,
+    route_id UUID, brand_id UUID NOT NULL, pdv_id UUID, promoter_id UUID,
+    rule_id UUID, status VARCHAR(30) DEFAULT 'pending', progress_pct NUMERIC(5,2) DEFAULT 0, total_items INTEGER DEFAULT 0,
     completed_items INTEGER DEFAULT 0, started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`);
+  try { await query('ALTER TABLE price_research_executions ADD COLUMN IF NOT EXISTS rule_id UUID'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ALTER COLUMN route_id DROP NOT NULL'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ALTER COLUMN pdv_id DROP NOT NULL'); } catch {}
+  try { await query('ALTER TABLE price_research_executions ALTER COLUMN promoter_id DROP NOT NULL'); } catch {}
   await query(`CREATE TABLE IF NOT EXISTS price_research_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), execution_id UUID NOT NULL, product_id UUID NOT NULL,
     price NUMERIC(10,2), observation TEXT, collected_at TIMESTAMPTZ, collected_by UUID,
