@@ -40,7 +40,23 @@ router.get('/routes', authenticate, async (req, res) => {
 
     sql += ' ORDER BY r.visit_date, r.scheduled_time';
     const result = await query(sql, params);
-    res.json(result.rows);
+
+    // Enrich multi-brand routes
+    const rows = result.rows;
+    try {
+      const mbIds = rows.filter(r => !r.brand_id).map(r => r.id);
+      if (mbIds.length > 0) {
+        const rbRes = await query(
+          `SELECT rb.route_id, rb.brand_id, rb.status, rb.progress_pct, b.name as brand_name
+           FROM route_brands rb LEFT JOIN merch_brands b ON b.id = rb.brand_id
+           WHERE rb.route_id = ANY($1) ORDER BY rb.sort_order`, [mbIds]);
+        const rbMap = {};
+        for (const rb of rbRes.rows) { if (!rbMap[rb.route_id]) rbMap[rb.route_id] = []; rbMap[rb.route_id].push(rb); }
+        for (const r of rows) { if (rbMap[r.id]) { r.route_brands = rbMap[r.id]; r.is_multi_brand = true; r.brand_name = rbMap[r.id].map(b => b.brand_name).join(', '); } }
+      }
+    } catch {}
+
+    res.json(rows);
   } catch (err) {
     logError('routes.list', err);
     // If table doesn't exist yet, return empty
