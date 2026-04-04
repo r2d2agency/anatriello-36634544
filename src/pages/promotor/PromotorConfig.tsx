@@ -13,7 +13,8 @@ import { SyncDiagnosticPanel } from "@/components/promotor/SyncDiagnosticPanel";
 import { Settings, Lock, Palette, Wifi, WifiOff, Navigation, Smartphone, Loader2, Download, RefreshCw } from "lucide-react";
 import { canInstallPWA, installPWA, isPWAInstalled } from "@/lib/pwa";
 
-const [updating, setUpdating] = useState(false);
+export default function PromotorConfig() {
+  const [updating, setUpdating] = useState(false);
   const { data: settings } = usePromotorSettings();
   const updateSettings = usePromotorUpdateSettings();
   const changePassword = usePromotorChangePassword();
