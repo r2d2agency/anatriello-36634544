@@ -1223,6 +1223,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
         scheduled_time: editTime || undefined,
         items: editItems.map((item: any) => ({
           product_id: item.product_id,
+          product_name: item.product_name || null,
           price: item.price ?? null,
           observation: item.observation ?? null,
           competitors: (item.competitors || []).map((comp: any) => ({
@@ -1236,6 +1237,8 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
           })),
         })),
       });
+      // Wait for fresh data before exiting edit mode
+      await qc.refetchQueries({ queryKey: ['price-research-execution', id] });
       toast.success('Pesquisa atualizada!');
       setEditing(false);
     } catch (err: any) {
