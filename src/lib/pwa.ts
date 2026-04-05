@@ -23,6 +23,12 @@ if ('serviceWorker' in navigator) {
       onRegisteredSW(_, registration) {
         registration?.update().catch(() => {});
       },
+      onRegisterError(error) {
+        console.warn('[PWA] SW registration failed, clearing caches:', error);
+        if ('caches' in window) {
+          caches.keys().then(names => names.forEach(name => caches.delete(name)));
+        }
+      },
     });
   } else {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
