@@ -2,27 +2,58 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Force-clear stale service worker caches on every load
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs =>
-    Promise.all(regs.map(r => r.unregister()))
-  ).then(() =>
-    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
-  ).catch(() => {});
-}
+const PWA_RECOVERY_KEY = "pwa-bad-precache-recovered";
 
-// Initialize PWA install prompt handler
-import "./lib/pwa";
+const recoverFromBrokenServiceWorker = async () => {
+  if (sessionStorage.getItem(PWA_RECOVERY_KEY) === "1") {
+    return;
+  }
 
-// Initialize theme before render to prevent flash
+  sessionStorage.setItem(PWA_RECOVERY_KEY, "1");
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // ignore cleanup errors and still reload
+  }
+
+  window.location.reload();
+};
+
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = String(event.reason?.message ?? event.reason ?? "");
+
+  if (reason.includes("bad-precaching-response")) {
+    event.preventDefault();
+    void recoverFromBrokenServiceWorker();
+    return;
+  }
+
+  if (
+    reason.includes("insertBefore") ||
+    reason.includes("removeChild") ||
+    reason.includes("NotFoundError")
+  ) {
+    event.preventDefault();
+  }
+});
+
+void import("./lib/pwa");
+
 const savedTheme = localStorage.getItem('app-theme') || 'dark';
 const effectiveTheme = savedTheme === 'system' 
   ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
   : savedTheme;
 document.documentElement.classList.add(effectiveTheme);
 
-// Suppress DOM manipulation errors caused by browser extensions
-// (translation extensions, Grammarly, etc. modify the DOM outside React)
 window.addEventListener('error', (event) => {
   if (
     event.message?.includes('insertBefore') ||
@@ -32,16 +63,6 @@ window.addEventListener('error', (event) => {
     event.preventDefault();
     event.stopPropagation();
     return true;
-  }
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  if (
-    event.reason?.message?.includes('insertBefore') ||
-    event.reason?.message?.includes('removeChild') ||
-    event.reason?.message?.includes('NotFoundError')
-  ) {
-    event.preventDefault();
   }
 });
 
