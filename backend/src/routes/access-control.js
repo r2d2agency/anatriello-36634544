@@ -19,6 +19,114 @@ const tableExists = async (tableName) => {
   const result = await query('SELECT to_regclass($1) AS regclass', [tableName]);
   return Boolean(result.rows[0]?.regclass);
 };
+const normalizePhotoUrl = (value) => {
+  if (typeof value !== 'string') return value || null;
+  const trimmed = value.trim();
+  return trimmed || null;
+};
+
+let promoterConformitySchemaReadyPromise = null;
+async function ensurePromoterConformitySchema() {
+  if (promoterConformitySchemaReadyPromise) return promoterConformitySchemaReadyPromise;
+
+  promoterConformitySchemaReadyPromise = (async () => {
+    await query(`
+      CREATE TABLE IF NOT EXISTS promoter_conformity (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE CASCADE,
+        employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+        network_id UUID REFERENCES supermarket_networks(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        reason TEXT,
+        photo_quality_score NUMERIC(5,2),
+        photo_resolution_ok BOOLEAN DEFAULT false,
+        photo_frontal_ok BOOLEAN DEFAULT false,
+        photo_illumination_ok BOOLEAN DEFAULT false,
+        checked_at TIMESTAMPTZ DEFAULT NOW(),
+        notified_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        CONSTRAINT chk_conformity_promoter CHECK (agency_promoter_id IS NOT NULL OR employee_id IS NOT NULL)
+      )
+    `);
+
+    await query('CREATE INDEX IF NOT EXISTS idx_conformity_org ON promoter_conformity(organization_id, status)');
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS facial_comparison_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        supermarket_unit_id UUID REFERENCES supermarket_units(id) ON DELETE SET NULL,
+        agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+        employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+        entry_log_id UUID REFERENCES pdv_entry_logs(id) ON DELETE SET NULL,
+        comparison_type VARCHAR(30) NOT NULL DEFAULT 'entry_vs_base',
+        base_image_url TEXT,
+        captured_image_url TEXT,
+        confidence_score NUMERIC(5,2),
+        result VARCHAR(20) NOT NULL DEFAULT 'pending',
+        processing_time_ms INTEGER,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await query('CREATE INDEX IF NOT EXISTS idx_facial_logs_org ON facial_comparison_logs(organization_id, created_at)');
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS conformity_notifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
+        agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE CASCADE,
+        employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+        network_id UUID NOT NULL REFERENCES supermarket_networks(id) ON DELETE CASCADE,
+        notification_type VARCHAR(30) NOT NULL DEFAULT 'photo_non_conform',
+        message TEXT,
+        channel VARCHAR(20) DEFAULT 'system',
+        sent_at TIMESTAMPTZ,
+        read_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await query('CREATE INDEX IF NOT EXISTS idx_conformity_notif_agency ON conformity_notifications(agency_id, read_at)');
+
+    await query(`
+      WITH ranked AS (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY agency_promoter_id, employee_id, network_id
+                 ORDER BY updated_at DESC NULLS LAST, checked_at DESC NULLS LAST, created_at DESC NULLS LAST, id DESC
+               ) AS rn
+        FROM promoter_conformity
+      )
+      DELETE FROM promoter_conformity pc
+      USING ranked r
+      WHERE pc.id = r.id
+        AND r.rn > 1
+    `);
+
+    await query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_promoter_conformity_agency_network_unique
+      ON promoter_conformity (agency_promoter_id, network_id)
+      WHERE agency_promoter_id IS NOT NULL
+    `);
+
+    await query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_promoter_conformity_employee_network_unique
+      ON promoter_conformity (employee_id, network_id)
+      WHERE employee_id IS NOT NULL
+    `);
+  })();
+
+  try {
+    await promoterConformitySchemaReadyPromise;
+  } catch (error) {
+    promoterConformitySchemaReadyPromise = null;
+    throw error;
+  }
+}
 const isValidPhone = (value) => {
   if (!value) return true;
   const digits = onlyDigits(value);
@@ -2370,6 +2478,7 @@ router.put('/fraud-logs/:id/resolve', authenticate, async (req, res) => {
 
 // --- Check/refresh conformity for a promoter across all networks ---
 async function checkPromoterConformity(orgId, { agency_promoter_id, employee_id, photo_url }) {
+  const preparedPhotoUrl = normalizePhotoUrl(photo_url);
   // Get all networks in this org
   const networksR = await query('SELECT id, name FROM supermarket_networks WHERE organization_id=$1 AND active=true', [orgId]);
 
@@ -2395,7 +2504,7 @@ async function checkPromoterConformity(orgId, { agency_promoter_id, employee_id,
     }
 
     // Needs photo — validate
-    if (!photo_url) {
+    if (!preparedPhotoUrl) {
       const reason = 'Foto não cadastrada';
       await upsertConformity(orgId, agency_promoter_id, employee_id, network.id, 'nao_conforme', reason);
       results.push({ network_id: network.id, network_name: network.name, status: 'nao_conforme', reason });
@@ -2404,15 +2513,15 @@ async function checkPromoterConformity(orgId, { agency_promoter_id, employee_id,
 
     // Basic photo validation (URL exists, we assume quality is OK for now)
     // In production, this would call an image analysis service
-    const photoScore = photo_url ? 80 : 0;
+    const photoScore = preparedPhotoUrl ? 80 : 0;
     const status = photoScore >= 50 ? 'conforme' : 'pendente';
     const reason = status === 'conforme' ? null : 'Foto com qualidade insuficiente para reconhecimento facial';
 
     await upsertConformity(orgId, agency_promoter_id, employee_id, network.id, status, reason, {
       photo_quality_score: photoScore,
-      photo_resolution_ok: !!photo_url,
-      photo_frontal_ok: !!photo_url,
-      photo_illumination_ok: !!photo_url,
+      photo_resolution_ok: !!preparedPhotoUrl,
+      photo_frontal_ok: !!preparedPhotoUrl,
+      photo_illumination_ok: !!preparedPhotoUrl,
     });
 
     results.push({ network_id: network.id, network_name: network.name, status, reason });
@@ -2422,28 +2531,69 @@ async function checkPromoterConformity(orgId, { agency_promoter_id, employee_id,
 }
 
 async function upsertConformity(orgId, agencyPromoterId, employeeId, networkId, status, reason, extras = {}) {
-  await query(
-    `INSERT INTO promoter_conformity (organization_id, agency_promoter_id, employee_id, network_id, status, reason,
-     photo_quality_score, photo_resolution_ok, photo_frontal_ok, photo_illumination_ok, checked_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
-     ON CONFLICT ON CONSTRAINT promoter_conformity_unique DO UPDATE SET
-     status=EXCLUDED.status, reason=EXCLUDED.reason,
-     photo_quality_score=COALESCE(EXCLUDED.photo_quality_score, promoter_conformity.photo_quality_score),
-     photo_resolution_ok=COALESCE(EXCLUDED.photo_resolution_ok, promoter_conformity.photo_resolution_ok),
-     photo_frontal_ok=COALESCE(EXCLUDED.photo_frontal_ok, promoter_conformity.photo_frontal_ok),
-     photo_illumination_ok=COALESCE(EXCLUDED.photo_illumination_ok, promoter_conformity.photo_illumination_ok),
-     checked_at=NOW(), updated_at=NOW()`,
-    [orgId, agencyPromoterId || null, employeeId || null, networkId, status, reason || null,
-     extras.photo_quality_score ?? null, extras.photo_resolution_ok ?? null,
-     extras.photo_frontal_ok ?? null, extras.photo_illumination_ok ?? null]
-  );
+  const values = [
+    status,
+    reason || null,
+    extras.photo_quality_score ?? null,
+    extras.photo_resolution_ok ?? null,
+    extras.photo_frontal_ok ?? null,
+    extras.photo_illumination_ok ?? null,
+    orgId,
+    networkId,
+  ];
+
+  let updateResult;
+
+  if (agencyPromoterId) {
+    updateResult = await query(
+      `UPDATE promoter_conformity
+       SET status=$1, reason=$2, photo_quality_score=$3, photo_resolution_ok=$4,
+           photo_frontal_ok=$5, photo_illumination_ok=$6, checked_at=NOW(), updated_at=NOW()
+       WHERE organization_id=$7 AND network_id=$8 AND agency_promoter_id=$9
+       RETURNING id`,
+      [...values, agencyPromoterId]
+    );
+
+    if (updateResult.rows.length) return;
+
+    await query(
+      `INSERT INTO promoter_conformity (organization_id, agency_promoter_id, employee_id, network_id, status, reason,
+       photo_quality_score, photo_resolution_ok, photo_frontal_ok, photo_illumination_ok, checked_at, updated_at)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+      [orgId, agencyPromoterId, networkId, status, reason || null,
+       extras.photo_quality_score ?? null, extras.photo_resolution_ok ?? null,
+       extras.photo_frontal_ok ?? null, extras.photo_illumination_ok ?? null]
+    );
+    return;
+  }
+
+  if (employeeId) {
+    updateResult = await query(
+      `UPDATE promoter_conformity
+       SET status=$1, reason=$2, photo_quality_score=$3, photo_resolution_ok=$4,
+           photo_frontal_ok=$5, photo_illumination_ok=$6, checked_at=NOW(), updated_at=NOW()
+       WHERE organization_id=$7 AND network_id=$8 AND employee_id=$9
+       RETURNING id`,
+      [...values, employeeId]
+    );
+
+    if (updateResult.rows.length) return;
+
+    await query(
+      `INSERT INTO promoter_conformity (organization_id, agency_promoter_id, employee_id, network_id, status, reason,
+       photo_quality_score, photo_resolution_ok, photo_frontal_ok, photo_illumination_ok, checked_at, updated_at)
+       VALUES ($1,NULL,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+      [orgId, employeeId, networkId, status, reason || null,
+       extras.photo_quality_score ?? null, extras.photo_resolution_ok ?? null,
+       extras.photo_frontal_ok ?? null, extras.photo_illumination_ok ?? null]
+    );
+  }
 }
 
 // --- Get conformity status for all promoters ---
 router.get('/promoters/conformity', authenticate, async (req, res) => {
   try {
-    const hasTable = await tableExists('public.promoter_conformity');
-    if (!hasTable) return res.json([]);
+    await ensurePromoterConformitySchema();
 
     const orgId = await getOrgId(req.userId);
     const { network_id, status: statusFilter } = req.query;
@@ -2451,12 +2601,17 @@ router.get('/promoters/conformity', authenticate, async (req, res) => {
                ap.name as promoter_name, ap.cpf as promoter_cpf, ap.photo_url as promoter_photo,
                a.name as agency_name, a.id as agency_id,
                e.full_name as employee_name, e.cpf as employee_cpf, e.photo_url as employee_photo
-               FROM promoter_conformity pc
+               FROM (
+                 SELECT DISTINCT ON (agency_promoter_id, employee_id, network_id) *
+                 FROM promoter_conformity
+                 WHERE organization_id = $1
+                 ORDER BY agency_promoter_id, employee_id, network_id, updated_at DESC NULLS LAST, checked_at DESC NULLS LAST, created_at DESC NULLS LAST
+               ) pc
                LEFT JOIN agency_promoters ap ON ap.id = pc.agency_promoter_id
                LEFT JOIN agencies a ON a.id = ap.agency_id
                LEFT JOIN employees e ON e.id = pc.employee_id
                LEFT JOIN supermarket_networks sn ON sn.id = pc.network_id
-               WHERE pc.organization_id = $1`;
+               WHERE 1=1`;
     const params = [orgId];
     if (network_id) { params.push(network_id); sql += ` AND pc.network_id = $${params.length}`; }
     if (statusFilter) { params.push(statusFilter); sql += ` AND pc.status = $${params.length}`; }
@@ -2469,8 +2624,7 @@ router.get('/promoters/conformity', authenticate, async (req, res) => {
 // --- Bulk conformity check (all promoters) --- MUST be before :id route
 router.post('/promoters/check-all-conformity', authenticate, async (req, res) => {
   try {
-    const hasTable = await tableExists('public.promoter_conformity');
-    if (!hasTable) return res.json({ checked: 0, message: 'Tabela não disponível' });
+    await ensurePromoterConformitySchema();
 
     const orgId = await getOrgId(req.userId);
 
@@ -2505,8 +2659,7 @@ router.post('/promoters/check-all-conformity', authenticate, async (req, res) =>
 // --- Check conformity for a single promoter ---
 router.post('/promoters/:id/check-conformity', authenticate, async (req, res) => {
   try {
-    const hasTable = await tableExists('public.promoter_conformity');
-    if (!hasTable) return res.json({ results: [], message: 'Tabela de conformidade não disponível neste ambiente' });
+    await ensurePromoterConformitySchema();
 
     const orgId = await getOrgId(req.userId);
     const { id } = req.params;

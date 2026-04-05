@@ -112,8 +112,30 @@ const PromotersTab = () => {
   };
 
   const handleCheckAllConformity = async () => {
+    if (isLoading) {
+      toast({ title: "Aguarde o carregamento dos promotores" });
+      return;
+    }
+
+    if (promoters.length === 0) {
+      toast({ title: "Nenhum promotor encontrado" });
+      return;
+    }
+
     try {
-      await checkAllConformityMutation.mutateAsync();
+      const result = await checkAllConformityMutation.mutateAsync();
+      if ((result?.checked ?? 0) > 0) return;
+
+      const validPromoters = promoters.filter((p: any) => (p.employee_id || p.agency_promoter_id || p.id));
+      for (const p of validPromoters) {
+        const type = p.employee_id ? "employee" : "agency_promoter";
+        const id = p.employee_id || p.agency_promoter_id || p.id;
+        await checkConformityMutation.mutateAsync({ id, type });
+      }
+
+      if (validPromoters.length > 0) {
+        toast({ title: `Conformidade verificada para ${validPromoters.length} promotores` });
+      }
     } catch {
       const validPromoters = promoters.filter((p: any) => (p.employee_id || p.agency_promoter_id || p.id));
       for (const p of validPromoters) {

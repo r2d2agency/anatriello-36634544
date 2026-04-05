@@ -349,10 +349,13 @@ export function useCheckPromoterConformity() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: ({ id, type }: { id: string; type: "agency_promoter" | "employee" }) =>
-      api<{ results: any[] }>(`${BASE}/promoters/${id}/check-conformity`, { method: "POST", body: { type } }),
-    onSuccess: () => {
+      api<{ results: any[]; message?: string }>(`${BASE}/promoters/${id}/check-conformity`, { method: "POST", body: { type } }),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["ac-conformity"] });
-      toast({ title: "Conformidade verificada" });
+      toast({
+        title: data?.message || "Conformidade verificada",
+        variant: data?.message ? "destructive" : "default",
+      });
     },
   });
 }
@@ -361,10 +364,13 @@ export function useCheckAllConformity() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: () => api<{ checked: number }>(`${BASE}/promoters/check-all-conformity`, { method: "POST" }),
+    mutationFn: () => api<{ checked: number; message?: string }>(`${BASE}/promoters/check-all-conformity`, { method: "POST" }),
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["ac-conformity"] });
-      toast({ title: `Conformidade verificada para ${data.checked} promotores` });
+      toast({
+        title: data?.message || `Conformidade verificada para ${data.checked} promotores`,
+        variant: data?.message ? "destructive" : "default",
+      });
     },
   });
 }
