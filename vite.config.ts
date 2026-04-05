@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        disableDevLogs: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
