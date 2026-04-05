@@ -25,6 +25,8 @@ const DEFAULTS = {
   totem_button_color: '#3b82f6',
   totem_button_text_color: '#ffffff',
   totem_header_text: 'Controle de Acesso',
+  totem_slogan: '',
+  totem_pdv_name: '',
 };
 
 export default function SupermarketSettings() {
