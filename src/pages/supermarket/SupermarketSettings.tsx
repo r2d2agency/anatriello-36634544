@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Palette, Lock, Key, Copy, RefreshCw, Loader2, Eye, EyeOff, Monitor, UserCog, ExternalLink } from 'lucide-react';
+import { FileUploadInput } from '@/components/ui/file-upload-input';
 
 const getHeaders = () => {
   const t = localStorage.getItem('supermarket_auth_token');
@@ -24,6 +25,8 @@ const DEFAULTS = {
   totem_button_color: '#3b82f6',
   totem_button_text_color: '#ffffff',
   totem_header_text: 'Controle de Acesso',
+  totem_slogan: '',
+  totem_pdv_name: '',
 };
 
 export default function SupermarketSettings() {
@@ -53,6 +56,8 @@ export default function SupermarketSettings() {
       totem_button_color: settings.totem_button_color || DEFAULTS.totem_button_color,
       totem_button_text_color: settings.totem_button_text_color || DEFAULTS.totem_button_text_color,
       totem_header_text: settings.totem_header_text || DEFAULTS.totem_header_text,
+      totem_slogan: settings.totem_slogan || DEFAULTS.totem_slogan,
+      totem_pdv_name: settings.totem_pdv_name || settings.name || DEFAULTS.totem_pdv_name,
     });
   }, [settings]);
 
@@ -210,12 +215,37 @@ export default function SupermarketSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>URL do Logo</Label>
-            <Input value={customForm.logo_url} onChange={(e) => setCustomForm({ ...customForm, logo_url: e.target.value })} placeholder="https://exemplo.com/logo.png" />
+            <Label>Logo do PDV</Label>
+            <FileUploadInput
+              value={customForm.logo_url}
+              onChange={(url) => setCustomForm({ ...customForm, logo_url: url })}
+              accept="image/*"
+              placeholder="https://exemplo.com/logo.png ou faça upload"
+              showPreview={true}
+              previewType="image"
+              customTokenGetter={() => localStorage.getItem('supermarket_auth_token')}
+            />
+            {customForm.logo_url && (
+              <div className="mt-2 p-3 rounded-lg bg-muted/50 flex items-center gap-3">
+                <img src={customForm.logo_url} alt="Preview do logo" className="h-14 w-14 object-contain rounded border border-border" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <span className="text-xs text-muted-foreground">Preview do logo carregado</span>
+              </div>
+            )}
           </div>
+
+          <div className="space-y-2">
+            <Label>Nome do PDV (exibido no Totem)</Label>
+            <Input value={customForm.totem_pdv_name} onChange={(e) => setCustomForm({ ...customForm, totem_pdv_name: e.target.value })} placeholder="Ex: Supermercado Central" />
+          </div>
+
           <div className="space-y-2">
             <Label>Texto do Cabeçalho</Label>
             <Input value={customForm.totem_header_text} onChange={(e) => setCustomForm({ ...customForm, totem_header_text: e.target.value })} placeholder="Controle de Acesso" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Frase / Slogan (abaixo do logo)</Label>
+            <Input value={customForm.totem_slogan} onChange={(e) => setCustomForm({ ...customForm, totem_slogan: e.target.value })} placeholder="Ex: Bem-vindo ao nosso PDV" />
           </div>
 
           <Separator />
@@ -243,11 +273,21 @@ export default function SupermarketSettings() {
           <p className="text-sm font-medium text-foreground flex items-center gap-2">
             <Monitor className="h-4 w-4" /> Pré-visualização
           </p>
-          <div className="rounded-xl p-6 text-center space-y-3" style={{ backgroundColor: customForm.totem_bg_color, color: customForm.totem_button_text_color }}>
-            {customForm.logo_url && <img src={customForm.logo_url} alt="Logo do totem" className="h-12 mx-auto object-contain" />}
+          <div className="rounded-xl p-6 text-center space-y-3 relative" style={{ backgroundColor: customForm.totem_bg_color, color: customForm.totem_button_text_color }}>
+            {customForm.logo_url && <img src={customForm.logo_url} alt="Logo do totem" className="h-14 mx-auto object-contain" />}
+            {customForm.totem_pdv_name && (
+              <p className="text-base font-semibold" style={{ color: customForm.totem_secondary_color }}>
+                {customForm.totem_pdv_name}
+              </p>
+            )}
             <p className="text-lg font-bold" style={{ color: customForm.totem_primary_color }}>
               {customForm.totem_header_text || 'Controle de Acesso'}
             </p>
+            {customForm.totem_slogan && (
+              <p className="text-sm opacity-80" style={{ color: customForm.totem_button_text_color }}>
+                {customForm.totem_slogan}
+              </p>
+            )}
             <div className="flex justify-center gap-2">
               <div className="px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: customForm.totem_button_color, color: customForm.totem_button_text_color }}>
                 CPF
@@ -256,6 +296,9 @@ export default function SupermarketSettings() {
                 QR Code
               </div>
             </div>
+            <p className="text-[10px] opacity-50 pt-2" style={{ color: customForm.totem_button_text_color }}>
+              Powered by Ayratech
+            </p>
           </div>
 
           <Button onClick={() => saveMutation.mutate(customForm)} disabled={saveMutation.isPending} className="gap-2">
