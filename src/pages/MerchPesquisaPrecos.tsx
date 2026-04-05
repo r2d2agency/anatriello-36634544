@@ -1164,6 +1164,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
   const [editTime, setEditTime] = useState('');
   const [editPdvId, setEditPdvId] = useState('');
   const [editProducts, setEditProducts] = useState<string[]>([]);
+  const [editItems, setEditItems] = useState<any[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [addingCompForItem, setAddingCompForItem] = useState<string | null>(null);
   const [newCompName, setNewCompName] = useState('');
@@ -1198,12 +1199,17 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
 
   const startEditing = () => {
     if (!exec) return;
+    const initialItems = (exec.items || []).map((item: any) => ({
+      ...item,
+      competitors: item.competitors?.length ? item.competitors : buildCompetitorsForProduct(item.product_id),
+    }));
     setEditPromoterId(exec.promoter_id || '');
     const rawDate = exec.scheduled_date || '';
     setEditDate(rawDate ? rawDate.split('T')[0] : '');
     setEditTime(exec.scheduled_time ? String(exec.scheduled_time).slice(0, 5) : '');
     setEditPdvId(exec.pdv_id || '');
-    setEditProducts(exec.items?.map((i: any) => i.product_id) || []);
+    setEditProducts(initialItems.map((i: any) => i.product_id));
+    setEditItems(initialItems);
     setEditing(true);
   };
 
@@ -1215,7 +1221,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
         pdv_id: editPdvId || undefined,
         scheduled_date: editDate || undefined,
         scheduled_time: editTime || undefined,
-        items: displayItemsForEditing.map((item: any) => ({
+        items: editItems.map((item: any) => ({
           product_id: item.product_id,
           price: item.price ?? null,
           observation: item.observation ?? null,
@@ -1240,67 +1246,63 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
   const handleAddCompetitor = async (itemId: string) => {
     if (!newCompName.trim() || !newCompBrand.trim()) return toast.error('Nome e marca são obrigatórios');
     try {
-      await api(`/api/price-research/item-competitors`, {
-        method: 'POST',
-        body: { item_id: itemId, competitor_product_name: newCompName, competitor_brand_name: newCompBrand, photo_url: newCompPhoto || null, observation: newCompObservation || null },
-      });
+      setEditItems((prev) => prev.map((item) => item.id !== itemId ? item : {
+        ...item,
+        competitors: [
+          ...(item.competitors || []),
+          {
+            id: crypto.randomUUID(),
+            competitor_product_id: null,
+            competitor_id: null,
+            competitor_product_name: newCompName,
+            competitor_brand_name: newCompBrand,
+            photo_url: newCompPhoto || null,
+            observation: newCompObservation || null,
+            price: null,
+          },
+        ],
+      }));
       toast.success('Concorrente adicionado');
       setAddingCompForItem(null);
       setNewCompName('');
       setNewCompBrand('');
       setNewCompPhoto('');
       setNewCompObservation('');
-      // Refetch
-      qc.invalidateQueries({ queryKey: ['price-research-execution', id] });
     } catch (err: any) { toast.error(err.message || 'Erro'); }
   };
 
-  const handleRemoveCompetitor = async (compId: string) => {
+  const handleRemoveCompetitor = (itemId: string, compId: string) => {
     if (!confirm('Remover concorrente?')) return;
-    try {
-      await api(`/api/price-research/item-competitors/${compId}`, { method: 'DELETE' });
-      toast.success('Removido');
-      qc.invalidateQueries({ queryKey: ['price-research-execution', id] });
-    } catch (err: any) { toast.error(err.message || 'Erro'); }
+    setEditItems((prev) => prev.map((item) => item.id !== itemId ? item : {
+      ...item,
+      competitors: (item.competitors || []).filter((comp: any) => comp.id !== compId),
+    }));
+    toast.success('Removido');
   };
 
   const handleRemoveProduct = (productId: string) => {
     setEditProducts(prev => prev.filter(p => p !== productId));
+    setEditItems(prev => prev.filter(item => item.product_id !== productId));
   };
 
   const handleAddProduct = (productId: string) => {
     if (!editProducts.includes(productId)) {
+      const prod = allProducts.find((p: any) => p.id === productId);
       setEditProducts(prev => [...prev, productId]);
-    }
-    setShowAddProduct(false);
-  };
-
-  const displayItemsForEditing = (() => {
-    const existingItems = exec?.items || [];
-    const existingProductIds = existingItems.map((i: any) => i.product_id);
-    const newProductIds = editing ? editProducts.filter(pid => !existingProductIds.includes(pid)) : [];
-    const newItems = newProductIds.map(pid => {
-      const prod = allProducts.find((p: any) => p.id === pid);
-      return {
-        id: `new-${pid}`,
-        product_id: pid,
+      setEditItems(prev => [...prev, {
+        id: `new-${productId}`,
+        product_id: productId,
         product_name: prod?.name || 'Produto',
         photo_url: prod?.photo_url,
         description: prod?.description,
         price: null,
         observation: null,
-        competitors: buildCompetitorsForProduct(pid),
+        competitors: buildCompetitorsForProduct(productId),
         isNew: true,
-      };
-    });
-    return [
-      ...existingItems.filter((item: any) => !editing || editProducts.includes(item.product_id)).map((item: any) => ({
-        ...item,
-        competitors: item.competitors?.length ? item.competitors : buildCompetitorsForProduct(item.product_id),
-      })),
-      ...newItems,
-    ];
-  })();
+      }]);
+    }
+    setShowAddProduct(false);
+  };
 
   const uploadCompPhoto = async (file: File) => {
     try {
@@ -1421,7 +1423,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
                 {/* Build display items: existing items + newly added products */}
                   {(() => {
                    const existingItems = exec.items || [];
-                   const displayItems = displayItemsForEditing;
+                   const displayItems = editing ? editItems : exec.items || [];
                    const removedItems = editing ? existingItems.filter((item: any) => !editProducts.includes(item.product_id)) : [];
 
                   return displayItems.length > 0 || removedItems.length > 0 ? (
@@ -1456,15 +1458,15 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
                                     {c.photo_url && <img src={resolveMediaUrl(c.photo_url) || ''} alt="" className="h-6 w-6 rounded object-cover border" />}
                                     <span className="text-muted-foreground">{c.competitor_product_name || c.competitor_brand_name}: </span>
                                     <span className="font-mono">{c.price != null ? `R$ ${Number(c.price).toFixed(2)}` : '-'}</span>
-                                    {editing && !item.isNew && (
-                                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => handleRemoveCompetitor(c.id)}>
+                                    {editing && (
+                                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => handleRemoveCompetitor(item.id, c.id)}>
                                         <X className="h-3 w-3 text-destructive" />
                                       </Button>
                                     )}
                                   </div>
                                 ))}
                                 {(!item.competitors || item.competitors.length === 0) && <span className="text-xs text-muted-foreground">-</span>}
-                                {editing && !item.isNew && (
+                                {editing && (
                                   addingCompForItem === item.id ? (
                                     <div className="mt-2 space-y-2 border rounded p-2 bg-muted/30">
                                       <Input placeholder="Nome do produto concorrente" value={newCompName} onChange={e => setNewCompName(e.target.value)} className="h-8 text-xs" />
