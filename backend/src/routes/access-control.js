@@ -775,12 +775,15 @@ router.get('/audit-logs', authenticate, async (req, res) => {
 // Totem login — supermarket user authenticates, returns totem_token + unit config
 router.post('/totem/login', async (req, res) => {
   try {
+    await ensureSupermarketPortalSchema();
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     const normalizedEmail = String(email).trim().toLowerCase();
     const r = await query(
       `SELECT su_user.*, su.organization_id as org_id, su.name as unit_name,
               su.totem_token, su.totem_enabled, su.logo_url as unit_logo,
+              su.totem_primary_color, su.totem_secondary_color, su.totem_bg_color,
+              su.totem_button_color, su.totem_button_text_color, su.totem_header_text,
               su.city, su.state, su.id as unit_id
        FROM supermarket_users su_user
        JOIN supermarket_units su ON su.id = su_user.supermarket_unit_id
@@ -790,7 +793,6 @@ router.post('/totem/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    // If totem not enabled or no token, generate one
     let totemToken = user.totem_token;
     if (!totemToken || !user.totem_enabled) {
       totemToken = totemToken || crypto.randomBytes(32).toString('hex');
@@ -810,6 +812,12 @@ router.post('/totem/login', async (req, res) => {
         logo_url: user.unit_logo,
         city: user.city,
         state: user.state,
+        totem_primary_color: user.totem_primary_color || DEFAULT_TOTEM_BRANDING.totem_primary_color,
+        totem_secondary_color: user.totem_secondary_color || DEFAULT_TOTEM_BRANDING.totem_secondary_color,
+        totem_bg_color: user.totem_bg_color || DEFAULT_TOTEM_BRANDING.totem_bg_color,
+        totem_button_color: user.totem_button_color || DEFAULT_TOTEM_BRANDING.totem_button_color,
+        totem_button_text_color: user.totem_button_text_color || DEFAULT_TOTEM_BRANDING.totem_button_text_color,
+        totem_header_text: user.totem_header_text || DEFAULT_TOTEM_BRANDING.totem_header_text,
       },
       user: { id: user.id, name: user.name, email: user.email },
     });
@@ -3243,51 +3251,69 @@ router.get('/supermarket-portal/assistant-log', authenticateSupermarket, async (
 // ============ SUPERMARKET-PORTAL: Settings ============
 router.get('/supermarket-portal/settings', authenticateSupermarket, async (req, res) => {
   try {
+    await ensureSupermarketPortalSchema();
     const r = await query(
       `SELECT su.id, su.name, su.totem_token, su.totem_enabled, su.logo_url,
               su.totem_primary_color, su.totem_secondary_color, su.totem_bg_color,
               su.totem_button_color, su.totem_button_text_color, su.totem_header_text,
               su.city, su.state, su.address,
+              smu.email as login_email,
+              smu.name as login_name,
               sn.name as network_name
        FROM supermarket_units su
        LEFT JOIN supermarket_networks sn ON sn.id = su.network_id
+       LEFT JOIN supermarket_users smu ON smu.id = $2
        WHERE su.id = $1`,
-      [req.unitId]
+      [req.unitId, req.supermarketUserId]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Unidade não encontrada' });
-    res.json(r.rows[0]);
-  } catch (err) { logError('sm.settings.get', err); res.status(500).json({ error: 'Erro' }); }
+
+    const settings = r.rows[0];
+    res.json({
+      ...settings,
+      totem_token: settings.totem_token || null,
+      totem_enabled: Boolean(settings.totem_enabled),
+      logo_url: settings.logo_url || '',
+      totem_primary_color: settings.totem_primary_color || DEFAULT_TOTEM_BRANDING.totem_primary_color,
+      totem_secondary_color: settings.totem_secondary_color || DEFAULT_TOTEM_BRANDING.totem_secondary_color,
+      totem_bg_color: settings.totem_bg_color || DEFAULT_TOTEM_BRANDING.totem_bg_color,
+      totem_button_color: settings.totem_button_color || DEFAULT_TOTEM_BRANDING.totem_button_color,
+      totem_button_text_color: settings.totem_button_text_color || DEFAULT_TOTEM_BRANDING.totem_button_text_color,
+      totem_header_text: settings.totem_header_text || DEFAULT_TOTEM_BRANDING.totem_header_text,
+    });
+  } catch (err) { logError('sm.settings.get', err); res.status(500).json({ error: 'Erro ao carregar configurações do supermercado' }); }
 });
 
 router.put('/supermarket-portal/settings', authenticateSupermarket, async (req, res) => {
   try {
+    await ensureSupermarketPortalSchema();
     const { logo_url, totem_primary_color, totem_secondary_color, totem_bg_color,
             totem_button_color, totem_button_text_color, totem_header_text } = req.body;
 
-    // Ensure columns exist
-    const cols = ['totem_primary_color', 'totem_secondary_color', 'totem_bg_color',
-                  'totem_button_color', 'totem_button_text_color', 'totem_header_text'];
-    for (const col of cols) {
-      await query(`ALTER TABLE supermarket_units ADD COLUMN IF NOT EXISTS ${col} TEXT`).catch(() => {});
-    }
-
     const r = await query(
       `UPDATE supermarket_units SET
-        logo_url = COALESCE($1, logo_url),
-        totem_primary_color = COALESCE($2, totem_primary_color),
-        totem_secondary_color = COALESCE($3, totem_secondary_color),
-        totem_bg_color = COALESCE($4, totem_bg_color),
-        totem_button_color = COALESCE($5, totem_button_color),
-        totem_button_text_color = COALESCE($6, totem_button_text_color),
-        totem_header_text = COALESCE($7, totem_header_text),
+        logo_url = $1,
+        totem_primary_color = $2,
+        totem_secondary_color = $3,
+        totem_bg_color = $4,
+        totem_button_color = $5,
+        totem_button_text_color = $6,
+        totem_header_text = $7,
         updated_at = NOW()
        WHERE id = $8 RETURNING *`,
-      [logo_url || null, totem_primary_color || null, totem_secondary_color || null,
-       totem_bg_color || null, totem_button_color || null, totem_button_text_color || null,
-       totem_header_text || null, req.unitId]
+      [
+        typeof logo_url === 'string' ? logo_url.trim() : null,
+        typeof totem_primary_color === 'string' ? totem_primary_color.trim() : DEFAULT_TOTEM_BRANDING.totem_primary_color,
+        typeof totem_secondary_color === 'string' ? totem_secondary_color.trim() : DEFAULT_TOTEM_BRANDING.totem_secondary_color,
+        typeof totem_bg_color === 'string' ? totem_bg_color.trim() : DEFAULT_TOTEM_BRANDING.totem_bg_color,
+        typeof totem_button_color === 'string' ? totem_button_color.trim() : DEFAULT_TOTEM_BRANDING.totem_button_color,
+        typeof totem_button_text_color === 'string' ? totem_button_text_color.trim() : DEFAULT_TOTEM_BRANDING.totem_button_text_color,
+        typeof totem_header_text === 'string' ? totem_header_text.trim() : DEFAULT_TOTEM_BRANDING.totem_header_text,
+        req.unitId,
+      ]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Unidade não encontrada' });
-    res.json(r.rows[0]);
+    res.json({ success: true, settings: r.rows[0] });
   } catch (err) { logError('sm.settings.update', err); res.status(500).json({ error: 'Erro ao salvar configurações' }); }
 });
 
@@ -3297,7 +3323,7 @@ router.put('/supermarket-portal/change-password', authenticateSupermarket, async
     if (!current_password || !new_password) return res.status(400).json({ error: 'Senhas são obrigatórias' });
     if (String(new_password).length < 6) return res.status(400).json({ error: 'Nova senha deve ter no mínimo 6 caracteres' });
 
-    const user = await query('SELECT password_hash FROM supermarket_users WHERE id = $1', [req.supermarketUserId]);
+    const user = await query('SELECT password_hash, email FROM supermarket_users WHERE id = $1', [req.supermarketUserId]);
     if (!user.rows.length) return res.status(404).json({ error: 'Usuário não encontrado' });
 
     const valid = await bcrypt.compare(current_password, user.rows[0].password_hash);
@@ -3305,19 +3331,20 @@ router.put('/supermarket-portal/change-password', authenticateSupermarket, async
 
     const hash = await bcrypt.hash(new_password, 10);
     await query('UPDATE supermarket_users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, req.supermarketUserId]);
-    res.json({ success: true, message: 'Senha alterada com sucesso' });
+    res.json({ success: true, message: 'Senha alterada com sucesso', login_email: user.rows[0].email });
   } catch (err) { logError('sm.change_password', err); res.status(500).json({ error: 'Erro ao alterar senha' }); }
 });
 
 router.post('/supermarket-portal/regenerate-token', authenticateSupermarket, async (req, res) => {
   try {
+    await ensureSupermarketPortalSchema();
     const newToken = crypto.randomBytes(32).toString('hex');
     const r = await query(
-      'UPDATE supermarket_units SET totem_token = $1, totem_enabled = true, updated_at = NOW() WHERE id = $2 RETURNING totem_token',
+      'UPDATE supermarket_units SET totem_token = $1, totem_enabled = true, updated_at = NOW() WHERE id = $2 RETURNING totem_token, totem_enabled',
       [newToken, req.unitId]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Unidade não encontrada' });
-    res.json({ totem_token: r.rows[0].totem_token });
+    res.json({ totem_token: r.rows[0].totem_token, totem_enabled: r.rows[0].totem_enabled });
   } catch (err) { logError('sm.regen_token', err); res.status(500).json({ error: 'Erro ao regenerar token' }); }
 });
 
