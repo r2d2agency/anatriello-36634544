@@ -43,6 +43,8 @@ interface TotemConfig {
   buttonColor: string;
   buttonTextColor: string;
   headerText: string;
+  slogan: string;
+  pdvName: string;
 }
 
 interface TotemSession {
@@ -72,7 +74,7 @@ interface AuthConfig {
 const DEFAULT_CONFIG: TotemConfig = {
   token: "", unitName: "PDV", logoUrl: "", primaryColor: "#3b82f6",
   secondaryColor: "#1e293b", bgColor: "#0f172a", buttonColor: "#3b82f6",
-  buttonTextColor: "#ffffff", headerText: "Controle de Acesso",
+  buttonTextColor: "#ffffff", headerText: "Controle de Acesso", slogan: "", pdvName: "PDV",
 };
 
 const DEFAULT_AUTH: AuthConfig = {
@@ -106,6 +108,7 @@ const TotemAccess = () => {
   const [authConfig, setAuthConfig] = useState<AuthConfig>(DEFAULT_AUTH);
   const [authMode, setAuthMode] = useState<"select" | "cpf" | "qr">("select");
   const [cpfDigits, setCpfDigits] = useState("");
+  const [showNumpad, setShowNumpad] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
@@ -167,10 +170,13 @@ const TotemAccess = () => {
         buttonColor: data.totem_button_color || config.buttonColor,
         buttonTextColor: data.totem_button_text_color || config.buttonTextColor,
         headerText: data.totem_header_text || config.headerText,
+        slogan: data.totem_slogan || config.slogan,
+        pdvName: data.totem_pdv_name || data.unit_name || session.unitName || config.pdvName,
       };
       setConfig(syncedConfig);
       setConfigForm(syncedConfig);
       saveConfig(syncedConfig);
+      setShowNumpad(false);
       if (data.cpf_entry_enabled && !data.qr_entry_enabled) setAuthMode("cpf");
       else if (!data.cpf_entry_enabled && data.qr_entry_enabled) setAuthMode("qr");
       else setAuthMode("select");
@@ -182,6 +188,25 @@ const TotemAccess = () => {
     if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
     if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
     return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  };
+
+  const combinedValidation = authConfig.combined_validation || "cpf_only";
+  const displayUnitName = config.pdvName || config.unitName;
+  const entryRequiresSelfie = authMode === "cpf"
+    ? authConfig.selfie_entry_required || combinedValidation === "cpf_selfie" || combinedValidation === "cpf_selfie_facial"
+    : authMode === "qr"
+      ? authConfig.selfie_entry_required || combinedValidation === "qr_selfie"
+      : authConfig.selfie_entry_required;
+  const entryRequiresFacial = authMode === "cpf"
+    ? authConfig.facial_recognition_enabled || combinedValidation === "cpf_selfie_facial"
+    : authMode === "qr"
+      ? authConfig.facial_recognition_enabled || combinedValidation === "qr_facial"
+      : authConfig.facial_recognition_enabled;
+
+  const getSelfieRequirement = (hasOpenEntry: boolean) => hasOpenEntry ? authConfig.selfie_exit_required : entryRequiresSelfie;
+  const getFacialRequirement = (hasOpenEntry: boolean, lookup?: LookupResult | null) => {
+    if (!lookup?.face_descriptor?.length) return false;
+    return hasOpenEntry ? authConfig.facial_recognition_enabled : entryRequiresFacial;
   };
 
   // ═══ Camera ═══
@@ -240,8 +265,10 @@ const TotemAccess = () => {
         buttonColor: data.unit?.totem_button_color || config.buttonColor,
         buttonTextColor: data.unit?.totem_button_text_color || config.buttonTextColor,
         headerText: data.unit?.totem_header_text || config.headerText,
+        slogan: data.unit?.totem_slogan || config.slogan,
+        pdvName: data.unit?.totem_pdv_name || data.unit?.name || config.pdvName,
       };
-      setConfig(newConfig); setConfigForm(newConfig); saveConfig(newConfig);
+      setConfig(newConfig); setConfigForm(newConfig); saveConfig(newConfig); setShowNumpad(false);
     } catch { setLoginError("Erro de conexão com o servidor"); }
     finally { setLoginLoading(false); }
   };
@@ -282,11 +309,10 @@ const TotemAccess = () => {
           face_photo_url: data.promoter.face_photo_url || undefined,
         };
         setLookupResult(lr);
-        // Check if selfie is required for this step
-        if (!lr.has_open_entry && authConfig.selfie_entry_required) setSelfieRequired(true);
-        if (lr.has_open_entry && authConfig.selfie_exit_required) setSelfieRequired(true);
-        // Check LGPD consent
-        if (authConfig.require_lgpd_consent && (authConfig.selfie_entry_required || authConfig.facial_recognition_enabled)) {
+        const requiresSelfie = getSelfieRequirement(lr.has_open_entry);
+        const requiresFacial = getFacialRequirement(lr.has_open_entry, lr);
+        setSelfieRequired(requiresSelfie);
+        if (authConfig.require_lgpd_consent && (requiresSelfie || requiresFacial)) {
           setShowLgpd(true);
         }
       } else {
@@ -297,14 +323,14 @@ const TotemAccess = () => {
   };
 
   const handleConfirmCheckin = async () => {
-    // If facial recognition enabled and not yet verified, open facial dialog
-    if (authConfig.facial_recognition_enabled && lookupResult?.face_descriptor?.length && !facialVerified) {
+    const requiresFacialCheckin = getFacialRequirement(false, lookupResult);
+    const requiresSelfieCheckin = getSelfieRequirement(false);
+    if (requiresFacialCheckin && !facialVerified) {
       setFacialPendingAction("checkin");
       setShowFacialVerify(true);
       return;
     }
-    // If selfie required and not captured yet, open camera
-    if (selfieRequired && !selfieCapture) { startCamera(); return; }
+    if (requiresSelfieCheckin && !selfieCapture) { setSelfieRequired(true); startCamera(); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/access-control/totem/validate`, {
@@ -380,13 +406,14 @@ const TotemAccess = () => {
 
   const handleConfirmCheckout = async () => {
     if (!lookupResult?.open_entry_id) return;
-    // If facial recognition enabled and not yet verified, open facial dialog
-    if (authConfig.facial_recognition_enabled && lookupResult?.face_descriptor?.length && !facialVerified) {
+    const requiresFacialCheckout = getFacialRequirement(true, lookupResult);
+    const requiresSelfieCheckout = getSelfieRequirement(true);
+    if (requiresFacialCheckout && !facialVerified) {
       setFacialPendingAction("checkout");
       setShowFacialVerify(true);
       return;
     }
-    if (selfieRequired && !selfieCapture) { startCamera(); return; }
+    if (requiresSelfieCheckout && !selfieCapture) { setSelfieRequired(true); startCamera(); return; }
     setLoading(true);
     try {
       await fetch(`${API_URL}/api/access-control/totem/checkout`, {
@@ -440,6 +467,7 @@ const TotemAccess = () => {
     setResult(null); setLookupResult(null); setLookupError(null); setCpfDigits("");
     setSelfieRequired(false); setSelfieCapture(null); setShowCamera(false); setLgpdAccepted(false); setShowLgpd(false);
     setFacialVerified(false); setFacialPendingAction(null); setShowFacialVerify(false);
+    setShowNumpad(false);
     stopCamera();
     // Reset to mode selection if multiple modes available
     if (authConfig.cpf_entry_enabled && authConfig.qr_entry_enabled) setAuthMode("select");
@@ -635,9 +663,10 @@ const TotemAccess = () => {
               : <ShieldCheck className="h-20 w-20 mx-auto drop-shadow-lg" style={{ color: config.primaryColor }} />}
             <h1 className="text-3xl md:text-4xl font-bold text-white">{config.headerText}</h1>
             <div className="flex items-center justify-center gap-2 text-white/60">
-              <Store className="h-5 w-5" /><span className="text-lg">{config.unitName}</span>
+              <Store className="h-5 w-5" /><span className="text-lg">{displayUnitName}</span>
               {session.unitCity && <span className="text-sm">• {session.unitCity}/{session.unitState}</span>}
             </div>
+            {config.slogan && <p className="text-white/70 text-base">{config.slogan}</p>}
           </div>
           <div className="flex items-center justify-center gap-2 text-white/60">
             <Clock className="h-5 w-5" />
@@ -646,7 +675,7 @@ const TotemAccess = () => {
           <p className="text-white/60 text-lg">Selecione o modo de identificação</p>
           <div className="grid grid-cols-1 gap-4">
             {authConfig.cpf_entry_enabled && (
-              <button onClick={() => setAuthMode("cpf")}
+              <button onClick={() => { setAuthMode("cpf"); setShowNumpad(false); }}
                 className="p-8 rounded-2xl border-2 transition-all hover:scale-105 active:scale-95 flex flex-col items-center gap-3"
                 style={{ backgroundColor: `${config.primaryColor}15`, borderColor: `${config.primaryColor}44` }}>
                 <Lock className="h-12 w-12 text-white" />
@@ -752,13 +781,14 @@ const TotemAccess = () => {
 
       <div className="text-center max-w-md w-full space-y-6">
         <div className="space-y-3">
-          {config.logoUrl ? <img src={config.logoUrl} alt="Logo" className="h-20 mx-auto object-contain drop-shadow-lg" />
-            : <ShieldCheck className="h-20 w-20 mx-auto drop-shadow-lg" style={{ color: config.primaryColor }} />}
+          {config.logoUrl ? <img src={config.logoUrl} alt="Logo" className="max-h-28 w-auto mx-auto object-contain drop-shadow-lg" />
+            : <ShieldCheck className="h-24 w-24 mx-auto drop-shadow-lg" style={{ color: config.primaryColor }} />}
           <h1 className="text-3xl md:text-4xl font-bold text-white">{config.headerText}</h1>
           <div className="flex items-center justify-center gap-2 text-white/60">
-            <Store className="h-5 w-5" /><span className="text-lg">{config.unitName}</span>
+            <Store className="h-5 w-5" /><span className="text-lg">{displayUnitName}</span>
             {session.unitCity && <span className="text-sm">• {session.unitCity}/{session.unitState}</span>}
           </div>
+          {config.slogan && <p className="text-white/70 text-base">{config.slogan}</p>}
         </div>
 
         <div className="flex items-center justify-center gap-2 text-white/60">
@@ -770,8 +800,7 @@ const TotemAccess = () => {
         <div className="flex justify-center gap-2">
           {authMode === "cpf" && <Badge className="bg-white/10 text-white/70 border-white/20 gap-1"><Lock className="h-3 w-3" /> CPF</Badge>}
           {authMode === "qr" && <Badge className="bg-white/10 text-white/70 border-white/20 gap-1"><QrCode className="h-3 w-3" /> QR Code</Badge>}
-          {authConfig.selfie_entry_required && <Badge className="bg-white/10 text-white/70 border-white/20 gap-1"><Camera className="h-3 w-3" /> Selfie</Badge>}
-          {authConfig.facial_recognition_enabled && <Badge className="bg-white/10 text-white/70 border-white/20 gap-1"><ScanFace className="h-3 w-3" /> Facial</Badge>}
+          {entryRequiresSelfie && authMode !== "select" && <Badge className="bg-white/10 text-white/70 border-white/20 gap-1"><Camera className="h-3 w-3" /> Selfie na próxima etapa</Badge>}
         </div>
 
         {/* QR Mode placeholder */}
@@ -782,7 +811,7 @@ const TotemAccess = () => {
               <p className="text-white text-xl mb-2">Apresente o QR Code</p>
               <p className="text-white/50 text-sm">Posicione o QR Code em frente à câmera do totem</p>
               <p className="text-white/30 text-xs mt-4">Ou use o CPF para identificação</p>
-              <Button onClick={() => setAuthMode("cpf")} variant="outline" className="mt-3 border-white/30 text-white hover:bg-white/10" size="sm">
+              <Button onClick={() => { setAuthMode("cpf"); setShowNumpad(false); }} variant="outline" className="mt-3 border-white/30 text-white hover:bg-white/10" size="sm">
                 Usar CPF
               </Button>
             </div>
@@ -794,34 +823,46 @@ const TotemAccess = () => {
           <>
             <div className="rounded-2xl p-6 backdrop-blur" style={{ backgroundColor: `${config.primaryColor}15`, border: `2px solid ${config.primaryColor}33` }}>
               <p className="text-white/80 text-lg mb-3">Digite seu CPF</p>
-              <div className="text-4xl md:text-5xl font-mono tracking-[0.2em] h-16 flex items-center justify-center text-white" style={{ minHeight: 64 }}>
-                {cpfDigits.length > 0 ? formatCpf(cpfDigits) : <span className="text-white/30">000.000.000-00</span>}
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowNumpad(true)}
+                className="w-full rounded-xl border px-3 py-4 transition-all"
+                style={{ backgroundColor: `${config.bgColor}66`, borderColor: `${config.primaryColor}55` }}
+              >
+                <div className="text-[clamp(1.9rem,7vw,3.3rem)] font-mono tracking-[0.08em] md:tracking-[0.16em] min-h-16 flex items-center justify-center text-white leading-none">
+                  {cpfDigits.length > 0 ? formatCpf(cpfDigits) : <span className="text-white/30">000.000.000-00</span>}
+                </div>
+              </button>
+              <p className="mt-3 text-sm text-white/60">
+                {showNumpad ? "Use o teclado abaixo para completar o CPF" : "Toque no campo para abrir o teclado numérico"}
+              </p>
             </div>
-            <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
-              {NUMPAD_KEYS.map((key, i) => {
-                if (key === "") return <div key={i} />;
-                if (key === "⌫") {
+            {showNumpad && (
+              <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
+                {NUMPAD_KEYS.map((key, i) => {
+                  if (key === "") return <div key={i} />;
+                  if (key === "⌫") {
+                    return (
+                      <button key={i} onClick={() => handleNumpadPress(key)}
+                        className="h-16 md:h-20 rounded-xl text-2xl font-bold flex items-center justify-center transition-all active:scale-95 border"
+                        style={{ ...numpadBtnStyle, backgroundColor: `${config.primaryColor}33` }}>
+                        <Delete className="h-7 w-7" />
+                      </button>
+                    );
+                  }
                   return (
                     <button key={i} onClick={() => handleNumpadPress(key)}
-                      className="h-16 md:h-20 rounded-xl text-2xl font-bold flex items-center justify-center transition-all active:scale-95 border"
-                      style={{ ...numpadBtnStyle, backgroundColor: `${config.primaryColor}33` }}>
-                      <Delete className="h-7 w-7" />
+                      className="h-16 md:h-20 rounded-xl text-3xl font-bold transition-all active:scale-95 border" style={numpadBtnStyle}>
+                      {key}
                     </button>
                   );
-                }
-                return (
-                  <button key={i} onClick={() => handleNumpadPress(key)}
-                    className="h-16 md:h-20 rounded-xl text-3xl font-bold transition-all active:scale-95 border" style={numpadBtnStyle}>
-                    {key}
-                  </button>
-                );
-              })}
-            </div>
+                })}
+              </div>
+            )}
             <Button onClick={() => { if (cpfDigits.length === 11) handleLookup(cpfDigits); }}
               disabled={cpfDigits.length !== 11 || lookupLoading}
               className="w-full h-16 text-xl font-bold rounded-xl transition-all"
-              style={cpfDigits.length === 11 && !lookupLoading ? btnStyle : undefined} size="lg">
+              style={{ ...btnStyle, opacity: cpfDigits.length === 11 && !lookupLoading ? 1 : 0.65 }} size="lg">
               {lookupLoading ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : <ShieldCheck className="h-6 w-6 mr-2" />}
               {lookupLoading ? "Buscando..." : "Confirmar"}
             </Button>
@@ -890,7 +931,7 @@ const TotemAccess = () => {
               </div>
             )}
 
-            {authConfig.facial_recognition_enabled && lookupResult.face_descriptor?.length && (
+            {getFacialRequirement(lookupResult.has_open_entry, lookupResult) && (
               <div className="mt-3 flex items-center justify-center gap-2 text-white/60 text-sm">
                 <ScanFace className="h-4 w-4" />
                 <span>{facialVerified ? "✓ Identidade facial confirmada" : "Verificação facial obrigatória"}</span>
@@ -902,18 +943,20 @@ const TotemAccess = () => {
               {lookupResult.has_open_entry ? (
                 <Button onClick={handleConfirmCheckout} disabled={loading}
                   className="flex-1 h-14 text-lg font-bold bg-amber-500 hover:bg-amber-600 text-white">
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : (authConfig.facial_recognition_enabled && lookupResult.face_descriptor?.length && !facialVerified) ? <ScanFace className="h-5 w-5 mr-2" /> : <LogOut className="h-5 w-5 mr-2" />}
-                  {loading ? "Saindo..." : (authConfig.facial_recognition_enabled && lookupResult.face_descriptor?.length && !facialVerified) ? "Verificar + Check-out" : selfieRequired ? "Selfie + Check-out" : "Check-out"}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : (getFacialRequirement(true, lookupResult) && !facialVerified) ? <ScanFace className="h-5 w-5 mr-2" /> : selfieRequired ? <Camera className="h-5 w-5 mr-2" /> : <LogOut className="h-5 w-5 mr-2" />}
+                  {loading ? "Saindo..." : (getFacialRequirement(true, lookupResult) && !facialVerified) ? "Verificar facial" : selfieRequired ? "Tirar selfie" : "Check-out"}
                 </Button>
               ) : (
                 <Button onClick={handleConfirmCheckin} disabled={loading} className="flex-1 h-14 text-lg font-bold" style={btnStyle}>
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : (authConfig.facial_recognition_enabled && lookupResult.face_descriptor?.length && !facialVerified) ? <ScanFace className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
-                  {loading ? "Validando..." : (authConfig.facial_recognition_enabled && lookupResult.face_descriptor?.length && !facialVerified) ? "Verificar + Check-in" : selfieRequired ? "Selfie + Check-in" : "Check-in"}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : (getFacialRequirement(false, lookupResult) && !facialVerified) ? <ScanFace className="h-5 w-5 mr-2" /> : selfieRequired ? <Camera className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
+                  {loading ? "Validando..." : (getFacialRequirement(false, lookupResult) && !facialVerified) ? "Verificar facial" : selfieRequired ? "Tirar selfie" : "Check-in"}
                 </Button>
               )}
             </div>
           </div>
         )}
+
+        <p className="text-center text-xs text-white/35">Powered by Ayratech</p>
       </div>
 
       {/* Facial Verification Dialog */}
