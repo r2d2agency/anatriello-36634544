@@ -4434,6 +4434,72 @@ CREATE TABLE IF NOT EXISTS agency_billing_logs (
 );
 `;
 
+const step45dPromoterConformity = `
+CREATE TABLE IF NOT EXISTS promoter_conformity (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  network_id UUID REFERENCES supermarket_networks(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  reason TEXT,
+  photo_quality_score NUMERIC(5,2),
+  photo_resolution_ok BOOLEAN DEFAULT false,
+  photo_frontal_ok BOOLEAN DEFAULT false,
+  photo_illumination_ok BOOLEAN DEFAULT false,
+  checked_at TIMESTAMPTZ DEFAULT NOW(),
+  notified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_conformity_promoter CHECK (agency_promoter_id IS NOT NULL OR employee_id IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conformity_org ON promoter_conformity(organization_id, status);
+
+CREATE TABLE IF NOT EXISTS facial_comparison_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  supermarket_unit_id UUID REFERENCES supermarket_units(id) ON DELETE SET NULL,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  entry_log_id UUID REFERENCES pdv_entry_logs(id) ON DELETE SET NULL,
+  comparison_type VARCHAR(30) NOT NULL DEFAULT 'entry_vs_base',
+  base_image_url TEXT,
+  captured_image_url TEXT,
+  confidence_score NUMERIC(5,2),
+  result VARCHAR(20) NOT NULL DEFAULT 'pending',
+  processing_time_ms INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_facial_logs_org ON facial_comparison_logs(organization_id, created_at);
+
+CREATE TABLE IF NOT EXISTS conformity_notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
+  agency_promoter_id UUID REFERENCES agency_promoters(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  network_id UUID NOT NULL REFERENCES supermarket_networks(id) ON DELETE CASCADE,
+  notification_type VARCHAR(30) NOT NULL DEFAULT 'photo_non_conform',
+  message TEXT,
+  channel VARCHAR(20) DEFAULT 'system',
+  sent_at TIMESTAMPTZ,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conformity_notif_agency ON conformity_notifications(agency_id, read_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_promoter_conformity_agency_network_unique
+ON promoter_conformity (agency_promoter_id, network_id)
+WHERE agency_promoter_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_promoter_conformity_employee_network_unique
+ON promoter_conformity (employee_id, network_id)
+WHERE employee_id IS NOT NULL;
+`;
+
 const step47VisitRequests = `
 -- Solicitações de visita (agência -> supermercado)
 CREATE TABLE IF NOT EXISTS visit_requests (
@@ -4509,6 +4575,7 @@ const migrationSteps = [
   { name: 'Merchandising Phase 4 (Routes)', sql: step44MerchPhase4, critical: false },
   { name: 'Access Control (Fase 5)', sql: step45AccessControl, critical: false },
   { name: 'Access Control Auth Modules (Fase 5)', sql: step45cAuthModules, critical: false },
+  { name: 'Promoter Conformity (Fase 5)', sql: step45dPromoterConformity, critical: false },
   { name: 'Agency Billing', sql: step46AgencyBilling, critical: false },
   { name: 'Agency Allowed Units', sql: step45bAgencyAllowedUnits, critical: false },
   { name: 'Visit Requests', sql: step47VisitRequests, critical: false },
