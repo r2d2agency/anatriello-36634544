@@ -712,7 +712,7 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
   const handleSchedule = async () => {
     if (targetType === 'pdv' && !pdvId) return toast.error('Selecione um PDV');
     if (targetType === 'rede' && !redeId) return toast.error('Selecione uma Rede');
-    if (!promoterId) return toast.error('Selecione um promotor');
+    if (targetType === 'pdv' && !promoterId) return toast.error('Selecione um promotor');
     if (!scheduleDate) return toast.error('Selecione uma data');
     if (recurrenceType !== 'once' && !recurrenceEndDate) return toast.error('Defina a data final da recorrência');
     setIsSubmitting(true);
@@ -723,7 +723,7 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
           rule_id: rule.id, brand_id: rule.brand_id,
           pdv_id: targetType === 'pdv' ? pdvId : undefined,
           rede_id: targetType === 'rede' ? redeId : undefined,
-          promoter_id: promoterId,
+          promoter_id: targetType === 'pdv' ? promoterId : undefined,
           scheduled_date: scheduleDate, scheduled_time: scheduleTime || null,
           recurrence_type: recurrenceType, recurrence_end_date: recurrenceEndDate || null,
         },
@@ -793,13 +793,24 @@ function ScheduleResearchDialog({ rule, brands, open, onClose }: { rule: any; br
             </div>
           )}
 
-          <div>
-            <Label className="flex items-center gap-1"><User className="h-3 w-3" />Promotor *</Label>
-            <Select value={promoterId} onValueChange={setPromoterId}>
-              <SelectTrigger><SelectValue placeholder="Selecione o promotor" /></SelectTrigger>
-              <SelectContent>{employees.filter((e: any) => e.active !== false).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
+          {targetType === 'pdv' ? (
+            <div>
+              <Label className="flex items-center gap-1"><User className="h-3 w-3" />Promotor *</Label>
+              <Select value={promoterId} onValueChange={setPromoterId}>
+                <SelectTrigger><SelectValue placeholder="Selecione o promotor" /></SelectTrigger>
+                <SelectContent>{employees.filter((e: any) => e.active !== false).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <Card className="bg-muted/40 border-dashed">
+              <CardContent className="pt-3 pb-3">
+                <p className="text-sm font-medium">Distribuição automática por promotores do PDV</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Na rede, a pesquisa ficará disponível no PDV para o primeiro promotor da marca que tiver rota no dia ou no próximo agendamento. Quando um concluir, ela some para os demais.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1158,6 +1169,23 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
   const [newCompName, setNewCompName] = useState('');
   const [newCompBrand, setNewCompBrand] = useState('');
   const [newCompPhoto, setNewCompPhoto] = useState('');
+  const [newCompObservation, setNewCompObservation] = useState('');
+
+  const ruleCompetitorConfig = exec?.rule_competitor_config || {};
+  const buildCompetitorsForProduct = (productId: string) => {
+    const comps = Array.isArray(ruleCompetitorConfig?.[productId]) ? ruleCompetitorConfig[productId] : [];
+    return comps.map((comp: any, idx: number) => ({
+      id: comp.id || `rule-${productId}-${idx}`,
+      competitor_product_id: comp.competitor_product_id || null,
+      competitor_id: comp.competitor_id || null,
+      competitor_product_name: comp.competitor_product_name || comp.name || '',
+      competitor_brand_name: comp.competitor_brand_name || comp.brand || '',
+      photo_url: comp.photo_url || null,
+      price: comp.price ?? null,
+      observation: comp.observation ?? null,
+      isTemplateCompetitor: true,
+    }));
+  };
 
   // Available products for this brand
   const brandId = exec?.brand_id;
@@ -1187,7 +1215,20 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
         pdv_id: editPdvId || undefined,
         scheduled_date: editDate || undefined,
         scheduled_time: editTime || undefined,
-        products: editProducts,
+        items: displayItemsForEditing.map((item: any) => ({
+          product_id: item.product_id,
+          price: item.price ?? null,
+          observation: item.observation ?? null,
+          competitors: (item.competitors || []).map((comp: any) => ({
+            competitor_product_id: comp.competitor_product_id || null,
+            competitor_id: comp.competitor_id || null,
+            competitor_product_name: comp.competitor_product_name || comp.name || '',
+            competitor_brand_name: comp.competitor_brand_name || comp.brand || '',
+            photo_url: comp.photo_url || null,
+            price: comp.price ?? null,
+            observation: comp.observation ?? null,
+          })),
+        })),
       });
       toast.success('Pesquisa atualizada!');
       setEditing(false);
@@ -1201,13 +1242,14 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
     try {
       await api(`/api/price-research/item-competitors`, {
         method: 'POST',
-        body: { item_id: itemId, competitor_product_name: newCompName, competitor_brand_name: newCompBrand, photo_url: newCompPhoto || null },
+        body: { item_id: itemId, competitor_product_name: newCompName, competitor_brand_name: newCompBrand, photo_url: newCompPhoto || null, observation: newCompObservation || null },
       });
       toast.success('Concorrente adicionado');
       setAddingCompForItem(null);
       setNewCompName('');
       setNewCompBrand('');
       setNewCompPhoto('');
+      setNewCompObservation('');
       // Refetch
       qc.invalidateQueries({ queryKey: ['price-research-execution', id] });
     } catch (err: any) { toast.error(err.message || 'Erro'); }
@@ -1232,6 +1274,33 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
     }
     setShowAddProduct(false);
   };
+
+  const displayItemsForEditing = (() => {
+    const existingItems = exec?.items || [];
+    const existingProductIds = existingItems.map((i: any) => i.product_id);
+    const newProductIds = editing ? editProducts.filter(pid => !existingProductIds.includes(pid)) : [];
+    const newItems = newProductIds.map(pid => {
+      const prod = allProducts.find((p: any) => p.id === pid);
+      return {
+        id: `new-${pid}`,
+        product_id: pid,
+        product_name: prod?.name || 'Produto',
+        photo_url: prod?.photo_url,
+        description: prod?.description,
+        price: null,
+        observation: null,
+        competitors: buildCompetitorsForProduct(pid),
+        isNew: true,
+      };
+    });
+    return [
+      ...existingItems.filter((item: any) => !editing || editProducts.includes(item.product_id)).map((item: any) => ({
+        ...item,
+        competitors: item.competitors?.length ? item.competitors : buildCompetitorsForProduct(item.product_id),
+      })),
+      ...newItems,
+    ];
+  })();
 
   const uploadCompPhoto = async (file: File) => {
     try {
@@ -1350,19 +1419,10 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
                 )}
 
                 {/* Build display items: existing items + newly added products */}
-                {(() => {
-                  const existingItems = exec.items || [];
-                  const existingProductIds = existingItems.map((i: any) => i.product_id);
-                  const newProductIds = editing ? editProducts.filter(pid => !existingProductIds.includes(pid)) : [];
-                  const newItems = newProductIds.map(pid => {
-                    const prod = allProducts.find((p: any) => p.id === pid);
-                    return { id: `new-${pid}`, product_id: pid, product_name: prod?.name || 'Produto', photo_url: prod?.photo_url, price: null, observation: null, competitors: [], isNew: true };
-                  });
-                  const displayItems = [
-                    ...existingItems.filter((item: any) => !editing || editProducts.includes(item.product_id)),
-                    ...newItems,
-                  ];
-                  const removedItems = editing ? existingItems.filter((item: any) => !editProducts.includes(item.product_id)) : [];
+                  {(() => {
+                   const existingItems = exec.items || [];
+                   const displayItems = displayItemsForEditing;
+                   const removedItems = editing ? existingItems.filter((item: any) => !editProducts.includes(item.product_id)) : [];
 
                   return displayItems.length > 0 || removedItems.length > 0 ? (
                     <Table>
@@ -1409,6 +1469,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
                                     <div className="mt-2 space-y-2 border rounded p-2 bg-muted/30">
                                       <Input placeholder="Nome do produto concorrente" value={newCompName} onChange={e => setNewCompName(e.target.value)} className="h-8 text-xs" />
                                       <Input placeholder="Marca concorrente" value={newCompBrand} onChange={e => setNewCompBrand(e.target.value)} className="h-8 text-xs" />
+                                      <Input placeholder="Observação" value={newCompObservation} onChange={e => setNewCompObservation(e.target.value)} className="h-8 text-xs" />
                                       <div className="flex items-center gap-2">
                                         {newCompPhoto ? (
                                           <div className="relative">
@@ -1424,7 +1485,7 @@ function ExecutionDetailDialog({ id, open, onClose }: { id: string; open: boolea
                                       </div>
                                       <div className="flex gap-2">
                                         <Button size="sm" className="h-7 text-xs" onClick={() => handleAddCompetitor(item.id)}>Adicionar</Button>
-                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAddingCompForItem(null)}>Cancelar</Button>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddingCompForItem(null); setNewCompObservation(''); }}>Cancelar</Button>
                                       </div>
                                     </div>
                                   ) : (
