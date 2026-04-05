@@ -2628,6 +2628,14 @@ router.post('/promoters/check-all-conformity', authenticate, async (req, res) =>
     await ensurePromoterConformitySchema();
 
     const orgId = await getOrgId(req.userId);
+    const networksR = await query(
+      'SELECT COUNT(*)::int AS count FROM supermarket_networks WHERE organization_id = $1 AND active = true',
+      [orgId]
+    );
+
+    if (!networksR.rows[0]?.count) {
+      return res.json({ checked: 0, total: 0, message: 'Nenhuma rede ativa encontrada para validar a conformidade' });
+    }
 
     const apR = await query(
       `SELECT ap.id as agency_promoter_id, ap.photo_url, NULL as employee_id
@@ -2649,8 +2657,8 @@ router.post('/promoters/check-all-conformity', authenticate, async (req, res) =>
     let checked = 0;
 
     for (const p of all) {
-      await checkPromoterConformity(orgId, p);
-      checked++;
+      const results = await checkPromoterConformity(orgId, p);
+      if (results.length > 0) checked++;
     }
 
     res.json({ checked, total: all.length });
@@ -2680,6 +2688,10 @@ router.post('/promoters/:id/check-conformity', authenticate, async (req, res) =>
     }
 
     const results = await checkPromoterConformity(orgId, promoter);
+
+    if (results.length === 0) {
+      return res.json({ results, message: 'Nenhuma rede ativa encontrada para validar este promotor' });
+    }
 
     const nonConform = results.filter(r => r.status === 'nao_conforme' || r.status === 'pendente');
     if (nonConform.length > 0 && promoter.agency_promoter_id) {
