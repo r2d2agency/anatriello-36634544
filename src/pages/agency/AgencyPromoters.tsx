@@ -33,7 +33,7 @@ const defaultForm = {
 };
 
 export default function AgencyPromoters() {
-  const { user } = useAgencyAuth();
+  const { user, isLoading: isAuthLoading } = useAgencyAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { uploadFile, isUploading } = useUpload(() => localStorage.getItem('agency_auth_token'));
@@ -49,13 +49,13 @@ export default function AgencyPromoters() {
   const { data: promoters = [], isLoading } = useQuery({
     queryKey: ['agency-promoters'],
     queryFn: () => api<any[]>('/api/access-control/agency/promoters', { headers: getHeaders() }),
-    enabled: !!user,
+    enabled: !!user && !isAuthLoading,
   });
 
   const { data: visitRequests = [] } = useQuery({
     queryKey: ['agency-visit-requests-summary'],
     queryFn: () => api<any[]>('/api/access-control/agency/visit-requests', { headers: getHeaders() }),
-    enabled: !!user,
+    enabled: !!user && !isAuthLoading,
   });
 
   const saveMutation = useMutation({
