@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Settings, Palette, Lock, Key, Copy, RefreshCw, Loader2, Eye, EyeOff, Monitor, UserCog, ExternalLink } from 'lucide-react';
+import { FileUploadInput } from '@/components/ui/file-upload-input';
 
 const getHeaders = () => {
   const t = localStorage.getItem('supermarket_auth_token');
