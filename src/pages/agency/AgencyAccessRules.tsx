@@ -28,7 +28,7 @@ const getHeaders = () => {
 };
 
 export default function AgencyAccessRules() {
-  const { user } = useAgencyAuth();
+  const { user, isLoading: isAuthLoading } = useAgencyAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -43,19 +43,19 @@ export default function AgencyAccessRules() {
   const { data: rules = [] } = useQuery({
     queryKey: ['agency-access-rules'],
     queryFn: () => api<any[]>('/api/access-control/agency/access-rules', { headers: getHeaders() }),
-    enabled: !!user,
+    enabled: !!user && !isAuthLoading,
   });
 
   const { data: promoters = [] } = useQuery({
     queryKey: ['agency-promoters'],
     queryFn: () => api<any[]>('/api/access-control/agency/promoters', { headers: getHeaders() }),
-    enabled: !!user,
+    enabled: !!user && !isAuthLoading,
   });
 
   const { data: units = [] } = useQuery({
     queryKey: ['agency-available-units'],
     queryFn: () => api<any[]>('/api/access-control/agency/allowed-units', { headers: getHeaders() }),
-    enabled: !!user,
+    enabled: !!user && !isAuthLoading,
   });
 
   const createMutation = useMutation({
