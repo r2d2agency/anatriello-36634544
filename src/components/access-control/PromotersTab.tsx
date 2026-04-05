@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, ShieldCheck, Loader2, Key, Trash2, FileText, ScanFace, RefreshCw } from "lucide-react";
+import { Plus, Pencil, ShieldCheck, Loader2, Key, Trash2, FileText, ScanFace } from "lucide-react";
 import { AuthorizationLetterDialog } from "./AuthorizationLetterDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCpf, formatPhone, isValidCpf, isValidPhone, onlyDigits } from "@/lib/br-utils";
@@ -111,14 +111,28 @@ const PromotersTab = () => {
     }));
   };
 
+  const handleCheckAllConformity = async () => {
+    try {
+      await checkAllConformityMutation.mutateAsync();
+    } catch {
+      const validPromoters = promoters.filter((p: any) => (p.employee_id || p.agency_promoter_id || p.id));
+      for (const p of validPromoters) {
+        const type = p.employee_id ? "employee" : "agency_promoter";
+        const id = p.employee_id || p.agency_promoter_id || p.id;
+        await checkConformityMutation.mutateAsync({ id, type });
+      }
+      toast({ title: `Conformidade verificada para ${validPromoters.length} promotores` });
+    }
+  };
+
   return (
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Promotores</CardTitle>
           <div className="flex gap-2">
-            <Button onClick={() => checkAllConformityMutation.mutate()} size="sm" variant="outline" disabled={checkAllConformityMutation.isPending}>
-              {checkAllConformityMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ScanFace className="h-4 w-4 mr-1" />}
+            <Button onClick={handleCheckAllConformity} size="sm" variant="outline" disabled={checkAllConformityMutation.isPending || checkConformityMutation.isPending}>
+              {checkAllConformityMutation.isPending || checkConformityMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ScanFace className="h-4 w-4 mr-1" />}
               Verificar Conformidade
             </Button>
             <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Promotor</Button>
@@ -218,6 +232,109 @@ const PromotersTab = () => {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editing ? "Editar Promotor" : "Novo Promotor"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Nome Completo *</Label><Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} /></div>
+            <div><Label>CPF *</Label><Input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: formatCpf(e.target.value) }))} placeholder="000.000.000-00" /></div>
+            <div><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))} placeholder="(00) 00000-0000" /></div>
+            <div>
+              <Label>Agência</Label>
+              <Select value={form.agency_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, agency_id: v === "__none__" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Interno (sem agência)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Interno</SelectItem>
+                  {agencies.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!form.full_name || !form.cpf}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rulesDialogOpen} onOpenChange={setRulesDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Regras de Acesso — {selectedPromoter?.full_name}</DialogTitle></DialogHeader>
+
+          <div className="space-y-2 max-h-[30vh] overflow-y-auto">
+            {(rules as any[]).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma regra cadastrada</p>
+            ) : (rules as any[]).map((r: any) => (
+              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                <div>
+                  <p className="font-medium text-sm">{r.unit_name || r.unit_id}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.time_start} - {r.time_end} | Dias: {r.allowed_weekdays?.map((d: number) => WEEKDAYS[d]?.slice(0, 3)).join(", ")}
+                  </p>
+                  {r.brands?.length > 0 && (
+                    <div className="flex gap-1 mt-1">{r.brands.map((b: string) => <Badge key={b} variant="outline" className="text-xs">{b}</Badge>)}</div>
+                  )}
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => deleteRuleMutation.mutate(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t pt-4 space-y-3">
+            <p className="font-medium text-sm">Adicionar regra</p>
+            <div>
+              <Label>Unidade (PDV)</Label>
+              <Select value={ruleForm.unit_id} onValueChange={v => setRuleForm(f => ({ ...f, unit_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {units.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Dias permitidos</Label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {WEEKDAYS.map((day, i) => (
+                  <label key={i} className="flex items-center gap-1 text-sm">
+                    <Checkbox checked={ruleForm.allowed_weekdays.includes(i)} onCheckedChange={() => toggleWeekday(i)} />
+                    {day.slice(0, 3)}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Entrada</Label><Input type="time" value={ruleForm.time_start} onChange={e => setRuleForm(f => ({ ...f, time_start: e.target.value }))} /></div>
+              <div><Label>Saída</Label><Input type="time" value={ruleForm.time_end} onChange={e => setRuleForm(f => ({ ...f, time_end: e.target.value }))} /></div>
+            </div>
+            <div><Label>Marcas (separadas por vírgula)</Label><Input value={ruleForm.brands} onChange={e => setRuleForm(f => ({ ...f, brands: e.target.value }))} placeholder="Nestlé, Unilever" /></div>
+            <Button onClick={handleAddRule} disabled={!ruleForm.unit_id} size="sm"><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AuthorizationLetterDialog
+        open={letterDialogOpen}
+        onOpenChange={setLetterDialogOpen}
+        promoter={letterPromoter ? {
+          name: letterPromoter.full_name,
+          cpf: letterPromoter.cpf,
+          phone: letterPromoter.phone,
+          isInternal: !!letterPromoter.employee_id,
+        } : undefined}
+        agency={letterPromoter?.agency_name ? {
+          name: letterPromoter.agency_name,
+        } : undefined}
+      />
+    </>
+  );
+};
+
+export default PromotersTab;
             </div>
           )}
         </CardContent>
