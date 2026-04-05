@@ -25,6 +25,40 @@ const normalizePhotoUrl = (value) => {
   return trimmed || null;
 };
 
+const DEFAULT_TOTEM_BRANDING = {
+  totem_primary_color: '#3b82f6',
+  totem_secondary_color: '#1e293b',
+  totem_bg_color: '#0f172a',
+  totem_button_color: '#3b82f6',
+  totem_button_text_color: '#ffffff',
+  totem_header_text: 'Controle de Acesso',
+};
+
+let supermarketPortalSchemaReadyPromise = null;
+async function ensureSupermarketPortalSchema() {
+  if (supermarketPortalSchemaReadyPromise) return supermarketPortalSchemaReadyPromise;
+
+  supermarketPortalSchemaReadyPromise = (async () => {
+    await query(`
+      ALTER TABLE supermarket_units
+        ADD COLUMN IF NOT EXISTS logo_url TEXT,
+        ADD COLUMN IF NOT EXISTS totem_primary_color TEXT,
+        ADD COLUMN IF NOT EXISTS totem_secondary_color TEXT,
+        ADD COLUMN IF NOT EXISTS totem_bg_color TEXT,
+        ADD COLUMN IF NOT EXISTS totem_button_color TEXT,
+        ADD COLUMN IF NOT EXISTS totem_button_text_color TEXT,
+        ADD COLUMN IF NOT EXISTS totem_header_text TEXT
+    `);
+  })();
+
+  try {
+    await supermarketPortalSchemaReadyPromise;
+  } catch (error) {
+    supermarketPortalSchemaReadyPromise = null;
+    throw error;
+  }
+}
+
 let promoterConformitySchemaReadyPromise = null;
 async function ensurePromoterConformitySchema() {
   if (promoterConformitySchemaReadyPromise) return promoterConformitySchemaReadyPromise;
