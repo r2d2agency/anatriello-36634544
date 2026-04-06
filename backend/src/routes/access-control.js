@@ -1711,12 +1711,15 @@ router.get('/supermarket-portal/live', authenticateSupermarket, async (req, res)
        WHERE el.supermarket_unit_id IN (${placeholders}) AND el.exit_at IS NULL AND el.status = 'authorized'
        ORDER BY el.entry_at DESC`, unitIds);
 
-    // Brands today
+    // Brands today — merge daily_brand_presence with agency brands from visit requests
     const brands = await query(
-      `SELECT dbp.*, b.name as brand_name FROM daily_brand_presence dbp
-       JOIN brands b ON b.id = dbp.brand_id
-       WHERE dbp.supermarket_unit_id IN (${placeholders}) AND dbp.presence_date = CURRENT_DATE
-       ORDER BY b.name`, unitIds).catch(() => ({ rows: [] }));
+      `SELECT DISTINCT vr.brand_name, a.name as agency_name, COUNT(DISTINCT vr.promoter_id) as promoter_count, 'in_progress' as status
+       FROM visit_requests vr
+       JOIN agencies a ON a.id = vr.agency_id
+       WHERE vr.supermarket_unit_id IN (${placeholders}) AND vr.status = 'approved'
+       AND CURRENT_DATE BETWEEN vr.period_start AND vr.period_end AND vr.brand_name IS NOT NULL
+       GROUP BY vr.brand_name, a.name
+       ORDER BY vr.brand_name`, unitIds).catch(() => ({ rows: [] }));
 
     // Blocked today
     const blocked = await query(
@@ -1728,7 +1731,7 @@ router.get('/supermarket-portal/live', authenticateSupermarket, async (req, res)
 
     res.json({
       promoters_now: inStore.rows.map(p => ({ ...p, name: p.promoter_name, duration_so_far: Math.round(p.duration_so_far || 0) })),
-      brands_now: brands.rows.map(b => ({ ...b, promoter_count: 1, status: 'in_progress' })),
+      brands_now: brands.rows.map(b => ({ ...b, promoter_count: parseInt(b.promoter_count) || 1 })),
       alerts: [],
       blocked_today: blocked.rows,
     });
