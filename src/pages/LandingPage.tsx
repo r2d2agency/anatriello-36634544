@@ -487,11 +487,14 @@ function PositioningSection({ onCta }: { onCta: () => void }) {
 function FAQSection() {
   const [open, setOpen] = useState<number | null>(null);
   const faqs = [
-    { q: "O sistema funciona para qualquer tamanho de agência?", a: "Sim, o Ayratech atende desde agências com 5 promotores até operações com centenas de profissionais em campo." },
-    { q: "Precisa instalar algo no supermercado?", a: "O totem de acesso pode rodar em um tablet comum. Não exige infraestrutura especial no PDV." },
-    { q: "A IA substitui o supervisor?", a: "Não. A IA complementa a supervisão, identificando padrões e problemas que passariam despercebidos." },
-    { q: "O promotor precisa de um celular especial?", a: "Não. O app funciona em qualquer smartphone Android ou iOS com câmera." },
-    { q: "Como funciona a cobrança?", a: "A agência paga por promotor ativo. O supermercado usa o sistema gratuitamente." },
+    { q: "O sistema funciona para qualquer tamanho de agência?", a: "Sim, o Ayratech atende desde agências com 5 promotores até operações com centenas de profissionais em campo, com escalabilidade total." },
+    { q: "Como funciona a cobrança?", a: "A agência paga por promotor ativo cadastrado no sistema. O supermercado usa o módulo AyraAccess gratuitamente. Sem taxa de implantação." },
+    { q: "Precisa instalar algo no supermercado?", a: "O totem de acesso roda em qualquer tablet comum com navegador. Não exige hardware especial." },
+    { q: "O promotor precisa de um celular especial?", a: "Não. O app funciona como PWA em qualquer smartphone Android ou iOS com câmera e GPS." },
+    { q: "A IA substitui o supervisor?", a: "Não. A IA complementa a supervisão humana, identificando padrões, validando fotos e detectando anomalias que passariam despercebidas." },
+    { q: "Como funciona o reconhecimento facial?", a: "O sistema utiliza IA para comparar a selfie do promotor com a foto cadastrada, validando identidade no registro de ponto e no acesso ao PDV." },
+    { q: "As rotas por IA funcionam com qualquer quantidade de PDVs?", a: "Sim. A otimização considera distância, tempo de deslocamento, mix de produtos e carga operacional, independente do volume." },
+    { q: "Posso integrar com o sistema do supermercado?", a: "O AyraAccess oferece portal próprio gratuito para o PDV. A integração é automática pela plataforma." },
   ];
 
   return (
