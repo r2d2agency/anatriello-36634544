@@ -476,8 +476,8 @@ const TotemAccess = () => {
     setSelfieRequired(false); setSelfieCapture(null); setShowCamera(false); setLgpdAccepted(false); setShowLgpd(false);
     setFacialVerified(false); setFacialPendingAction(null); setShowFacialVerify(false);
     setShowNumpad(false);
+    setShowFreelanceRegister(false); setRegKeyInput(''); setRegKeyValid(null); setRegForm({ name: '', cpf: '', phone: '' }); setRegError('');
     stopCamera();
-    // Reset to mode selection if multiple modes available
     if (authConfig.cpf_entry_enabled && authConfig.qr_entry_enabled) setAuthMode("select");
   };
 
