@@ -481,6 +481,52 @@ const TotemAccess = () => {
     if (authConfig.cpf_entry_enabled && authConfig.qr_entry_enabled) setAuthMode("select");
   };
 
+  // ═══ Freelance registration ═══
+  const handleValidateRegKey = async () => {
+    if (regKeyInput.length !== 6) return;
+    setRegLoading(true); setRegError('');
+    try {
+      const res = await fetch(`${API_URL}/api/access-control/totem/validate-registration-key`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-totem-token": config.token },
+        body: JSON.stringify({ key_code: regKeyInput }),
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setRegKeyValid(data.key);
+        setRegForm(f => ({ ...f, name: data.key.promoter_name || '' }));
+      } else {
+        setRegError(data.error || 'Chave inválida ou expirada');
+      }
+    } catch { setRegError('Erro de conexão'); }
+    finally { setRegLoading(false); }
+  };
+
+  const handleRegisterFreelance = async () => {
+    if (!regForm.name || !regForm.cpf || regForm.cpf.length < 11) {
+      setRegError('Nome e CPF são obrigatórios'); return;
+    }
+    setRegLoading(true); setRegError('');
+    try {
+      const res = await fetch(`${API_URL}/api/access-control/totem/register-freelance`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-totem-token": config.token },
+        body: JSON.stringify({ key_code: regKeyInput, name: regForm.name, cpf: regForm.cpf, phone: regForm.phone || null }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResult({ status: "authorized", promoter_name: data.promoter.name, block_reason: "CADASTRO REALIZADO" });
+        setShowFreelanceRegister(false); setRegKeyInput(''); setRegKeyValid(null); setRegForm({ name: '', cpf: '', phone: '' });
+      } else {
+        setRegError(data.error || 'Erro ao cadastrar');
+      }
+    } catch { setRegError('Erro de conexão'); }
+    finally { setRegLoading(false); }
+  };
+
+  const resetFreelanceRegister = () => {
+    setShowFreelanceRegister(false); setRegKeyInput(''); setRegKeyValid(null);
+    setRegForm({ name: '', cpf: '', phone: '' }); setRegError('');
+  };
+
   const handleSaveConfig = () => {
     saveConfig(configForm); setConfig(configForm);
     if (session) {
