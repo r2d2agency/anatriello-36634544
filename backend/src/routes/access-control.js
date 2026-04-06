@@ -1781,12 +1781,18 @@ router.get('/supermarket-portal/today-stats', authenticateSupermarket, async (re
 router.get('/supermarket/history', authenticateSupermarket, async (req, res) => {
   try {
     const { date, status } = req.query;
-    let sql = `SELECT el.*, ap.name as promoter_name, ap.photo_url, a.name as agency_name
+    let sql = `SELECT el.*, ap.name as promoter_name, ap.photo_url, a.name as agency_name,
+               COALESCE(
+                 (SELECT ARRAY_AGG(DISTINCT vr.brand_name) FROM visit_requests vr
+                  WHERE vr.agency_id = a.id AND vr.supermarket_unit_id = el.supermarket_unit_id
+                  AND vr.status = 'approved' AND vr.brand_name IS NOT NULL
+                  AND el.entry_at::date BETWEEN vr.period_start AND vr.period_end),
+                 ARRAY[]::text[]
+               ) as brands_attending
                FROM pdv_entry_logs el
                LEFT JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
                LEFT JOIN agencies a ON a.id = ap.agency_id
                WHERE el.supermarket_unit_id = $1`;
-    const params = [req.unitId];
     if (date) { params.push(date); sql += ` AND el.entry_at::date = $${params.length}`; }
     if (status) { params.push(status); sql += ` AND el.status = $${params.length}`; }
     sql += ' ORDER BY el.entry_at DESC LIMIT 200';
