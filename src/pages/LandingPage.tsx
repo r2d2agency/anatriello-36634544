@@ -723,6 +723,7 @@ export default function LandingPage() {
         ))}
       </div>
 
+      <CommercialModelSection />
       <PositioningSection onCta={scrollToContact} />
       <div id="faq"><FAQSection /></div>
       <ContactSection />
