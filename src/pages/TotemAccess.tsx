@@ -932,12 +932,101 @@ const TotemAccess = () => {
         )}
 
         {/* Lookup error */}
-        {lookupError && (
+        {lookupError && !showFreelanceRegister && (
           <div className="rounded-2xl p-6 backdrop-blur text-center" style={{ backgroundColor: "#dc262644", border: "2px solid #dc262666" }}>
             <XCircle className="h-16 w-16 mx-auto mb-3 text-red-300" />
             <p className="text-white text-xl font-semibold mb-1">Não encontrado</p>
             <p className="text-white/80">{lookupError}</p>
-            <Button onClick={handleReset} variant="outline" className="mt-4 border-white/40 text-white hover:bg-white/10">Tentar novamente</Button>
+            <div className="flex gap-3 mt-4 justify-center">
+              <Button onClick={handleReset} variant="outline" className="border-white/40 text-white hover:bg-white/10">Tentar novamente</Button>
+              <Button onClick={() => { setShowFreelanceRegister(true); setRegForm(f => ({ ...f, cpf: cpfDigits })); }} className="gap-2" style={btnStyle}>
+                <UserPlus className="h-4 w-4" /> Cadastrar com Chave
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Freelance registration */}
+        {showFreelanceRegister && (
+          <div className="rounded-2xl p-6 backdrop-blur animate-in fade-in zoom-in-95 duration-300 text-left"
+            style={{ backgroundColor: `${config.primaryColor}15`, border: `2px solid ${config.primaryColor}33` }}>
+            <div className="text-center mb-4">
+              <KeyRound className="h-10 w-10 mx-auto text-white/70 mb-2" />
+              <p className="text-white text-xl font-bold">Cadastro com Chave de Acesso</p>
+              <p className="text-white/60 text-sm">Solicite a chave à sua agência</p>
+            </div>
+
+            {!regKeyValid ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-white/70 text-sm">Chave de Acesso (6 dígitos)</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={regKeyInput}
+                    onChange={e => setRegKeyInput(e.target.value.replace(/\D/g, ''))}
+                    className="w-full h-16 text-center text-3xl font-mono tracking-[0.3em] rounded-xl border-2 bg-transparent text-white"
+                    style={{ borderColor: `${config.primaryColor}55` }}
+                    placeholder="000000"
+                    inputMode="numeric"
+                  />
+                </div>
+                {regError && <p className="text-red-400 text-sm text-center">{regError}</p>}
+                <div className="flex gap-3">
+                  <Button onClick={resetFreelanceRegister} variant="outline" className="flex-1 h-12 border-white/30 text-white hover:bg-white/10">Voltar</Button>
+                  <Button onClick={handleValidateRegKey} disabled={regKeyInput.length !== 6 || regLoading} className="flex-1 h-12 font-bold" style={btnStyle}>
+                    {regLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Validar'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-2 rounded-lg text-center" style={{ backgroundColor: `${config.primaryColor}33` }}>
+                  <p className="text-white/60 text-xs">Agência</p>
+                  <p className="text-white font-semibold">{regKeyValid.agency_name}</p>
+                </div>
+                <div>
+                  <label className="text-white/70 text-sm">Nome Completo *</label>
+                  <input
+                    value={regForm.name}
+                    onChange={e => setRegForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full h-12 rounded-xl border-2 bg-transparent text-white px-4"
+                    style={{ borderColor: `${config.primaryColor}55` }}
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+                <div>
+                  <label className="text-white/70 text-sm">CPF *</label>
+                  <input
+                    value={formatCpf(regForm.cpf)}
+                    onChange={e => setRegForm(f => ({ ...f, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                    className="w-full h-12 rounded-xl border-2 bg-transparent text-white px-4"
+                    style={{ borderColor: `${config.primaryColor}55` }}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div>
+                  <label className="text-white/70 text-sm">Telefone (opcional)</label>
+                  <input
+                    value={regForm.phone}
+                    onChange={e => setRegForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                    className="w-full h-12 rounded-xl border-2 bg-transparent text-white px-4"
+                    style={{ borderColor: `${config.primaryColor}55` }}
+                    placeholder="00 00000-0000"
+                    inputMode="numeric"
+                  />
+                </div>
+                {regError && <p className="text-red-400 text-sm text-center">{regError}</p>}
+                <div className="flex gap-3">
+                  <Button onClick={resetFreelanceRegister} variant="outline" className="flex-1 h-12 border-white/30 text-white hover:bg-white/10">Cancelar</Button>
+                  <Button onClick={handleRegisterFreelance} disabled={!regForm.name || regForm.cpf.length < 11 || regLoading} className="flex-1 h-12 font-bold gap-2" style={btnStyle}>
+                    {regLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
+                    Cadastrar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
