@@ -58,6 +58,18 @@ export default function AgencyPromoters() {
     enabled: !!user && !isAuthLoading,
   });
 
+  const { data: agencyBrands = [] } = useQuery({
+    queryKey: ['agency-brands'],
+    queryFn: () => api<any[]>('/api/access-control/agency/brands', { headers: getHeaders() }),
+    enabled: !!user && !isAuthLoading,
+  });
+
+  const { data: allowedUnits = [] } = useQuery({
+    queryKey: ['agency-allowed-units'],
+    queryFn: () => api<any[]>('/api/access-control/agency/allowed-units', { headers: getHeaders() }),
+    enabled: !!user && !isAuthLoading,
+  });
+
   const saveMutation = useMutation({
     mutationFn: (data: any) => {
       const payload = {
