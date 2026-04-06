@@ -1691,12 +1691,19 @@ router.get('/supermarket-portal/live', authenticateSupermarket, async (req, res)
     }
     const placeholders = unitIds.map((_, i) => `$${i + 1}`).join(',');
 
-    // Currently in store
+    // Currently in store — include agency brands via visit_requests
     const inStore = await query(
       `SELECT el.*, ap.name as promoter_name, ap.photo_url, a.name as agency_name, su.name as unit_name,
               EXTRACT(EPOCH FROM (NOW() - el.entry_at)) / 60 as duration_so_far,
               TO_CHAR(el.entry_at, 'HH24:MI') as entry_time,
-              'cpf' as validation_method
+              'cpf' as validation_method,
+              COALESCE(
+                (SELECT ARRAY_AGG(DISTINCT vr.brand_name) FROM visit_requests vr
+                 WHERE vr.agency_id = a.id AND vr.supermarket_unit_id = el.supermarket_unit_id
+                 AND vr.status = 'approved' AND vr.brand_name IS NOT NULL
+                 AND CURRENT_DATE BETWEEN vr.period_start AND vr.period_end),
+                ARRAY[]::text[]
+              ) as brands_attending
        FROM pdv_entry_logs el
        LEFT JOIN agency_promoters ap ON ap.id = el.agency_promoter_id
        LEFT JOIN agencies a ON a.id = ap.agency_id
