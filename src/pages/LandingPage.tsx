@@ -647,6 +647,7 @@ function Navbar({ onCta }: { onCta: () => void }) {
         <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
           {[
             { label: "Recursos", href: "#features" },
+            { label: "Modelo", href: "#modelo" },
             { label: "FAQ", href: "#faq" },
             { label: "Contato", href: "#contato" },
           ].map(l => (
