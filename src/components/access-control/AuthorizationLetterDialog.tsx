@@ -219,15 +219,40 @@ export function AuthorizationLetterDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Nome do PDV *</label>
-                <Input value={form.unitName} onChange={e => setForm(f => ({ ...f, unitName: e.target.value }))} />
+                {availableUnits && availableUnits.length > 0 ? (
+                  <Select
+                    value={form.unitName}
+                    onValueChange={(v) => {
+                      const selected = availableUnits.find(u => u.name === v);
+                      setForm(f => ({
+                        ...f,
+                        unitName: selected?.name || v,
+                        unitAddress: selected?.address || f.unitAddress,
+                        unitCnpj: selected?.cnpj || f.unitCnpj,
+                        networkName: selected?.networkName || f.networkName,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione o PDV" /></SelectTrigger>
+                    <SelectContent>
+                      {availableUnits.map(u => (
+                        <SelectItem key={u.id} value={u.name}>
+                          {u.name} {u.city ? `— ${u.city}/${u.state}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={form.unitName} onChange={e => setForm(f => ({ ...f, unitName: e.target.value }))} />
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Rede</label>
-                <Input value={form.networkName} onChange={e => setForm(f => ({ ...f, networkName: e.target.value }))} />
+                <Input value={form.networkName} onChange={e => setForm(f => ({ ...f, networkName: e.target.value }))} readOnly={!!availableUnits?.length} className={availableUnits?.length ? 'bg-muted' : ''} />
               </div>
               <div className="col-span-2 space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Endereço</label>
-                <Input value={form.unitAddress} onChange={e => setForm(f => ({ ...f, unitAddress: e.target.value }))} />
+                <Input value={form.unitAddress} onChange={e => setForm(f => ({ ...f, unitAddress: e.target.value }))} readOnly={!!availableUnits?.length} className={availableUnits?.length ? 'bg-muted' : ''} />
               </div>
             </div>
           </fieldset>
