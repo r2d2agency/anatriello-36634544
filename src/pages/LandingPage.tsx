@@ -64,7 +64,7 @@ function Hero({ onCta }: { onCta: () => void }) {
 
         {/* Trust strip */}
         <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
-          {["IA integrada", "WhatsApp nativo", "CRM completo", "App do promotor", "Controle de acesso"].map(t => (
+          {["IA integrada", "WhatsApp nativo", "CRM completo", "App do promotor", "Controle de acesso", "Rotas por IA", "Rastreamento GPS", "Ponto facial"].map(t => (
             <span key={t} className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-violet-500" />{t}</span>
           ))}
         </div>
