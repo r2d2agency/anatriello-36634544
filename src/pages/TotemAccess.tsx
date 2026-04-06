@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock, Store, Delete, Settings, UserCheck, LogOut, LogIn, Lock, Unplug, QrCode, Camera, ScanFace, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock, Store, Delete, Settings, UserCheck, LogOut, LogIn, Lock, Unplug, QrCode, Camera, ScanFace, AlertTriangle, KeyRound, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +135,14 @@ const TotemAccess = () => {
   // LGPD
   const [lgpdAccepted, setLgpdAccepted] = useState(false);
   const [showLgpd, setShowLgpd] = useState(false);
+
+  // Freelance registration
+  const [showFreelanceRegister, setShowFreelanceRegister] = useState(false);
+  const [regKeyInput, setRegKeyInput] = useState('');
+  const [regKeyValid, setRegKeyValid] = useState<any>(null);
+  const [regForm, setRegForm] = useState({ name: '', cpf: '', phone: '' });
+  const [regLoading, setRegLoading] = useState(false);
+  const [regError, setRegError] = useState('');
 
   // Facial verification
   const [showFacialVerify, setShowFacialVerify] = useState(false);
