@@ -289,23 +289,55 @@ export function AuthorizationLetterDialog({
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Marcas</label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nome da marca..."
-                  value={brandInput}
-                  onChange={e => setBrandInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addBrand())}
-                />
-                <Button type="button" size="sm" variant="outline" onClick={addBrand}>Adicionar</Button>
-              </div>
-              {form.brands.length > 0 && (
-                <div className="flex gap-1.5 flex-wrap mt-2">
-                  {form.brands.map(b => (
-                    <Badge key={b} variant="secondary" className="cursor-pointer" onClick={() => removeBrand(b)}>
-                      {b} ×
-                    </Badge>
-                  ))}
+              {availableBrands && availableBrands.length > 0 ? (
+                <div className="space-y-2">
+                  <Select
+                    value=""
+                    onValueChange={(v) => {
+                      const brand = availableBrands.find(b => b.id === v);
+                      if (brand && !form.brands.includes(brand.name)) {
+                        setForm(f => ({ ...f, brands: [...f.brands, brand.name] }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione uma marca" /></SelectTrigger>
+                    <SelectContent>
+                      {availableBrands.filter(b => !form.brands.includes(b.name)).map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.brands.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {form.brands.map(b => (
+                        <Badge key={b} variant="secondary" className="cursor-pointer" onClick={() => removeBrand(b)}>
+                          {b} ×
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nome da marca..."
+                      value={brandInput}
+                      onChange={e => setBrandInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addBrand())}
+                    />
+                    <Button type="button" size="sm" variant="outline" onClick={addBrand}>Adicionar</Button>
+                  </div>
+                  {form.brands.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap mt-2">
+                      {form.brands.map(b => (
+                        <Badge key={b} variant="secondary" className="cursor-pointer" onClick={() => removeBrand(b)}>
+                          {b} ×
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
