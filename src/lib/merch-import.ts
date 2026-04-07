@@ -95,11 +95,11 @@ export function mapProductImportRow(row: ImportParsedRow) {
 
   return {
     __line: getImportValue(row, ["__line"]),
-    brand_code: getImportValue(row, ["id_familia", "familia", "família", "family_id", "brand_code", "codigo_familia"]),
+    brand_code: getImportValue(row, ["id_familia", "familia", "família", "family_id", "brand_code", "codigo_familia", "codigo", "código"]),
     brand_name: getImportValue(row, ["brand_name", "marca", "brand", "cliente"]),
     name: getImportValue(row, ["name", "nome", "produto", "descricao", "descrição", "product", "product_name"]),
-    sku: getImportValue(row, ["sku", "codigo", "código", "internal_code", "codigo_interno"]),
-    barcode: getImportValue(row, ["barcode", "codigo_barras", "código de barras", "ean", "codigo_barras"]),
+    sku: getImportValue(row, ["sku", "internal_code", "codigo_interno"]),
+    barcode: getImportValue(row, ["barcode", "codigo_barras", "código de barras", "ean"]),
     category_name: categoryName,
     subcategory_name: subcategoryName,
     image_url: getImportValue(row, ["image_url", "imagem", "foto", "image"]),
