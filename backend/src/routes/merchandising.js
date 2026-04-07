@@ -511,7 +511,7 @@ router.post('/products/import', async (req, res) => {
         const brandName = normalizeMerchText(item.brand_name || item.brand || item.marca);
         const rawCategoryName = normalizeMerchText(item.category_name || item.category || item.categoria);
         const rawSubcategoryName = normalizeMerchText(
-          item.subcategory_name || item.subcategory || item.subcategoria || categoryName
+          item.subcategory_name || item.subcategory || item.subcategoria || rawCategoryName
         );
         const categoryName = rawCategoryName || 'Sem categoria';
         const subcategoryName = rawSubcategoryName || categoryName;
