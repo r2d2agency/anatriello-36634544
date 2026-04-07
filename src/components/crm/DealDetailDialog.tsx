@@ -1892,7 +1892,7 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
                   payload.brand_data = {
                     name: convertBrandName,
                     razao_social: currentDeal?.company_name,
-                    email: currentDeal?.contacts?.[0]?.email,
+                    email: (currentDeal?.contacts?.[0] as any)?.email,
                     phone: currentDeal?.contacts?.[0]?.phone,
                     responsible: currentDeal?.contacts?.[0]?.name,
                   };
