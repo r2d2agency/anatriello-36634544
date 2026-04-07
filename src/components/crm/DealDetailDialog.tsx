@@ -34,8 +34,10 @@ import { useDealScore, useRecalculateDealScore } from "@/hooks/use-lead-scoring"
 import { LeadScoreDetail, LeadScoreBadge } from "./LeadScoreBadge";
 import { PredictiveAnalyticsCard } from "./PredictiveAnalytics";
 import { useProjectsByDeal, useProjectMutations, useProjectTemplates, Project } from "@/hooks/use-projects";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, ShoppingBag } from "lucide-react";
 import { DealProjectCard } from "./DealProjectCard";
+import { useConvertDealToContract } from "@/hooks/use-brand-contracts";
+import { useBrands } from "@/hooks/use-merchandising";
 
 interface ChatContact {
   id: string;
@@ -126,6 +128,10 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [dealDocuments, setDealDocuments] = useState<DocSignatureDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [showConvertBrand, setShowConvertBrand] = useState(false);
+  const [convertMode, setConvertMode] = useState<'new' | 'existing'>('new');
+  const [convertBrandId, setConvertBrandId] = useState('');
+  const [convertBrandName, setConvertBrandName] = useState('');
 
   const { data: fullDeal, isLoading } = useCRMDeal(deal?.id || null);
   const { data: funnelData } = useCRMFunnel(deal?.funnel_id || null);
