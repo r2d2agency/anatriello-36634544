@@ -71,11 +71,11 @@ const normalizeStatus = (value: string) => {
 
 export function mapBrandImportRow(row: ImportParsedRow) {
   return {
-    name: getImportValue(row, ["name", "nome", "descricao", "descrição"]),
-    internal_code: getImportValue(row, ["codigo", "código", "code", "internal_code", "id"]),
-    razao_social: getImportValue(row, ["razao_social", "razão social", "razao social"]),
-    cnpj: getImportValue(row, ["cnpj"]),
-    phone: getImportValue(row, ["phone", "telefone"]),
+    name: cleanNull(getImportValue(row, ["name", "nome", "descricao", "descrição"])),
+    internal_code: cleanNull(getImportValue(row, ["codigo", "código", "code", "internal_code", "id"])),
+    razao_social: cleanNull(getImportValue(row, ["razao_social", "razão social", "razao social"])),
+    cnpj: cleanNull(getImportValue(row, ["cnpj"])),
+    phone: cleanNull(getImportValue(row, ["phone", "telefone"])),
     status: normalizeStatus(getImportValue(row, ["status", "ativo"])),
   };
 }
