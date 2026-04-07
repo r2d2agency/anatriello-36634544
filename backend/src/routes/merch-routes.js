@@ -574,8 +574,10 @@ router.get('/routes/live', authenticate, async (req, res) => {
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN ${brandTable} b ON b.id = r.brand_id
        LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
-       WHERE r.organization_id=$1 AND r.visit_date = CURRENT_DATE
-       ORDER BY CASE r.status WHEN 'in_progress' THEN 0 WHEN 'scheduled' THEN 1 WHEN 'confirmed' THEN 2 ELSE 3 END, r.scheduled_time`, [orgId]
+       WHERE r.organization_id=$1
+         AND r.visit_date BETWEEN COALESCE($2::date, CURRENT_DATE) AND COALESCE($3::date, CURRENT_DATE)
+       ORDER BY r.visit_date DESC, CASE r.status WHEN 'in_progress' THEN 0 WHEN 'scheduled' THEN 1 WHEN 'confirmed' THEN 2 ELSE 3 END, r.scheduled_time`,
+      [orgId, req.query.date_from || null, req.query.date_to || null]
     );
 
     // Resolve photo URLs to absolute paths
