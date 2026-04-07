@@ -14,8 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useBrandPdvs, useAddPdvBrand, useRemovePdvBrand } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
-import { BrandContractPanel } from "@/components/merch/BrandContractPanel";
-import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, FileText } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 const emptyBrand = { name: '', razao_social: '', cnpj: '', logo_url: '', description: '', segment: '', responsible: '', phone: '', email: '', status: 'active', notes: '' };
@@ -29,7 +28,7 @@ export default function MerchMarcas() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pdvDialogBrand, setPdvDialogBrand] = useState<any>(null);
   const [pdvSearch, setPdvSearch] = useState('');
-  const [contractBrand, setContractBrand] = useState<any>(null);
+  
 
   const { data: brands = [], isLoading } = useBrands({ search, status: statusFilter });
   const createBrand = useCreateBrand();
@@ -179,14 +178,9 @@ export default function MerchMarcas() {
                     <TableCell className="hidden md:table-cell">{b.segment || '-'}</TableCell>
                     <TableCell className="hidden md:table-cell">{b.responsible || '-'}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setPdvDialogBrand(b); setPdvSearch(''); }}>
-                          <Store className="h-3 w-3 mr-1" /> PDVs
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setContractBrand(b)}>
-                          <FileText className="h-3 w-3 mr-1" /> Contratos
-                        </Button>
-                      </div>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setPdvDialogBrand(b); setPdvSearch(''); }}>
+                        <Store className="h-3 w-3 mr-1" /> PDVs
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>
@@ -307,9 +301,6 @@ export default function MerchMarcas() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Brand Contract Panel */}
-      <BrandContractPanel brand={contractBrand} open={!!contractBrand} onOpenChange={() => setContractBrand(null)} />
     </MainLayout>
   );
 }
