@@ -178,14 +178,9 @@ export default function MerchMarcas() {
                     <TableCell className="hidden md:table-cell">{b.segment || '-'}</TableCell>
                     <TableCell className="hidden md:table-cell">{b.responsible || '-'}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setPdvDialogBrand(b); setPdvSearch(''); }}>
-                          <Store className="h-3 w-3 mr-1" /> PDVs
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setContractBrand(b)}>
-                          <FileText className="h-3 w-3 mr-1" /> Contratos
-                        </Button>
-                      </div>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setPdvDialogBrand(b); setPdvSearch(''); }}>
+                        <Store className="h-3 w-3 mr-1" /> PDVs
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <Badge variant={b.status === 'active' ? 'default' : 'secondary'}>
@@ -306,9 +301,8 @@ export default function MerchMarcas() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Brand Contract Panel */}
-      <BrandContractPanel brand={contractBrand} open={!!contractBrand} onOpenChange={() => setContractBrand(null)} />
     </MainLayout>
+  );
+}
   );
 }
