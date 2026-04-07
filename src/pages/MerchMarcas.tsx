@@ -26,10 +26,9 @@ export default function MerchMarcas() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<any>(emptyBrand);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pdvDialogBrand, setPdvDialogBrand] = useState<any>(null);
   const [pdvSearch, setPdvSearch] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: brands = [], isLoading } = useBrands({ search, status: statusFilter });
   const createBrand = useCreateBrand();
