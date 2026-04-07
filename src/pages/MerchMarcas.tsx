@@ -14,7 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useBrandPdvs, useAddPdvBrand, useRemovePdvBrand } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
-import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft } from "lucide-react";
+import { BrandContractPanel } from "@/components/merch/BrandContractPanel";
+import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const emptyBrand = { name: '', razao_social: '', cnpj: '', logo_url: '', description: '', segment: '', responsible: '', phone: '', email: '', status: 'active', notes: '' };
@@ -28,6 +29,7 @@ export default function MerchMarcas() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pdvDialogBrand, setPdvDialogBrand] = useState<any>(null);
   const [pdvSearch, setPdvSearch] = useState('');
+  const [contractBrand, setContractBrand] = useState<any>(null);
 
   const { data: brands = [], isLoading } = useBrands({ search, status: statusFilter });
   const createBrand = useCreateBrand();
