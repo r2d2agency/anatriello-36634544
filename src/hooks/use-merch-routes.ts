@@ -111,14 +111,18 @@ export function useDuplicateMerchRoute() {
   });
 }
 
-export function useLiveRoutes() {
+export function useLiveRoutes(filters?: { date_from?: string; date_to?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.date_from) params.set('date_from', filters.date_from);
+  if (filters?.date_to) params.set('date_to', filters.date_to);
+  const qs = params.toString();
   return useQuery({
-    queryKey: ['merch-routes-live'],
+    queryKey: ['merch-routes-live', qs],
     enabled: isLiveRoutesScreenActive(),
     queryFn: async () => {
       if (!isLiveRoutesScreenActive()) return [];
       try {
-        return await api<any[]>('/api/merch/routes/live', { silent: true, fallbackToOtherBases: false });
+        return await api<any[]>(`/api/merch/routes/live${qs ? `?${qs}` : ''}`, { silent: true, fallbackToOtherBases: false });
       } catch {
         return [];
       }
