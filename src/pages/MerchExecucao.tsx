@@ -112,6 +112,9 @@ export default function MerchExecucao() {
             )}
           </div>
         </Card>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card><CardContent className="p-3 text-center">
             <div className="text-2xl font-bold text-primary">{liveRoutes.length}</div>
             <div className="text-xs text-muted-foreground">Total Hoje</div>
