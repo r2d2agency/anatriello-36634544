@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useImportBrands, useBrandPdvs, useAddPdvBrand, useRemovePdvBrand } from "@/hooks/use-merchandising";
+import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useBrandPdvs, useAddPdvBrand, useRemovePdvBrand } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
-import { parseImportFile, mapBrandImportRow } from "@/lib/merch-import";
+import { BrandImportDialog } from "@/components/merchandising/BrandImportDialog";
 import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload } from "lucide-react";
 import { toast } from "sonner";
 
