@@ -168,6 +168,8 @@ export function DealDetailDialog({ deal, open, onOpenChange }: DealDetailDialogP
   const { data: projectTemplates } = useProjectTemplates();
   const docSignaturesEnabled = modulesEnabled.doc_signatures;
   const { listDocumentsByDeal, sendSigningLinkWhatsApp } = useDocSignatures();
+  const convertDealToContract = useConvertDealToContract();
+  const { data: existingBrands = [] } = useBrands();
 
   const currentDeal = fullDeal || deal;
   const stages = funnelData?.stages || [];
