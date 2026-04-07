@@ -55,8 +55,14 @@ export function getImportValue(row: ImportParsedRow, candidates: string[]) {
   return "";
 }
 
+const cleanNull = (value: string) => {
+  const v = String(value || "").trim();
+  if (!v || v.toLowerCase() === "null") return "";
+  return v;
+};
+
 const normalizeStatus = (value: string) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = cleanNull(value).toLowerCase();
   if (!normalized) return "active";
   if (["1", "true", "ativo", "active", "sim", "yes"].includes(normalized)) return "active";
   if (["0", "false", "inativo", "inactive", "nao", "não", "no"].includes(normalized)) return "inactive";
@@ -65,11 +71,11 @@ const normalizeStatus = (value: string) => {
 
 export function mapBrandImportRow(row: ImportParsedRow) {
   return {
-    name: getImportValue(row, ["name", "nome", "descricao", "descrição"]),
-    internal_code: getImportValue(row, ["codigo", "código", "code", "internal_code", "id"]),
-    razao_social: getImportValue(row, ["razao_social", "razão social", "razao social"]),
-    cnpj: getImportValue(row, ["cnpj"]),
-    phone: getImportValue(row, ["phone", "telefone"]),
+    name: cleanNull(getImportValue(row, ["name", "nome", "descricao", "descrição"])),
+    internal_code: cleanNull(getImportValue(row, ["codigo", "código", "code", "internal_code", "id"])),
+    razao_social: cleanNull(getImportValue(row, ["razao_social", "razão social", "razao social"])),
+    cnpj: cleanNull(getImportValue(row, ["cnpj"])),
+    phone: cleanNull(getImportValue(row, ["phone", "telefone"])),
     status: normalizeStatus(getImportValue(row, ["status", "ativo"])),
   };
 }
