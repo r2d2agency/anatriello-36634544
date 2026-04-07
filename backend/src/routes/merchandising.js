@@ -393,7 +393,7 @@ router.get('/products', async (req, res) => {
     await ensureMerchandisingInfra();
     const orgId = req.orgId;
     const { brand_id, category_id, subcategory_id, status, search } = req.query;
-    let sql = `SELECT p.*, b.name as brand_name, c.name as category_name, sc.name as subcategory_name
+    let sql = `SELECT p.*, b.name as brand_name, b.internal_code as brand_code, c.name as category_name, sc.name as subcategory_name
                FROM merch_products p
                JOIN merch_brands b ON b.id = p.brand_id
                JOIN merch_categories c ON c.id = p.category_id
