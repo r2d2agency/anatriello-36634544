@@ -1,16 +1,36 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { useLiveRoutes, useMerchDamages, useReturnRequests } from "@/hooks/use-merch-routes";
-import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight } from "lucide-react";
-import { format } from "date-fns";
+import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight, Calendar, Filter } from "lucide-react";
+import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const PERIOD_PRESETS = [
+  { value: 'today', label: 'Hoje' },
+  { value: 'yesterday', label: 'Ontem' },
+  { value: 'week', label: 'Esta semana' },
+  { value: 'month', label: 'Este mês' },
+  { value: 'custom', label: 'Personalizado' },
+];
+
+function getDateRange(preset: string): { from: string; to: string } {
+  const today = new Date();
+  switch (preset) {
+    case 'today': return { from: format(today, 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
+    case 'yesterday': { const y = subDays(today, 1); return { from: format(y, 'yyyy-MM-dd'), to: format(y, 'yyyy-MM-dd') }; }
+    case 'week': return { from: format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
+    case 'month': return { from: format(startOfMonth(today), 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
+    default: return { from: format(today, 'yyyy-MM-dd'), to: format(today, 'yyyy-MM-dd') };
+  }
+}
 
 const STATUS_LABELS: Record<string, string> = {
   scheduled: 'Agendada', confirmed: 'Confirmada', in_progress: 'Em Andamento',
@@ -32,7 +52,16 @@ const DAMAGE_STATUS: Record<string, string> = {
 };
 
 export default function MerchExecucao() {
-  const { data: liveRoutes = [] } = useLiveRoutes();
+  const [period, setPeriod] = useState('today');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const dateRange = useMemo(() => {
+    if (period === 'custom' && dateFrom && dateTo) return { from: dateFrom, to: dateTo };
+    return getDateRange(period);
+  }, [period, dateFrom, dateTo]);
+
+  const { data: liveRoutes = [] } = useLiveRoutes({ date_from: dateRange.from, date_to: dateRange.to });
   const [damageFilter, setDamageFilter] = useState('');
   const { data: damages = [] } = useMerchDamages({ status: damageFilter || undefined });
   const { data: returnRequests = [] } = useReturnRequests();
@@ -45,6 +74,8 @@ export default function MerchExecucao() {
   const totalProducts = liveRoutes.reduce((sum: number, r: any) => sum + (parseInt(r.total_products) || 0), 0);
   const completedProducts = liveRoutes.reduce((sum: number, r: any) => sum + (parseInt(r.completed_products) || 0), 0);
 
+  const periodLabel = period === 'today' ? 'do dia' : period === 'yesterday' ? 'de ontem' : period === 'week' ? 'da semana' : period === 'month' ? 'do mês' : 'do período';
+
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -52,8 +83,35 @@ export default function MerchExecucao() {
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" /> Execução em Campo
           </h1>
-          <p className="text-sm text-muted-foreground">Acompanhamento em tempo real das rotas do dia</p>
+          <p className="text-sm text-muted-foreground">Acompanhamento das rotas {periodLabel}</p>
         </div>
+
+        {/* Period Filter */}
+        <Card className="p-3">
+          <div className="flex gap-3 flex-wrap items-end">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Período</label>
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PERIOD_PRESETS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {period === 'custom' && (
+              <>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">De</label>
+                  <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-40" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Até</label>
+                  <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-40" />
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
