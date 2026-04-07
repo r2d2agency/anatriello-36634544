@@ -98,6 +98,19 @@ export default function MerchMarcas() {
 
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const rows = await parseImportFile(file);
+      const items = rows.map(mapBrandImportRow).filter(item => item.name);
+      if (!items.length) { toast.error('Nenhuma marca válida encontrada no arquivo'); return; }
+      const result = await importBrands.mutateAsync({ items });
+      toast.success(`${result.created} marca(s) importada(s)${result.skipped ? `, ${result.skipped} já existente(s)` : ''}`);
+    } catch (err: any) { toast.error(err.message); }
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
   const handleLinkPdv = async (pdvId: string) => {
     try {
       await addPdvBrand.mutateAsync({ pdv_id: pdvId, brand_id: pdvDialogBrand.id });
