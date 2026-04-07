@@ -166,6 +166,7 @@ export default function MerchProdutos() {
                   />
                 </TableHead>
                 <TableHead>Produto</TableHead>
+                <TableHead className="hidden md:table-cell">Cód. Família</TableHead>
                 <TableHead className="hidden md:table-cell">Marca</TableHead>
                 <TableHead className="hidden md:table-cell">Categoria</TableHead>
                 <TableHead className="hidden lg:table-cell">SKU</TableHead>
@@ -188,6 +189,7 @@ export default function MerchProdutos() {
                       <div><p className="font-medium">{p.name}</p>{p.barcode && <p className="text-xs text-muted-foreground">{p.barcode}</p>}</div>
                     </div>
                   </TableCell>
+                  <TableCell className="hidden md:table-cell font-mono text-xs font-bold text-primary">{p.brand_code || '-'}</TableCell>
                   <TableCell className="hidden md:table-cell">{p.brand_name}</TableCell>
                   <TableCell className="hidden md:table-cell"><span>{p.category_name}</span>{p.subcategory_name && <span className="text-muted-foreground"> / {p.subcategory_name}</span>}</TableCell>
                   <TableCell className="hidden lg:table-cell">{p.sku || '-'}</TableCell>
@@ -198,7 +200,7 @@ export default function MerchProdutos() {
                   </TableCell>
                 </TableRow>
               ))}
-              {!isLoading && products.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum produto</TableCell></TableRow>}
+                {!isLoading && products.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum produto</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent></Card>
