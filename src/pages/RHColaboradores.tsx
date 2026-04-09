@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Search, UserCircle, Building2, FileText, Edit, Trash2, Eye, EyeOff, Users, Loader2, Calendar, Briefcase, X, MapPin, UserCog, DollarSign, Gift, Smartphone, KeyRound, Copy, RefreshCw } from "lucide-react";
+import { Plus, Search, UserCircle, Building2, FileText, Edit, Trash2, Eye, EyeOff, Users, Loader2, Calendar, Briefcase, X, MapPin, UserCog, DollarSign, Gift, Smartphone, KeyRound, Copy, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { EmployeeImportExportDialog } from "@/components/rh/EmployeeImportExportDialog";
 import { format, differenceInYears, differenceInMonths, differenceInDays, addYears, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -151,6 +152,7 @@ export default function RHColaboradores() {
   const [showSensitive, setShowSensitive] = useState(false);
   const [cpfError, setCpfError] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
+  const [importExportOpen, setImportExportOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: rawEmployees = [], isLoading } = useEmployees({
@@ -294,7 +296,10 @@ export default function RHColaboradores() {
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Colaboradores</h1>
             <p className="text-sm text-muted-foreground">Gestão de pessoas e fichas cadastrais</p>
           </div>
-          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Colaborador</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportExportOpen(true)} className="gap-2"><FileSpreadsheet className="h-4 w-4" /> Importar / Exportar</Button>
+            <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Colaborador</Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -954,6 +959,18 @@ export default function RHColaboradores() {
           </div>
         </DialogContent>
       </Dialog>
+      <EmployeeImportExportDialog
+        open={importExportOpen}
+        onOpenChange={setImportExportOpen}
+        employees={rawEmployees}
+        departments={departments}
+        branches={branches}
+        onImport={async (rows) => {
+          for (const row of rows) {
+            await createMut.mutateAsync(row);
+          }
+        }}
+      />
     </MainLayout>
   );
 }
