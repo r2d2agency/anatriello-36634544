@@ -1,0 +1,377 @@
+import { useState, useCallback, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { FileSpreadsheet, Upload, Download, Check, X, AlertCircle, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
+
+const EMPLOYEE_FIELDS = [
+  { key: "full_name", label: "Nome Completo", required: true },
+  { key: "social_name", label: "Nome Social" },
+  { key: "cpf", label: "CPF" },
+  { key: "rg", label: "RG" },
+  { key: "birth_date", label: "Data Nascimento" },
+  { key: "gender", label: "Gênero" },
+  { key: "email", label: "E-mail" },
+  { key: "phone", label: "Telefone" },
+  { key: "address", label: "Endereço" },
+  { key: "address_number", label: "Número" },
+  { key: "complement", label: "Complemento" },
+  { key: "neighborhood", label: "Bairro" },
+  { key: "city", label: "Cidade" },
+  { key: "state", label: "UF" },
+  { key: "zip_code", label: "CEP" },
+  { key: "registration_number", label: "Matrícula" },
+  { key: "worker_profile", label: "Perfil (administrativo/supervisor/promotor/operacional)" },
+  { key: "employment_type", label: "Vínculo (clt/pj/freelancer/temporario/estagiario/aprendiz)" },
+  { key: "position", label: "Cargo" },
+  { key: "salary", label: "Salário" },
+  { key: "admission_date", label: "Data Admissão" },
+  { key: "bank_name", label: "Banco" },
+  { key: "bank_agency", label: "Agência" },
+  { key: "bank_account", label: "Conta" },
+  { key: "bank_account_type", label: "Tipo Conta" },
+  { key: "ctps_number", label: "CTPS" },
+  { key: "pis_pasep", label: "PIS/PASEP" },
+  { key: "cnpj", label: "CNPJ (PJ)" },
+  { key: "company_name", label: "Razão Social (PJ)" },
+  { key: "status", label: "Status (ativo/afastado/ferias/desligado/suspenso)" },
+];
+
+interface ImportRow {
+  id: number;
+  data: Record<string, string>;
+  mapped: Record<string, string>;
+  selected: boolean;
+  errors: string[];
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  employees: any[];
+  departments: any[];
+  branches: any[];
+  onImport: (rows: Record<string, any>[]) => Promise<void>;
+}
+
+export function EmployeeImportExportDialog({ open, onOpenChange, employees, departments, branches, onImport }: Props) {
+  const [mode, setMode] = useState<"choose" | "import-upload" | "import-mapping" | "import-preview" | "importing">("choose");
+  const [columns, setColumns] = useState<string[]>([]);
+  const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importProgress, setImportProgress] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const reset = () => {
+    setMode("choose");
+    setColumns([]);
+    setRawRows([]);
+    setMapping({});
+    setImportRows([]);
+    setImportProgress(0);
+  };
+
+  const handleClose = (v: boolean) => {
+    if (!v) reset();
+    onOpenChange(v);
+  };
+
+  // ========== EXPORT ==========
+  const handleExport = () => {
+    const headers = EMPLOYEE_FIELDS.map(f => f.label);
+    const keys = EMPLOYEE_FIELDS.map(f => f.key);
+    const data = employees.map(emp => {
+      const row: Record<string, any> = {};
+      keys.forEach((k, i) => {
+        let val = emp[k] ?? "";
+        if (k === "birth_date" || k === "admission_date") val = val ? String(val).slice(0, 10) : "";
+        if (k === "salary") val = val ? Number(val) : "";
+        row[headers[i]] = val;
+      });
+      // Add department and branch names
+      const dept = departments.find((d: any) => d.id === emp.department_id);
+      const branch = branches.find((b: any) => b.id === emp.branch_id);
+      row["Departamento"] = dept?.name || "";
+      row["Filial"] = branch?.name || "";
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Colaboradores");
+
+    // Auto column width
+    const colWidths = [...headers, "Departamento", "Filial"].map(h => ({ wch: Math.max(h.length + 2, 15) }));
+    ws["!cols"] = colWidths;
+
+    XLSX.writeFile(wb, `colaboradores_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    handleClose(false);
+  };
+
+  // ========== IMPORT ==========
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target?.result as ArrayBuffer);
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+      if (!json.length) return;
+
+      const cols = Object.keys(json[0]);
+      setColumns(cols);
+      setRawRows(json.map(r => {
+        const clean: Record<string, string> = {};
+        cols.forEach(c => { clean[c] = String(r[c] ?? "").trim(); });
+        return clean;
+      }));
+
+      // Auto-map by label similarity
+      const autoMap: Record<string, string> = {};
+      EMPLOYEE_FIELDS.forEach(f => {
+        const match = cols.find(c => {
+          const cl = c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const fl = f.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          return cl === fl || cl.includes(fl) || fl.includes(cl);
+        });
+        if (match) autoMap[f.key] = match;
+      });
+      // Also try key-based matching
+      EMPLOYEE_FIELDS.forEach(f => {
+        if (!autoMap[f.key]) {
+          const match = cols.find(c => c.toLowerCase().replace(/[^a-z]/g, "") === f.key.toLowerCase().replace(/[^a-z]/g, ""));
+          if (match) autoMap[f.key] = match;
+        }
+      });
+      setMapping(autoMap);
+      setMode("import-mapping");
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  }, []);
+
+  const applyMapping = () => {
+    const rows: ImportRow[] = rawRows.map((raw, i) => {
+      const mapped: Record<string, string> = {};
+      EMPLOYEE_FIELDS.forEach(f => {
+        if (mapping[f.key]) {
+          mapped[f.key] = raw[mapping[f.key]] || "";
+        }
+      });
+      const errors: string[] = [];
+      if (!mapped.full_name) errors.push("Nome obrigatório");
+      return { id: i, data: raw, mapped, selected: errors.length === 0, errors };
+    });
+    setImportRows(rows);
+    setMode("import-preview");
+  };
+
+  const doImport = async () => {
+    const selected = importRows.filter(r => r.selected && r.errors.length === 0);
+    if (!selected.length) return;
+    setMode("importing");
+    const batch: Record<string, any>[] = [];
+    for (const row of selected) {
+      const emp: Record<string, any> = { ...row.mapped };
+      // Normalize dates
+      ["birth_date", "admission_date"].forEach(dk => {
+        if (emp[dk]) {
+          const parsed = parseFlexDate(emp[dk]);
+          emp[dk] = parsed || "";
+        }
+      });
+      if (emp.salary) emp.salary = String(emp.salary).replace(/[^\d.,]/g, "").replace(",", ".");
+      if (!emp.status) emp.status = "ativo";
+      if (!emp.worker_profile) emp.worker_profile = "operacional";
+      if (!emp.employment_type) emp.employment_type = "clt";
+      batch.push(emp);
+    }
+
+    // Import in chunks
+    const chunkSize = 10;
+    for (let i = 0; i < batch.length; i += chunkSize) {
+      const chunk = batch.slice(i, i + chunkSize);
+      await onImport(chunk);
+      setImportProgress(Math.round(((i + chunk.length) / batch.length) * 100));
+    }
+    setImportProgress(100);
+    setTimeout(() => handleClose(false), 1500);
+  };
+
+  const selectedCount = importRows.filter(r => r.selected && r.errors.length === 0).length;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            {mode === "choose" ? "Importar / Exportar Colaboradores" :
+             mode === "importing" ? "Importando..." :
+             mode === "import-upload" ? "Upload da Planilha" :
+             mode === "import-mapping" ? "Mapeamento de Colunas" : "Pré-visualização"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+        {mode === "choose" && (
+          <div className="grid grid-cols-2 gap-4 py-6">
+            <button onClick={() => setMode("import-upload")} className="flex flex-col items-center gap-3 p-8 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all">
+              <Upload className="h-10 w-10 text-primary" />
+              <span className="font-semibold text-lg">Importar</span>
+              <span className="text-sm text-muted-foreground text-center">Envie uma planilha XLSX/CSV com os dados dos colaboradores</span>
+            </button>
+            <button onClick={handleExport} className="flex flex-col items-center gap-3 p-8 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all">
+              <Download className="h-10 w-10 text-primary" />
+              <span className="font-semibold text-lg">Exportar</span>
+              <span className="text-sm text-muted-foreground text-center">Baixe todos os colaboradores em formato XLSX</span>
+            </button>
+          </div>
+        )}
+
+        {mode === "import-upload" && (
+          <div
+            className="flex flex-col items-center gap-4 p-12 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary transition-all cursor-pointer"
+            onClick={() => fileRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleDrop}
+          >
+            <FileSpreadsheet className="h-16 w-16 text-muted-foreground" />
+            <p className="text-lg font-medium">Arraste a planilha aqui ou clique para selecionar</p>
+            <p className="text-sm text-muted-foreground">Formatos aceitos: .xlsx, .xls, .csv</p>
+          </div>
+        )}
+
+        {mode === "import-mapping" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Mapeie as colunas da planilha para os campos do sistema. Encontramos <strong>{rawRows.length}</strong> linhas.</p>
+            <ScrollArea className="max-h-[50vh]">
+              <div className="space-y-2">
+                {EMPLOYEE_FIELDS.map(f => (
+                  <div key={f.key} className="flex items-center gap-3">
+                    <Label className="w-48 text-sm flex-shrink-0">
+                      {f.label}
+                      {f.required && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Select value={mapping[f.key] || "__none__"} onValueChange={v => setMapping(p => ({ ...p, [f.key]: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Não mapear" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Não mapear —</SelectItem>
+                        {columns.map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setMode("import-upload")}>Voltar</Button>
+              <Button onClick={applyMapping} disabled={!mapping.full_name}>Pré-visualizar</Button>
+            </div>
+          </div>
+        )}
+
+        {mode === "import-preview" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                <strong>{selectedCount}</strong> de {importRows.length} prontos para importar
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setImportRows(r => r.map(row => ({ ...row, selected: row.errors.length === 0 })))}>Selecionar válidos</Button>
+                <Button variant="outline" size="sm" onClick={() => setImportRows(r => r.map(row => ({ ...row, selected: false })))}>Desmarcar todos</Button>
+              </div>
+            </div>
+            <ScrollArea className="max-h-[50vh]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10"></TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>CPF</TableHead>
+                    <TableHead>Cargo</TableHead>
+                    <TableHead>Vínculo</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importRows.map(row => (
+                    <TableRow key={row.id} className={cn(row.errors.length > 0 && "bg-destructive/5")}>
+                      <TableCell>
+                        <Checkbox
+                          checked={row.selected}
+                          disabled={row.errors.length > 0}
+                          onCheckedChange={v => setImportRows(r => r.map(rr => rr.id === row.id ? { ...rr, selected: !!v } : rr))}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{row.mapped.full_name || "—"}</TableCell>
+                      <TableCell>{row.mapped.cpf || "—"}</TableCell>
+                      <TableCell>{row.mapped.position || "—"}</TableCell>
+                      <TableCell>{row.mapped.employment_type || "—"}</TableCell>
+                      <TableCell>
+                        {row.errors.length > 0 ? (
+                          <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" />{row.errors[0]}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1 text-green-600 border-green-200"><Check className="h-3 w-3" />OK</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setMode("import-mapping")}>Voltar</Button>
+              <Button onClick={doImport} disabled={selectedCount === 0} className="gap-2">
+                <Upload className="h-4 w-4" /> Importar {selectedCount} colaboradores
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {mode === "importing" && (
+          <div className="space-y-4 py-8 text-center">
+            <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+            <Progress value={importProgress} className="w-full" />
+            <p className="text-sm text-muted-foreground">{importProgress}% concluído</p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function parseFlexDate(val: string): string {
+  if (!val) return "";
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10);
+  // DD/MM/YYYY
+  const brMatch = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (brMatch) return `${brMatch[3]}-${brMatch[2].padStart(2, "0")}-${brMatch[1].padStart(2, "0")}`;
+  // Excel serial number
+  const num = Number(val);
+  if (!isNaN(num) && num > 10000 && num < 100000) {
+    const d = new Date((num - 25569) * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  return val;
+}
