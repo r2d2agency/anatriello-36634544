@@ -296,7 +296,10 @@ export default function RHColaboradores() {
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Users className="h-6 w-6 text-primary" /> Colaboradores</h1>
             <p className="text-sm text-muted-foreground">Gestão de pessoas e fichas cadastrais</p>
           </div>
-          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Colaborador</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportExportOpen(true)} className="gap-2"><FileSpreadsheet className="h-4 w-4" /> Importar / Exportar</Button>
+            <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Colaborador</Button>
+          </div>
         </div>
 
         {/* Stats */}
