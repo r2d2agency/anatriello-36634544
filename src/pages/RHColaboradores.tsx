@@ -152,6 +152,7 @@ export default function RHColaboradores() {
   const [showSensitive, setShowSensitive] = useState(false);
   const [cpfError, setCpfError] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
+  const [importExportOpen, setImportExportOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: rawEmployees = [], isLoading } = useEmployees({
