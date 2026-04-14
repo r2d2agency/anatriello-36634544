@@ -23,11 +23,14 @@ const buildUrl = (base: string, endpoint: string) =>
   base ? `${base}${endpoint}` : endpoint;
 
 export const API_URL = ENV_API_URL;
+export const AUTH_INVALID_EVENT = 'app-auth-invalid';
 
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const MAX_GET_RETRIES = 2;
 const ERROR_LOG_COOLDOWN_MS = 15000;
+const AUTH_EVENT_COOLDOWN_MS = 3000;
 const lastErrorLogByKey = new Map<string, number>();
+let lastAuthEventAt = 0;
 const LIVE_ROUTES_ENDPOINT = '/api/merch/routes/live';
 const LIVE_ROUTES_COOLDOWN_MS = 10 * 60 * 1000;
 const CHAT_UNREAD_ENDPOINT = '/api/chat/conversations/unread';
@@ -124,6 +127,24 @@ const getScopedAuthToken = (endpoint: string) => {
   return localStorage.getItem('auth_token');
 };
 
+const clearScopedAuthTokens = () => {
+  if (!isBrowser) return;
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('agency_auth_token');
+  localStorage.removeItem('supermarket_auth_token');
+  localStorage.removeItem('promotor_token');
+  window.sessionStorage.removeItem('user_org_id');
+};
+
+const notifyAuthInvalid = () => {
+  if (!isBrowser) return;
+  const now = Date.now();
+  if (now - lastAuthEventAt < AUTH_EVENT_COOLDOWN_MS) return;
+  lastAuthEventAt = now;
+  clearScopedAuthTokens();
+  window.dispatchEvent(new CustomEvent(AUTH_INVALID_EVENT));
+};
+
 export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
   const { method = 'GET', body, auth = true, headers: customHeaders, silent = false, fallbackToOtherBases = true } = options;
   const normalizedEndpoint = normalizeEndpoint(endpoint);
@@ -191,6 +212,10 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
         }
 
         if (!response.ok) {
+          if (response.status === 401 && auth) {
+            notifyAuthInvalid();
+          }
+
           if (endpointResilience && response.status >= 500) {
             setEndpointCooldown(normalizedEndpoint, endpointResilience.cooldownMs);
             return endpointResilience.fallbackValue() as T;
@@ -240,6 +265,13 @@ export const api = async <T>(endpoint: string, options: ApiOptions = {}): Promis
 
         return data as T;
       } catch (error: any) {
+        if (typeof error?.status === 'number') {
+          if (error.status === 401 && auth) {
+            notifyAuthInvalid();
+          }
+          throw error;
+        }
+
         if (endpointResilience) {
           setEndpointCooldown(normalizedEndpoint, endpointResilience.cooldownMs);
           return endpointResilience.fallbackValue() as T;
