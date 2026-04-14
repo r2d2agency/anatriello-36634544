@@ -1016,7 +1016,7 @@ router.post('/photo-book/share', authenticate, async (req, res) => {
     const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
     if (!orgRes.rows.length) return res.status(403).json({ error: 'Sem organização' });
     const orgId = orgRes.rows[0].organization_id;
-    const { title, subtitle, notes, photo_ids, captions, brand_logo_url } = req.body;
+    const { title, subtitle, notes, photo_ids, captions, brand_logo_url, photos_per_page, report_branding } = req.body;
 
     // Create table if not exists
     await query(`CREATE TABLE IF NOT EXISTS photo_book_shares (
@@ -1033,13 +1033,16 @@ router.post('/photo-book/share', authenticate, async (req, res) => {
       expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '90 days'),
       views INTEGER DEFAULT 0
     )`);
+    await query(`ALTER TABLE photo_book_shares ADD COLUMN IF NOT EXISTS brand_logo_url TEXT`);
+    await query(`ALTER TABLE photo_book_shares ADD COLUMN IF NOT EXISTS photos_per_page INTEGER DEFAULT 2`);
+    await query(`ALTER TABLE photo_book_shares ADD COLUMN IF NOT EXISTS report_branding JSONB`);
 
     const crypto = await import('crypto');
     const token = crypto.randomBytes(32).toString('hex');
 
     await query(
-      `INSERT INTO photo_book_shares (organization_id, token, title, subtitle, notes, photo_ids, captions, brand_logo_url, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [orgId, token, title, subtitle, notes, JSON.stringify(photo_ids), JSON.stringify(captions || {}), brand_logo_url || null, req.userId]
+      `INSERT INTO photo_book_shares (organization_id, token, title, subtitle, notes, photo_ids, captions, brand_logo_url, photos_per_page, report_branding, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [orgId, token, title, subtitle, notes, JSON.stringify(photo_ids), JSON.stringify(captions || {}), brand_logo_url || null, photos_per_page || 2, JSON.stringify(report_branding || null), req.userId]
     );
 
     res.json({ token, url: `/book/${token}` });
@@ -2517,6 +2520,51 @@ router.put('/photo-quality-config', authenticate, async (req, res) => {
   } catch (err) {
     logError('merch.photo-quality-config.put', err);
     res.status(500).json({ error: 'Erro ao salvar configuração' });
+  }
+});
+
+// ===== REPORT BRANDING SETTINGS =====
+router.get('/report-branding', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    if (!orgRes.rows.length) return res.status(403).json({ error: 'Sem organização' });
+    const orgId = orgRes.rows[0].organization_id;
+    const result = await query(
+      `SELECT config FROM organization_settings WHERE organization_id = $1 AND setting_key = 'report_branding'`,
+      [orgId]
+    );
+    res.json(result.rows[0]?.config || {});
+  } catch (err) {
+    logError('merch.report-branding.get', err);
+    res.status(500).json({ error: 'Erro ao buscar config' });
+  }
+});
+
+router.put('/report-branding', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    if (!orgRes.rows.length) return res.status(403).json({ error: 'Sem organização' });
+    const orgId = orgRes.rows[0].organization_id;
+
+    await query(`CREATE TABLE IF NOT EXISTS organization_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      setting_key TEXT NOT NULL,
+      config JSONB DEFAULT '{}',
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, setting_key)
+    )`);
+
+    await query(
+      `INSERT INTO organization_settings (organization_id, setting_key, config, updated_at)
+       VALUES ($1, 'report_branding', $2, NOW())
+       ON CONFLICT (organization_id, setting_key) DO UPDATE SET config = $2, updated_at = NOW()`,
+      [orgId, JSON.stringify(req.body)]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logError('merch.report-branding.put', err);
+    res.status(500).json({ error: 'Erro ao salvar config' });
   }
 });
 
