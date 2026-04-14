@@ -281,7 +281,24 @@ function normalizeEmployeePayload(body = {}) {
     complement: emptyToNull(body.complement),
     neighborhood: emptyToNull(body.neighborhood),
     city: emptyToNull(body.city),
-    state: emptyToNull(body.state),
+    state: (() => {
+      const raw = emptyToNull(body.state);
+      if (!raw) return null;
+      const s = String(raw).trim().toUpperCase();
+      if (s.length <= 2) return s;
+      const UF_MAP = {
+        'ACRE':'AC','ALAGOAS':'AL','AMAPA':'AP','AMAZONAS':'AM','BAHIA':'BA',
+        'CEARA':'CE','DISTRITO FEDERAL':'DF','ESPIRITO SANTO':'ES','GOIAS':'GO',
+        'MARANHAO':'MA','MATO GROSSO':'MT','MATO GROSSO DO SUL':'MS',
+        'MINAS GERAIS':'MG','PARA':'PA','PARAIBA':'PB','PARANA':'PR',
+        'PERNAMBUCO':'PE','PIAUI':'PI','RIO DE JANEIRO':'RJ',
+        'RIO GRANDE DO NORTE':'RN','RIO GRANDE DO SUL':'RS','RONDONIA':'RO',
+        'RORAIMA':'RR','SANTA CATARINA':'SC','SAO PAULO':'SP','SERGIPE':'SE',
+        'TOCANTINS':'TO',
+      };
+      const normalized = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return UF_MAP[normalized] || s.substring(0, 2);
+    })(),
     zip_code: emptyToNull(body.zip_code),
     registration_number: emptyToNull(body.registration_number),
     worker_profile: emptyToNull(body.worker_profile) || 'operacional',
@@ -395,6 +412,36 @@ router.post('/employees', async (req, res) => {
 
     const d = normalizeEmployeePayload(req.body);
     if (!d.full_name) return res.status(400).json({ error: 'Nome do colaborador é obrigatório' });
+
+    // Upsert: se CPF existir na mesma org, atualiza em vez de duplicar
+    if (d.cpf) {
+      const cleanCpf = String(d.cpf).replace(/\D/g, '');
+      if (cleanCpf.length >= 11) {
+        const existing = await query(
+          `SELECT id FROM employees WHERE organization_id = $1 AND REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = $2 LIMIT 1`,
+          [orgId, cleanCpf]
+        );
+        if (existing.rows[0]) {
+          // Atualiza o existente com os novos dados
+          const empId = existing.rows[0].id;
+          const updateFields = [];
+          const updateValues = [];
+          let pi = 1;
+          const skipKeys = ['organization_id', 'created_by', 'salary_items', 'benefits'];
+          for (const [k, v] of Object.entries(d)) {
+            if (skipKeys.includes(k) || v === null || v === undefined || v === '') continue;
+            updateFields.push(`${k} = $${pi++}`);
+            updateValues.push(v);
+          }
+          if (updateFields.length) {
+            updateValues.push(empId);
+            await query(`UPDATE employees SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${pi}`, updateValues);
+          }
+          const updated = await query(`SELECT * FROM employees WHERE id = $1`, [empId]);
+          return res.json(updated.rows[0]);
+        }
+      }
+    }
 
     // Auto-geocode home address if no coordinates provided
     if (!d.home_latitude && !d.home_longitude && (d.address || d.city)) {
