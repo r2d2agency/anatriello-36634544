@@ -67,3 +67,23 @@ window.addEventListener('error', (event) => {
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
+
+// Splash screen logic
+const splash = document.getElementById('splash');
+const splashVideo = document.getElementById('splash-video') as HTMLVideoElement | null;
+const root = document.getElementById('root');
+
+const removeSplash = () => {
+  if (!splash) return;
+  if (root) root.style.visibility = 'visible';
+  splash.style.opacity = '0';
+  setTimeout(() => splash.remove(), 600);
+};
+
+if (splashVideo) {
+  splashVideo.addEventListener('ended', removeSplash);
+  // Fallback: se o vídeo não reproduzir (ex: política de autoplay)
+  setTimeout(removeSplash, 7000);
+} else {
+  removeSplash();
+}
