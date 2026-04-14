@@ -319,9 +319,30 @@ export function BookEditorDialog({ open, onOpenChange, photos: initialPhotos, br
             <TabsTrigger value="share">📤 Compartilhar</TabsTrigger>
           </TabsList>
 
-          {/* EDIT TAB */}
           <TabsContent value="edit" className="space-y-4 mt-4">
             <div className="grid gap-3">
+              {brands.length > 0 && (
+                <div>
+                  <Label>Cliente / Marca</Label>
+                  <div className="flex items-center gap-3">
+                    <Select value={selectedBrandId || '__none__'} onValueChange={v => handleBrandChange(v === '__none__' ? '' : v)}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Selecione o cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sem marca específica</SelectItem>
+                        {brands.map(b => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {activeBrandLogo && (
+                      <img src={activeBrandLogo} alt="Logo" className="h-8 w-auto rounded border object-contain" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">A logo do cliente aparecerá na capa do book</p>
+                </div>
+              )}
               <div>
                 <Label>Título do Book</Label>
                 <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título do relatório" />
