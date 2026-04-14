@@ -249,6 +249,7 @@ export function BookEditorDialog({ open, onOpenChange, photos: initialPhotos, br
           title, subtitle, notes,
           photo_ids: bookPhotos.map(p => p.id),
           captions: bookPhotos.reduce((acc, p) => ({ ...acc, [p.id]: p.caption || '' }), {}),
+          brand_logo_url: activeBrandLogo || undefined,
         },
       });
       const fullUrl = `${window.location.origin}/book/${result.token}`;
