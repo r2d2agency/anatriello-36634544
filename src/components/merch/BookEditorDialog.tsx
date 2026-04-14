@@ -401,8 +401,8 @@ export function BookEditorDialog({ open, onOpenChange, photos: initialPhotos, br
             <div className="border rounded-lg overflow-hidden bg-muted/30">
               {/* Cover preview */}
               <div className="bg-zinc-900 text-white p-8 text-center space-y-3">
-                {branding.logo_topbar && (
-                  <img src={branding.logo_topbar} alt="Logo" className="h-10 mx-auto mb-4" />
+                {(activeBrandLogo || branding.logo_topbar) && (
+                  <img src={activeBrandLogo || branding.logo_topbar} alt="Logo" className="h-10 mx-auto mb-4" />
                 )}
                 <h1 className="text-xl font-bold">{title}</h1>
                 <p className="text-sm text-zinc-400">{subtitle}</p>
