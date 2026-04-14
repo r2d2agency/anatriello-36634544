@@ -2523,4 +2523,49 @@ router.put('/photo-quality-config', authenticate, async (req, res) => {
   }
 });
 
+// ===== REPORT BRANDING SETTINGS =====
+router.get('/report-branding', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    if (!orgRes.rows.length) return res.status(403).json({ error: 'Sem organização' });
+    const orgId = orgRes.rows[0].organization_id;
+    const result = await query(
+      `SELECT config FROM organization_settings WHERE organization_id = $1 AND setting_key = 'report_branding'`,
+      [orgId]
+    );
+    res.json(result.rows[0]?.config || {});
+  } catch (err) {
+    logError('merch.report-branding.get', err);
+    res.status(500).json({ error: 'Erro ao buscar config' });
+  }
+});
+
+router.put('/report-branding', authenticate, async (req, res) => {
+  try {
+    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
+    if (!orgRes.rows.length) return res.status(403).json({ error: 'Sem organização' });
+    const orgId = orgRes.rows[0].organization_id;
+
+    await query(`CREATE TABLE IF NOT EXISTS organization_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      setting_key TEXT NOT NULL,
+      config JSONB DEFAULT '{}',
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, setting_key)
+    )`);
+
+    await query(
+      `INSERT INTO organization_settings (organization_id, setting_key, config, updated_at)
+       VALUES ($1, 'report_branding', $2, NOW())
+       ON CONFLICT (organization_id, setting_key) DO UPDATE SET config = $2, updated_at = NOW()`,
+      [orgId, JSON.stringify(req.body)]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logError('merch.report-branding.put', err);
+    res.status(500).json({ error: 'Erro ao salvar config' });
+  }
+});
+
 export default router;
