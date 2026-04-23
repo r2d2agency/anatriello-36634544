@@ -252,6 +252,24 @@ router.use('/holidays', async (req, res, next) => {
   }
 });
 
+let employeeExtraColsReady = false;
+async function ensureEmployeeExtraColumns() {
+  if (employeeExtraColsReady) return;
+  try {
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_zone VARCHAR(20)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_section VARCHAR(20)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS skin_color VARCHAR(50)`);
+    employeeExtraColsReady = true;
+  } catch (e) {
+    logError('rh.employees.ensureExtraCols', e);
+  }
+}
+
+router.use('/employees', async (req, _res, next) => {
+  await ensureEmployeeExtraColumns();
+  next();
+});
+
 function emptyToNull(value) {
   if (value === undefined || value === null) return null;
   if (typeof value === 'string' && value.trim() === '') return null;
