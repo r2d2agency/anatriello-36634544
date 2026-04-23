@@ -252,6 +252,24 @@ router.use('/holidays', async (req, res, next) => {
   }
 });
 
+let employeeExtraColsReady = false;
+async function ensureEmployeeExtraColumns() {
+  if (employeeExtraColsReady) return;
+  try {
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_zone VARCHAR(20)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_section VARCHAR(20)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS skin_color VARCHAR(50)`);
+    employeeExtraColsReady = true;
+  } catch (e) {
+    logError('rh.employees.ensureExtraCols', e);
+  }
+}
+
+router.use('/employees', async (req, _res, next) => {
+  await ensureEmployeeExtraColumns();
+  next();
+});
+
 function emptyToNull(value) {
   if (value === undefined || value === null) return null;
   if (typeof value === 'string' && value.trim() === '') return null;
@@ -320,6 +338,10 @@ function normalizeEmployeePayload(body = {}) {
     ctps_number: emptyToNull(body.ctps_number),
     ctps_series: emptyToNull(body.ctps_series),
     pis_pasep: emptyToNull(body.pis_pasep),
+    voter_id: emptyToNull(body.voter_id),
+    voter_zone: emptyToNull(body.voter_zone),
+    voter_section: emptyToNull(body.voter_section),
+    skin_color: emptyToNull(body.skin_color),
     cnpj: emptyToNull(body.cnpj),
     company_name: emptyToNull(body.company_name),
     status: emptyToNull(body.status) || 'ativo',
@@ -456,9 +478,10 @@ router.post('/employees', async (req, res) => {
         branch_id, department_id, cost_center_id, direct_manager_id,
         admission_date, contract_end_date, salary, work_schedule,
         bank_name, bank_agency, bank_account, bank_account_type,
-        ctps_number, ctps_series, pis_pasep, cnpj, company_name, status, photo_url, created_by,
+        ctps_number, ctps_series, pis_pasep, voter_id, voter_zone, voter_section, skin_color,
+        cnpj, company_name, status, photo_url, created_by,
         salary_items, benefits, home_latitude, home_longitude)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52)
        RETURNING *`,
       [orgId, d.full_name, d.social_name, d.cpf, d.rg, d.rg_issuer, d.birth_date, d.gender, d.marital_status, d.email, d.phone, d.phone2,
         d.address, d.address_number, d.complement, d.neighborhood, d.city, d.state, d.zip_code,
@@ -466,7 +489,8 @@ router.post('/employees', async (req, res) => {
         d.branch_id, d.department_id, d.cost_center_id, d.direct_manager_id,
         d.admission_date, d.contract_end_date, d.salary, d.work_schedule,
         d.bank_name, d.bank_agency, d.bank_account, d.bank_account_type,
-        d.ctps_number, d.ctps_series, d.pis_pasep, d.cnpj, d.company_name, d.status, d.photo_url, req.userId,
+        d.ctps_number, d.ctps_series, d.pis_pasep, d.voter_id, d.voter_zone, d.voter_section, d.skin_color,
+        d.cnpj, d.company_name, d.status, d.photo_url, req.userId,
         JSON.stringify(d.salary_items), JSON.stringify(d.benefits), d.home_latitude, d.home_longitude]
     );
     await auditLog(orgId, 'employee', result.rows[0].id, 'create', [{ field: 'full_name', oldVal: null, newVal: d.full_name }], req.userId);
@@ -488,7 +512,8 @@ router.put('/employees/:id', async (req, res) => {
       'state','zip_code','registration_number','worker_profile','employment_type','position',
       'role_level','branch_id','department_id','cost_center_id','direct_manager_id',
       'admission_date','contract_end_date','salary','work_schedule','bank_name','bank_agency',
-      'bank_account','bank_account_type','ctps_number','ctps_series','pis_pasep','cnpj',
+      'bank_account','bank_account_type','ctps_number','ctps_series','pis_pasep',
+      'voter_id','voter_zone','voter_section','skin_color','cnpj',
       'company_name','status','photo_url','salary_items','benefits',
       'home_latitude','home_longitude'
     ]);
