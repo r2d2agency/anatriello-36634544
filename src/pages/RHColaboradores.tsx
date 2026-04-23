@@ -328,7 +328,7 @@ export default function RHColaboradores() {
           <div className="flex gap-2">
             {selectedIds.length > 0 && (
               <Button variant="destructive" onClick={handleBulkDelete} className="gap-2">
-                <Trash2 className="h-4 w-4" /> Apagar Selecionados ({selectedIds.length})
+                <Trash2 className="h-4 w-4" /> Apagar Permanentemente ({selectedIds.length})
               </Button>
             )}
             <Button variant="outline" onClick={() => setImportExportOpen(true)} className="gap-2"><FileSpreadsheet className="h-4 w-4" /> Importar / Exportar</Button>
