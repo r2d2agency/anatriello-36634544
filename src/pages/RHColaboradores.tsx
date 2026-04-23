@@ -413,6 +413,12 @@ export default function RHColaboradores() {
                   <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum colaborador encontrado</TableCell></TableRow>
                 ) : employees.map((emp: any) => (
                   <TableRow key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openEdit(emp)}>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox 
+                        checked={selectedIds.includes(emp.id)} 
+                        onCheckedChange={() => toggleSelect(emp.id)} 
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <UserCircle className="h-8 w-8 text-muted-foreground" />
