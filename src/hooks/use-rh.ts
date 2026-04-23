@@ -45,7 +45,12 @@ export function useUpdateEmployee() {
 export function useDeleteEmployee() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api<any>(`/api/rh/employees/${id}`, { method: 'DELETE' }),
+    mutationFn: (input: string | { id: string; hard?: boolean }) => {
+      const id = typeof input === 'string' ? input : input.id;
+      const hard = typeof input === 'string' ? false : !!input.hard;
+      const url = `/api/rh/employees/${id}${hard ? '?hard=true' : ''}`;
+      return api<any>(url, { method: 'DELETE' });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-employees'] }),
   });
 }
