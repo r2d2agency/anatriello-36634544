@@ -971,7 +971,7 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
             notes = COALESCE(notes, '') || CASE WHEN $8 <> '' THEN '\nCód: ' || $8 ELSE '' END,
             updated_at = NOW()
            WHERE id = $1`,
-          [existing.rows[0].id, clientName, address, zipCode, city, state, neighborhood, cnpj, externalCode]
+          [existing.rows[0].id, clientName, address, zipCode, city, state, neighborhood, externalCode]
         );
         updated++;
       } else {
