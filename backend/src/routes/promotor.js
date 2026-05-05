@@ -968,8 +968,7 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
             city = COALESCE(NULLIF($5, ''), city),
             state = COALESCE(NULLIF($6, ''), state),
             neighborhood = COALESCE(NULLIF($7, ''), neighborhood),
-            cnpj = COALESCE(NULLIF($8, ''), cnpj),
-            notes = COALESCE(notes, '') || CASE WHEN $9 <> '' THEN '\nCód: ' || $9 ELSE '' END,
+            notes = COALESCE(notes, '') || CASE WHEN $8 <> '' THEN '\nCód: ' || $8 ELSE '' END,
             updated_at = NOW()
            WHERE id = $1`,
           [existing.rows[0].id, clientName, address, zipCode, city, state, neighborhood, cnpj, externalCode]
