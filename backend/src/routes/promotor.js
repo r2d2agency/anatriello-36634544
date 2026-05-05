@@ -982,9 +982,9 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
         } catch (_) {}
 
         await query(
-          `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, cnpj, latitude, longitude, radius_meters, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,200,$12)`,
-          [orgId, name, clientName, address, zipCode, city, state, neighborhood, cnpj, lat, lng, externalCode ? `Cód: ${externalCode}` : null]
+          `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,200,$11)`,
+          [orgId, name, clientName, address, zipCode, city, state, neighborhood, lat, lng, externalCode ? `Cód: ${externalCode}` : null]
         );
         created++;
       }
