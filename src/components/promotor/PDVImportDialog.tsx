@@ -79,7 +79,9 @@ export function PDVImportDialog({ open, onOpenChange }: Props) {
       setResult({ created: res.created || 0, updated: res.updated || 0, skipped: res.skipped || 0, networks_created: res.networks_created || 0 });
       toast.success(`${res.created} PDVs criados, ${res.updated} atualizados${res.networks_created ? `, ${res.networks_created} redes criadas` : ''}`);
     } catch (err: any) {
-      toast.error(err.message);
+      console.error("PDV Import error details:", err.response || err);
+      const errorMessage = err.response?.error || err.message || "Erro desconhecido";
+      toast.error(errorMessage);
     } finally {
       setImporting(false);
     }
