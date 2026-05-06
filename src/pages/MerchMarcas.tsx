@@ -15,7 +15,8 @@ import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useBrandPdvs
 import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
 import { BrandImportDialog } from "@/components/merchandising/BrandImportDialog";
-import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload, Download } from "lucide-react";
+import { BrandPdvLinkImportDialog } from "@/components/merchandising/BrandPdvLinkImportDialog";
+import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload, Download, Link2 } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ export default function MerchMarcas() {
   const [pdvDialogBrand, setPdvDialogBrand] = useState<any>(null);
   const [pdvSearch, setPdvSearch] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [linkImportOpen, setLinkImportOpen] = useState(false);
 
   const { user } = useAuth();
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
@@ -198,7 +200,10 @@ export default function MerchMarcas() {
                   {exporting ? 'Exportando...' : 'Exportar'}
                 </Button>
                 <Button variant="outline" onClick={() => setImportOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />Importar
+                  <Upload className="h-4 w-4 mr-2" />Importar Marcas
+                </Button>
+                <Button variant="outline" onClick={() => setLinkImportOpen(true)}>
+                  <Link2 className="h-4 w-4 mr-2" />Importar Marca x PDV
                 </Button>
               </>
             )}
@@ -276,6 +281,7 @@ export default function MerchMarcas() {
 
       {/* Brand Import Dialog */}
       <BrandImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <BrandPdvLinkImportDialog open={linkImportOpen} onOpenChange={setLinkImportOpen} />
 
       {/* Brand Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
