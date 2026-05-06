@@ -15,7 +15,8 @@ import { useBrands, useCreateBrand, useUpdateBrand, useDeleteBrand, useBrandPdvs
 import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
 import { BrandImportDialog } from "@/components/merchandising/BrandImportDialog";
-import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload, Download } from "lucide-react";
+import { BrandPdvLinkImportDialog } from "@/components/merchandising/BrandPdvLinkImportDialog";
+import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload, Download, Link2 } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
