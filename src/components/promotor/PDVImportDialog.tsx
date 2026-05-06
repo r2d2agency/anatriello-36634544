@@ -76,8 +76,8 @@ export function PDVImportDialog({ open, onOpenChange }: Props) {
     setImporting(true);
     try {
       const res = await importPDVs.mutateAsync({ items: selected.map(({ _selected, ...rest }) => rest) });
-      setResult({ created: res.created || 0, updated: res.updated || 0, skipped: res.skipped || 0 });
-      toast.success(`${res.created} PDVs criados, ${res.updated} atualizados`);
+      setResult({ created: res.created || 0, updated: res.updated || 0, skipped: res.skipped || 0, networks_created: res.networks_created || 0 });
+      toast.success(`${res.created} PDVs criados, ${res.updated} atualizados${res.networks_created ? `, ${res.networks_created} redes criadas` : ''}`);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
