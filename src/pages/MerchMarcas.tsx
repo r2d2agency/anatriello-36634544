@@ -200,7 +200,10 @@ export default function MerchMarcas() {
                   {exporting ? 'Exportando...' : 'Exportar'}
                 </Button>
                 <Button variant="outline" onClick={() => setImportOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />Importar
+                  <Upload className="h-4 w-4 mr-2" />Importar Marcas
+                </Button>
+                <Button variant="outline" onClick={() => setLinkImportOpen(true)}>
+                  <Link2 className="h-4 w-4 mr-2" />Importar Marca x PDV
                 </Button>
               </>
             )}
