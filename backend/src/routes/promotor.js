@@ -942,16 +942,51 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
   try {
     const orgId = await resolveOrganizationId(req);
     if (!orgId) return res.status(401).json({ error: 'Organização não encontrada para o usuário' });
-    
+
+    if (!(await isOrgAdmin(req.userId, orgId))) {
+      return res.status(403).json({ error: 'Apenas administradores podem importar PDVs' });
+    }
+
     const { items } = req.body;
     if (!items?.length) return res.status(400).json({ error: 'Nenhum item enviado' });
 
-    let created = 0, updated = 0, skipped = 0;
+    // Garante coluna network_id em pdvs (caso schema antigo)
+    const hasNetworksTable = await tableExists('supermarket_networks');
+    if (hasNetworksTable) {
+      try {
+        await query(`ALTER TABLE pdvs ADD COLUMN IF NOT EXISTS network_id UUID REFERENCES supermarket_networks(id) ON DELETE SET NULL`);
+      } catch (_) {}
+    }
+
+    let created = 0, updated = 0, skipped = 0, networksCreated = 0;
+    const networkCache = new Map(); // nome normalizado -> id
+
+    const findOrCreateNetwork = async (rawName) => {
+      const name = String(rawName || '').trim();
+      if (!name || !hasNetworksTable) return null;
+      const key = name.toLowerCase();
+      if (networkCache.has(key)) return networkCache.get(key);
+      const existing = await query(
+        `SELECT id FROM supermarket_networks WHERE organization_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1`,
+        [orgId, name]
+      );
+      let id = existing.rows[0]?.id;
+      if (!id) {
+        const ins = await query(
+          `INSERT INTO supermarket_networks (organization_id, name) VALUES ($1, $2) RETURNING id`,
+          [orgId, name]
+        );
+        id = ins.rows[0].id;
+        networksCreated++;
+      }
+      networkCache.set(key, id);
+      return id;
+    };
 
     for (const item of items) {
       const name = String(item.name || item.fantasia || '').trim();
       const cnpj = String(item.cnpj || '').replace(/\D/g, '');
-      const clientName = String(item.rede || item.client_name || '').trim();
+      const redeName = String(item.rede || item.client_name || '').trim();
       const address = String(item.endereco || item.address || '').trim();
       const zipCode = String(item.cep || item.zip_code || '').replace(/\D/g, '');
       const city = String(item.cidade || item.city || '').trim();
@@ -961,9 +996,8 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
 
       if (!name) { skipped++; continue; }
 
-      // No sistema, "Rede" é o campo client_name da tabela pdvs.
-      // Ele é um campo de texto livre na tabela pdvs, então não precisa criar em outra tabela antes.
-      
+      const networkId = await findOrCreateNetwork(redeName);
+
       const existing = await query(
         `SELECT id FROM pdvs WHERE organization_id = $1 AND name = $2 LIMIT 1`,
         [orgId, name]
@@ -978,10 +1012,11 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
             city = COALESCE(NULLIF($5, ''), city),
             state = COALESCE(NULLIF($6, ''), state),
             neighborhood = COALESCE(NULLIF($7, ''), neighborhood),
-            notes = COALESCE(notes, '') || CASE WHEN $8 <> '' THEN '\nCód: ' || $8 ELSE '' END,
+            network_id = COALESCE($9, network_id),
+            notes = COALESCE(notes, '') || CASE WHEN $8 <> '' THEN E'\nCód: ' || $8 ELSE '' END,
             updated_at = NOW()
            WHERE id = $1`,
-          [existing.rows[0].id, clientName, address, zipCode, city, state, neighborhood, externalCode]
+          [existing.rows[0].id, redeName, address, zipCode, city, state, neighborhood, externalCode, networkId]
         );
         updated++;
       } else {
@@ -992,19 +1027,54 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
         } catch (_) {}
 
         await query(
-          `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,200,$11)`,
-          [orgId, name, clientName, address, zipCode, city, state, neighborhood, lat, lng, externalCode ? `Cód: ${externalCode}` : null]
+          `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes, network_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,200,$11,$12)`,
+          [orgId, name, redeName, address, zipCode, city, state, neighborhood, lat, lng, externalCode ? `Cód: ${externalCode}` : null, networkId]
         );
         created++;
       }
     }
 
-    res.json({ ok: true, created, updated, skipped });
+    res.json({ ok: true, created, updated, skipped, networks_created: networksCreated });
   } catch (err) {
     console.error('Error in PDV import:', err);
     logError('promotor.pdvs.import', err);
     res.status(500).json({ error: 'Erro na importação: ' + err.message });
+  }
+});
+
+router.get('/rh/pdvs/export', authenticate, async (req, res) => {
+  try {
+    const orgId = await resolveOrganizationId(req);
+    if (!orgId) return res.status(401).json({ error: 'Organização não encontrada' });
+    if (!(await isOrgAdmin(req.userId, orgId))) {
+      return res.status(403).json({ error: 'Apenas administradores podem exportar PDVs' });
+    }
+    const result = await query(
+      `SELECT p.name, p.client_name, p.address, p.neighborhood, p.city, p.state, p.zip_code, p.latitude, p.longitude, p.radius_meters, p.active, p.notes
+       FROM pdvs p WHERE p.organization_id = $1 ORDER BY p.name`,
+      [orgId]
+    );
+    const headers = ['Fantasia','Rede','Endereço','Bairro','Cidade','Estado','CEP','Latitude','Longitude','Raio(m)','Ativo','Notas'];
+    const escape = (v) => {
+      if (v === null || v === undefined) return '';
+      const s = String(v).replace(/"/g, '""');
+      return /[",;\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [headers.join(';')];
+    for (const r of result.rows) {
+      lines.push([
+        r.name, r.client_name, r.address, r.neighborhood, r.city, r.state, r.zip_code,
+        r.latitude, r.longitude, r.radius_meters, r.active ? 'Sim' : 'Não', r.notes
+      ].map(escape).join(';'));
+    }
+    const csv = '\ufeff' + lines.join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="pdvs_${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    logError('promotor.pdvs.export', err);
+    res.status(500).json({ error: 'Erro ao exportar PDVs' });
   }
 });
 
