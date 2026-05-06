@@ -38,6 +38,31 @@ export default function RHPDVs() {
   const createPDV = useCreatePDV();
   const updatePDV = useUpdatePDV();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+
+  const handleExport = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/promotor/rh/pdvs/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao exportar');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pdvs_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Exportação concluída' });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    }
+  };
 
   const supervisors = (employees || []).filter((e: any) => e.worker_profile === 'supervisor' || e.worker_profile === 'administrativo');
 
