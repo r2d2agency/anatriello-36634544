@@ -281,6 +281,7 @@ export default function MerchMarcas() {
 
       {/* Brand Import Dialog */}
       <BrandImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <BrandPdvLinkImportDialog open={linkImportOpen} onOpenChange={setLinkImportOpen} />
 
       {/* Brand Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
