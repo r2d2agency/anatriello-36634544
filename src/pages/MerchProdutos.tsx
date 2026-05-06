@@ -266,6 +266,52 @@ export default function MerchProdutos() {
         </CardContent></Card>
       </div>
 
+      <Dialog open={importProgress.isOpen} onOpenChange={(open) => !importProgress.current || importProgress.current === importProgress.total ? setImportProgress(prev => ({ ...prev, isOpen: open })) : null}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Importando Produtos</DialogTitle></DialogHeader>
+          <div className="py-6 space-y-4">
+            <div className="w-full bg-secondary rounded-full h-4 overflow-hidden">
+              <div 
+                className="bg-primary h-full transition-all duration-300" 
+                style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Progresso</span>
+                <span className="font-bold">{importProgress.current} / {importProgress.total}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Sucesso</span>
+                <span className="font-bold text-green-600">{importProgress.success}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Novos</span>
+                <span className="font-bold">{importProgress.created}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">Atualizados</span>
+                <span className="font-bold text-blue-600">{importProgress.updated}</span>
+              </div>
+              {importProgress.errors > 0 && (
+                <div className="flex flex-col col-span-2">
+                  <span className="text-muted-foreground">Erros</span>
+                  <span className="font-bold text-destructive">{importProgress.errors}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              disabled={importProgress.current < importProgress.total} 
+              onClick={() => setImportProgress(prev => ({ ...prev, isOpen: false }))}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingId ? 'Editar' : 'Novo'} Produto</DialogTitle></DialogHeader>
