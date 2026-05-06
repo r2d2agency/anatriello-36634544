@@ -212,6 +212,19 @@ export function useRemovePdvBrand() {
   });
 }
 
+export function useImportBrandPdvs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { items: { brand_name: string; pdv_name: string }[]; auto_create_brands?: boolean }) =>
+      api<any>('/api/merchandising/brand-pdvs/import', { method: 'POST', body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['merch-brand-pdvs'] });
+      qc.invalidateQueries({ queryKey: ['merch-pdv-brands'] });
+      qc.invalidateQueries({ queryKey: ['merch-brands'] });
+    },
+  });
+}
+
 // ===== MIX =====
 export function useMix(pdvId?: string, brandId?: string) {
   return useQuery({
