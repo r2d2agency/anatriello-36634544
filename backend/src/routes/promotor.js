@@ -1011,20 +1011,26 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
       }
 
       if (existing.rows.length) {
-        await query(
-          `UPDATE pdvs SET 
-            client_name = COALESCE(NULLIF($2, ''), client_name),
-            address = COALESCE(NULLIF($3, ''), address),
-            zip_code = COALESCE(NULLIF($4, ''), zip_code),
-            city = COALESCE(NULLIF($5, ''), city),
-            state = COALESCE(NULLIF($6, ''), state),
-            neighborhood = COALESCE(NULLIF($7, ''), neighborhood),
-            network_id = COALESCE($9, network_id),
-            notes = COALESCE(notes, '') || CASE WHEN $8 <> '' THEN E'\nCód: ' || $8 ELSE '' END,
-            updated_at = NOW()
-           WHERE id = $1`,
-          [existing.rows[0].id, redeName, address, zipCode, city, state, neighborhood, externalCode, networkId]
-        );
+        try {
+          await query(
+            `UPDATE pdvs SET 
+              client_name = COALESCE(NULLIF($2, ''), client_name),
+              address = COALESCE(NULLIF($3, ''), address),
+              zip_code = COALESCE(NULLIF($4, ''), zip_code),
+              city = COALESCE(NULLIF($5, ''), city),
+              state = COALESCE(NULLIF($6, ''), state),
+              neighborhood = COALESCE(NULLIF($7, ''), neighborhood),
+              network_id = COALESCE($9, network_id),
+              notes = COALESCE(notes, '') || CASE WHEN $8 <> '' THEN E'\nCód: ' || $8 ELSE '' END,
+              updated_at = NOW()
+             WHERE id = $1`,
+            [existing.rows[0].id, redeName, address, zipCode, city, state, neighborhood, externalCode, networkId]
+          );
+        } catch (e) {
+          console.error('Update PDV error:', e);
+          skipped++;
+          continue;
+        }
         updated++;
       } else {
         let lat = null, lng = null;
