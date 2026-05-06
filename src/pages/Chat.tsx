@@ -178,7 +178,7 @@ const Chat = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       loadConversationsRef.current();
-    }, isMobile ? 30000 : 15000);
+    }, isMobile ? 45000 : 30000);
     return () => clearInterval(interval);
   }, [isMobile]);
 
@@ -186,7 +186,7 @@ const Chat = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       loadAttendanceCounts();
-    }, isMobile ? 20000 : 10000);
+    }, isMobile ? 40000 : 20000);
     return () => clearInterval(interval);
   }, [loadAttendanceCounts, isMobile]);
 
@@ -218,7 +218,7 @@ const Chat = () => {
       } catch (error) {
         console.error('Error refreshing messages:', error);
       }
-    }, isMobile ? 8000 : 3000);
+    }, isMobile ? 15000 : 8000);
     return () => clearInterval(interval);
   }, [selectedConversation?.id, getMessages, isMobile]);
 
