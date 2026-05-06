@@ -116,12 +116,12 @@ export function mapPDVImportRow(row: ImportParsedRow) {
   return {
     name: getImportValue(row, ["fantasia", "name", "nome", "pdv"]),
     cnpj: getImportValue(row, ["cnpj"]),
-    rede: getImportValue(row, ["rede", "client_name", "cliente"]),
+    rede: getImportValue(row, ["rede", "razaosocial", "razao social", "razão social", "client_name", "cliente"]),
     endereco: getImportValue(row, ["endereco", "endereço", "address", "rua", "logradouro"]),
     bairro: getImportValue(row, ["bairro", "neighborhood"]),
     cidade: getImportValue(row, ["cidade", "city"]),
     estado: getImportValue(row, ["estado", "state", "uf"]),
     cep: getImportValue(row, ["cep", "zip", "zip_code"]),
-    codigo: getImportValue(row, ["codigo", "código", "code", "external_code"]),
+    codigo: getImportValue(row, ["codigo", "código", "code", "external_code", "c"]),
   };
 }
