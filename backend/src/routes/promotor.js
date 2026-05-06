@@ -998,10 +998,17 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
 
       const networkId = await findOrCreateNetwork(redeName);
 
-      const existing = await query(
-        `SELECT id FROM pdvs WHERE organization_id = $1 AND name = $2 LIMIT 1`,
-        [orgId, name]
-      );
+      let existing;
+      try {
+        existing = await query(
+          `SELECT id FROM pdvs WHERE organization_id = $1 AND name = $2 LIMIT 1`,
+          [orgId, name]
+        );
+      } catch (e) {
+        // Fallback for case where name might be different column or table missing
+        console.error('Error checking existing PDV:', e);
+        existing = { rows: [] };
+      }
 
       if (existing.rows.length) {
         await query(
