@@ -36,9 +36,22 @@ export async function parseImportFile(file: File): Promise<ImportParsedRow[]> {
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
   if (!worksheet) return [];
 
-  return XLSX.utils
-    .sheet_to_json<Record<string, unknown>>(worksheet, { defval: "" })
-    .map((row, index) => ({ ...stringifyRow(row), __line: String(index + 2) }))
+  // Detecta a linha de cabeçalho real: pula linhas de título com apenas 1 célula preenchida
+  const aoa = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "", blankrows: false });
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(aoa.length, 5); i++) {
+    const filled = aoa[i].filter((v) => String(v || "").trim()).length;
+    if (filled >= 3) { headerIdx = i; break; }
+  }
+  const headers = (aoa[headerIdx] || []).map((h: any) => String(h || "").trim());
+  const dataRows = aoa.slice(headerIdx + 1);
+
+  return dataRows
+    .map((arr, index) => {
+      const obj: Record<string, unknown> = {};
+      headers.forEach((h, i) => { if (h) obj[h] = arr[i]; });
+      return { ...stringifyRow(obj), __line: String(headerIdx + index + 2) };
+    })
     .filter(hasRowData);
 }
 
