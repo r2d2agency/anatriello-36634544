@@ -1026,11 +1026,27 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
           if (geo) { lat = geo.lat; lng = geo.lng; }
         } catch (_) {}
 
-        await query(
-          `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes, network_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,200,$11,$12)`,
-          [orgId, name, redeName, address, zipCode, city, state, neighborhood, lat, lng, externalCode ? `Cód: ${externalCode}` : null, networkId]
-        );
+        // Adicionado fallback explícito para coluna cnpj
+        const cols = ['organization_id', 'name', 'client_name', 'address', 'zip_code', 'city', 'state', 'neighborhood', 'latitude', 'longitude', 'radius_meters', 'notes', 'network_id', 'cnpj'];
+        const vals = [orgId, name, redeName, address, zipCode, city, state, neighborhood, lat, lng, 200, externalCode ? `Cód: ${externalCode}` : null, networkId, cnpj];
+        
+        try {
+          await query(
+            `INSERT INTO pdvs (${cols.slice(0, -1).join(',')}, cnpj) VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')})`,
+            vals
+          );
+        } catch (e) {
+          if (e.message.includes('coluna "cnpj" não existe') || e.message.includes('column "cnpj" does not exist')) {
+            // Se a coluna não existir, tenta sem ela
+            await query(
+              `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes, network_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,200,$11,$12)`,
+              [orgId, name, redeName, address, zipCode, city, state, neighborhood, lat, lng, externalCode ? `Cód: ${externalCode}` : null, networkId]
+            );
+          } else {
+            throw e;
+          }
+        }
         created++;
       }
     }
@@ -1039,7 +1055,11 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Error in PDV import:', err);
     logError('promotor.pdvs.import', err);
-    res.status(500).json({ error: 'Erro na importação: ' + err.message });
+    // Include stack trace in response for debugging during development
+    res.status(500).json({ 
+      error: 'Erro na importação: ' + err.message,
+      stack: err.stack 
+    });
   }
 });
 
