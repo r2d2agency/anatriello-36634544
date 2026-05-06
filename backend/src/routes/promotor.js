@@ -1026,17 +1026,16 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
           if (geo) { lat = geo.lat; lng = geo.lng; }
         } catch (_) {}
 
-        // Adicionado fallback explícito para coluna cnpj
-        const cols = ['organization_id', 'name', 'client_name', 'address', 'zip_code', 'city', 'state', 'neighborhood', 'latitude', 'longitude', 'radius_meters', 'notes', 'network_id', 'cnpj'];
-        const vals = [orgId, name, redeName, address, zipCode, city, state, neighborhood, lat, lng, 200, externalCode ? `Cód: ${externalCode}` : null, networkId, cnpj];
-        
+        // Tenta inserir com CNPJ, se falhar por coluna inexistente, tenta sem ela
         try {
           await query(
-            `INSERT INTO pdvs (${cols.slice(0, -1).join(',')}, cnpj) VALUES (${cols.map((_, i) => `$${i + 1}`).join(',')})`,
-            vals
+            `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes, network_id, cnpj)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,200,$11,$12,$13)`,
+            [orgId, name, redeName, address, zipCode, city, state, neighborhood, lat, lng, externalCode ? `Cód: ${externalCode}` : null, networkId, cnpj]
           );
         } catch (e) {
-          if (e.message.includes('coluna "cnpj" não existe') || e.message.includes('column "cnpj" does not exist')) {
+          const msg = String(e.message || '').toLowerCase();
+          if (msg.includes('cnpj') && (msg.includes('coluna') || msg.includes('column') || msg.includes('does not exist') || msg.includes('não existe'))) {
             // Se a coluna não existir, tenta sem ela
             await query(
               `INSERT INTO pdvs (organization_id, name, client_name, address, zip_code, city, state, neighborhood, latitude, longitude, radius_meters, notes, network_id)
