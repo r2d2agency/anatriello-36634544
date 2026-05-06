@@ -11,7 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/use-rh";
 import { usePDVs, useCreatePDV, useUpdatePDV } from "@/hooks/use-promotor";
 import { useGeocode } from "@/hooks/use-rh";
-import { MapPin, Plus, Edit, Search, Loader2, Navigation, Upload } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAuthToken } from "@/lib/api";
+import { MapPin, Plus, Edit, Search, Loader2, Navigation, Upload, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PDVImportDialog } from "@/components/promotor/PDVImportDialog";
@@ -36,6 +38,31 @@ export default function RHPDVs() {
   const createPDV = useCreatePDV();
   const updatePDV = useUpdatePDV();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+
+  const handleExport = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/promotor/rh/pdvs/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao exportar');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pdvs_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Exportação concluída' });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    }
+  };
 
   const supervisors = (employees || []).filter((e: any) => e.worker_profile === 'supervisor' || e.worker_profile === 'administrativo');
 
@@ -83,7 +110,12 @@ export default function RHPDVs() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold flex items-center gap-2"><MapPin className="h-5 w-5" /> Cadastro de PDVs</h1>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}><Upload className="h-4 w-4 mr-2" /> Importar</Button>
+            {isAdmin && (
+              <>
+                <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" /> Exportar</Button>
+                <Button variant="outline" onClick={() => setShowImportDialog(true)}><Upload className="h-4 w-4 mr-2" /> Importar</Button>
+              </>
+            )}
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> Novo PDV</Button>
           </div>
         </div>
