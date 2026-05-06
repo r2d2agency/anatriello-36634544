@@ -697,6 +697,77 @@ router.post('/products/import', async (req, res) => {
 });
 
 // ==================== BRAND PDVs (which PDVs a brand serves) ====================
+
+// Bulk import brand <-> PDV links from a list of { brand_name, pdv_name } pairs.
+// Optionally creates brands when missing (auto_create_brands=true).
+router.post('/brand-pdvs/import', async (req, res) => {
+  try {
+    await ensureMerchandisingInfra();
+    const { items, auto_create_brands = true } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ error: 'Nenhum item enviado' });
+    }
+
+    const norm = (s) => String(s || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().trim().replace(/\s+/g, ' ');
+
+    // Pre-load brands and PDVs for the org
+    const brandsRes = await query(
+      `SELECT id, name FROM merch_brands WHERE organization_id=$1`, [req.orgId]
+    );
+    const brandsMap = new Map(brandsRes.rows.map(b => [norm(b.name), b.id]));
+
+    const pdvsRes = await query(
+      `SELECT id, name FROM pdvs WHERE organization_id=$1`, [req.orgId]
+    );
+    const pdvsMap = new Map();
+    for (const p of pdvsRes.rows) pdvsMap.set(norm(p.name), p.id);
+
+    let linked = 0, skipped = 0, created_brands = 0, missing_pdvs = 0, already = 0;
+    const missing = [];
+
+    for (const it of items) {
+      const brandName = String(it.brand_name || it.cliente || it.brand || '').trim();
+      const pdvName = String(it.pdv_name || it.pdv || '').trim();
+      if (!brandName || !pdvName) { skipped++; continue; }
+
+      let brandId = brandsMap.get(norm(brandName));
+      if (!brandId) {
+        if (!auto_create_brands) { skipped++; continue; }
+        const ins = await query(
+          `INSERT INTO merch_brands (organization_id, name, status) VALUES ($1,$2,'active') RETURNING id`,
+          [req.orgId, brandName]
+        );
+        brandId = ins.rows[0].id;
+        brandsMap.set(norm(brandName), brandId);
+        created_brands++;
+      }
+
+      const pdvId = pdvsMap.get(norm(pdvName));
+      if (!pdvId) {
+        missing_pdvs++;
+        if (missing.length < 50) missing.push({ brand: brandName, pdv: pdvName });
+        continue;
+      }
+
+      const ins = await query(
+        `INSERT INTO merch_pdv_brands (organization_id, pdv_id, brand_id)
+         VALUES ($1,$2,$3)
+         ON CONFLICT (pdv_id, brand_id) DO UPDATE SET active=true
+         RETURNING (xmax = 0) AS inserted`,
+        [req.orgId, pdvId, brandId]
+      );
+      if (ins.rows[0]?.inserted) linked++; else already++;
+    }
+
+    res.json({ ok: true, linked, already, created_brands, missing_pdvs, skipped, missing_examples: missing });
+  } catch (e) {
+    logError('import brand-pdvs', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/brand-pdvs/:brandId', async (req, res) => {
   try {
     await ensureMerchandisingInfra();
