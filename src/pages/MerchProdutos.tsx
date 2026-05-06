@@ -116,7 +116,7 @@ export default function MerchProdutos() {
         errorList: []
       });
       
-      const chunkSize = 10;
+      const chunkSize = 20;
       let successCount = 0;
       let createdCount = 0;
       let updatedCount = 0;
