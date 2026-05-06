@@ -560,7 +560,7 @@ router.post('/products/import', async (req, res) => {
       return res.status(400).json({ error: 'Nenhum item enviado' });
     }
 
-    const results = { total: items.length, success: 0, errors: [] };
+    const results = { total: items.length, success: 0, created: 0, updated: 0, errors: [] };
 
     await client.query('BEGIN');
 
@@ -568,7 +568,7 @@ router.post('/products/import', async (req, res) => {
       client.query('SELECT id, name, internal_code FROM merch_brands WHERE organization_id=$1', [orgId]),
       client.query('SELECT id, name FROM merch_categories WHERE organization_id=$1', [orgId]),
       client.query('SELECT id, category_id, name FROM merch_subcategories WHERE organization_id=$1', [orgId]),
-      client.query('SELECT brand_id, name FROM merch_products WHERE organization_id=$1', [orgId]),
+      client.query('SELECT id, brand_id, name FROM merch_products WHERE organization_id=$1', [orgId]),
     ]);
 
     const brandMap = new Map(brandRows.rows.map((row) => [normalizeMerchKey(row.name), row.id]));
@@ -581,8 +581,8 @@ router.post('/products/import', async (req, res) => {
     const subcategoryMap = new Map(
       subcategoryRows.rows.map((row) => [`${row.category_id}:${normalizeMerchKey(row.name)}`, row.id])
     );
-    const productKeySet = new Set(
-      productRows.rows.map((row) => `${row.brand_id}:${normalizeMerchKey(row.name)}`)
+    const productMap = new Map(
+      productRows.rows.map((row) => [`${row.brand_id}:${normalizeMerchKey(row.name)}`, row.id])
     );
 
     for (const [index, item] of items.entries()) {
