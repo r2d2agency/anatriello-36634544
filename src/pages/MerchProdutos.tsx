@@ -102,10 +102,20 @@ export default function MerchProdutos() {
         return;
       }
 
-      toast.info(`Iniciando importação de ${allItems.length} produtos...`);
+      setImportProgress({
+        total: allItems.length,
+        current: 0,
+        success: 0,
+        created: 0,
+        updated: 0,
+        errors: 0,
+        isOpen: true
+      });
       
-      const chunkSize = 100;
+      const chunkSize = 50;
       let successCount = 0;
+      let createdCount = 0;
+      let updatedCount = 0;
       let totalErrors = 0;
       let firstErrorMessage = "";
 
@@ -114,6 +124,9 @@ export default function MerchProdutos() {
         try {
           const result = await importProducts.mutateAsync({ items: chunk, auto_create: true });
           successCount += result.success || 0;
+          createdCount += result.created || 0;
+          updatedCount += result.updated || 0;
+          
           if (result.errors?.length > 0) {
             totalErrors += result.errors.length;
             if (!firstErrorMessage) {
@@ -121,14 +134,29 @@ export default function MerchProdutos() {
               firstErrorMessage = `Linha ${firstError.line || firstError.row || '-'}: ${firstError.error}`;
             }
           }
+
+          setImportProgress(prev => ({
+            ...prev,
+            current: Math.min(i + chunkSize, allItems.length),
+            success: successCount,
+            created: createdCount,
+            updated: updatedCount,
+            errors: totalErrors
+          }));
         } catch (chunkErr: any) {
           console.error("Erro no lote de importação:", chunkErr);
           totalErrors += chunk.length;
           if (!firstErrorMessage) firstErrorMessage = chunkErr.message;
+          
+          setImportProgress(prev => ({
+            ...prev,
+            current: Math.min(i + chunkSize, allItems.length),
+            errors: totalErrors
+          }));
         }
       }
 
-      if (successCount > 0) toast.success(`${successCount} produtos importados com sucesso`);
+      if (successCount > 0) toast.success(`${successCount} produtos processados (Novos: ${createdCount}, Atualizados: ${updatedCount})`);
       if (totalErrors > 0) {
         toast.error(`${totalErrors} erro(s) durante a importação. ${firstErrorMessage}`);
       }
