@@ -110,7 +110,12 @@ export default function RHPDVs() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold flex items-center gap-2"><MapPin className="h-5 w-5" /> Cadastro de PDVs</h1>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}><Upload className="h-4 w-4 mr-2" /> Importar</Button>
+            {isAdmin && (
+              <>
+                <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" /> Exportar</Button>
+                <Button variant="outline" onClick={() => setShowImportDialog(true)}><Upload className="h-4 w-4 mr-2" /> Importar</Button>
+              </>
+            )}
             <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> Novo PDV</Button>
           </div>
         </div>
