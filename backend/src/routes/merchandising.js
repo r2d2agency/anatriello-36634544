@@ -562,7 +562,8 @@ router.post('/products/import', async (req, res) => {
 
     const results = { total: items.length, success: 0, created: 0, updated: 0, errors: [] };
 
-    await client.query('BEGIN');
+    // Removed explicit transaction to prevent "current transaction is aborted" errors when a single item fails.
+    // Each database operation now runs in its own implicit transaction.
 
     const [brandRows, categoryRows, subcategoryRows, productRows] = await Promise.all([
       client.query('SELECT id, name, internal_code FROM merch_brands WHERE organization_id=$1', [orgId]),
@@ -710,10 +711,10 @@ router.post('/products/import', async (req, res) => {
       }
     }
 
-    await client.query('COMMIT');
+    // COMMIT not needed as we removed BEGIN
     res.json({ ...results, imported: results.success, failed: results.errors.length });
   } catch (e) {
-    await client.query('ROLLBACK');
+    // ROLLBACK not needed as we removed BEGIN
     logError('import products', e);
     res.status(500).json({ error: e.message });
   } finally {
