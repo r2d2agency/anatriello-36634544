@@ -28,6 +28,9 @@ export default function MerchProdutos() {
   const [form, setForm] = useState<any>(emptyProduct);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importProgress, setImportProgress] = useState<{ total: number; current: number; success: number; created: number; updated: number; errors: number; isOpen: boolean }>({
+    total: 0, current: 0, success: 0, created: 0, updated: 0, errors: 0, isOpen: false
+  });
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: products = [], isLoading } = useProducts({ search, brand_id: brandFilter, category_id: catFilter });
