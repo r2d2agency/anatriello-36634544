@@ -112,7 +112,7 @@ export default function MerchProdutos() {
         isOpen: true
       });
       
-      const chunkSize = 50;
+      const chunkSize = 20;
       let successCount = 0;
       let createdCount = 0;
       let updatedCount = 0;
