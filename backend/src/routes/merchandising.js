@@ -560,7 +560,7 @@ router.post('/products/import', async (req, res) => {
       return res.status(400).json({ error: 'Nenhum item enviado' });
     }
 
-    const results = { total: items.length, success: 0, errors: [] };
+    const results = { total: items.length, success: 0, created: 0, updated: 0, errors: [] };
 
     await client.query('BEGIN');
 
@@ -568,7 +568,7 @@ router.post('/products/import', async (req, res) => {
       client.query('SELECT id, name, internal_code FROM merch_brands WHERE organization_id=$1', [orgId]),
       client.query('SELECT id, name FROM merch_categories WHERE organization_id=$1', [orgId]),
       client.query('SELECT id, category_id, name FROM merch_subcategories WHERE organization_id=$1', [orgId]),
-      client.query('SELECT brand_id, name FROM merch_products WHERE organization_id=$1', [orgId]),
+      client.query('SELECT id, brand_id, name FROM merch_products WHERE organization_id=$1', [orgId]),
     ]);
 
     const brandMap = new Map(brandRows.rows.map((row) => [normalizeMerchKey(row.name), row.id]));
@@ -581,8 +581,8 @@ router.post('/products/import', async (req, res) => {
     const subcategoryMap = new Map(
       subcategoryRows.rows.map((row) => [`${row.category_id}:${normalizeMerchKey(row.name)}`, row.id])
     );
-    const productKeySet = new Set(
-      productRows.rows.map((row) => `${row.brand_id}:${normalizeMerchKey(row.name)}`)
+    const productMap = new Map(
+      productRows.rows.map((row) => [`${row.brand_id}:${normalizeMerchKey(row.name)}`, row.id])
     );
 
     for (const [index, item] of items.entries()) {
@@ -668,17 +668,26 @@ router.post('/products/import', async (req, res) => {
         }
 
         const productKey = `${brandId}:${normalizeMerchKey(name)}`;
-        if (productKeySet.has(productKey)) {
-          results.errors.push(buildProductImportError(item, index, 'Produto duplicado'));
-          continue;
-        }
+        const existingProductId = productMap.get(productKey);
 
-        await client.query(
-          `INSERT INTO merch_products (organization_id, brand_id, category_id, subcategory_id, name, sku, internal_code, barcode, description, image_url, unit, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-          [orgId, brandId, categoryId, subcategoryId, name, sku || null, internalCode || null, barcode || null, description || null, imageUrl || null, unit, status]
-        );
-        productKeySet.add(productKey);
+        if (existingProductId) {
+          await client.query(
+            `UPDATE merch_products 
+             SET category_id=$1, subcategory_id=$2, sku=$3, internal_code=$4, barcode=$5, description=$6, image_url=$7, unit=$8, status=$9, updated_at=NOW()
+             WHERE id=$10`,
+            [categoryId, subcategoryId, sku || null, internalCode || null, barcode || null, description || null, imageUrl || null, unit, status, existingProductId]
+          );
+          results.updated++;
+        } else {
+          await client.query(
+            `INSERT INTO merch_products (organization_id, brand_id, category_id, subcategory_id, name, sku, internal_code, barcode, description, image_url, unit, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [orgId, brandId, categoryId, subcategoryId, name, sku || null, internalCode || null, barcode || null, description || null, imageUrl || null, unit, status]
+          );
+          results.created++;
+        }
+        
+        productMap.set(productKey, true); // Mark as processed in this batch
         results.success++;
       } catch (itemErr) {
         results.errors.push(buildProductImportError(item, index, itemErr.message || 'Erro desconhecido'));
