@@ -361,9 +361,9 @@ export default function MerchMarcas() {
               <ArrowRight className="h-5 w-5 text-primary hidden md:block" />
               <ArrowLeft className="h-5 w-5 text-destructive hidden md:block" />
             </div>
-            <div className="border rounded-lg p-3 border-primary/30 bg-primary/5">
-              <p className="text-sm font-medium mb-2">Selecionados ({filteredLinked.length})</p>
-              <ScrollArea className="h-[350px]">
+            <div className="border rounded-lg p-3 border-primary/30 bg-primary/5 flex flex-col min-h-0 overflow-hidden">
+              <p className="text-sm font-medium mb-2 shrink-0">Selecionados ({filteredLinked.length})</p>
+              <ScrollArea className="flex-1 min-h-0">
                 {filteredLinked.map((bp: any) => (
                   <div key={bp.id} className="flex items-center justify-between p-2 hover:bg-destructive/10 rounded-md mb-1 cursor-pointer group"
                     onClick={() => handleUnlinkPdv(bp.id)}>
