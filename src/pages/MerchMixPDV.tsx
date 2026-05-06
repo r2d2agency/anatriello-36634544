@@ -20,6 +20,7 @@ export default function MerchMixPDV() {
   const [productSearch, setProductSearch] = useState('');
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
   const [selectedToRemove, setSelectedToRemove] = useState<string[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: allBrands = [] } = useBrands({ status: 'active' });
   const { data: brandPdvs = [] } = useBrandPdvs(selectedBrandId || undefined);
