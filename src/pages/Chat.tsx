@@ -218,7 +218,7 @@ const Chat = () => {
       } catch (error) {
         console.error('Error refreshing messages:', error);
       }
-    }, isMobile ? 8000 : 3000);
+    }, isMobile ? 15000 : 8000);
     return () => clearInterval(interval);
   }, [selectedConversation?.id, getMessages, isMobile]);
 
