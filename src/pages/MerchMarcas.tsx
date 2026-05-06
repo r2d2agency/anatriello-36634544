@@ -51,6 +51,7 @@ export default function MerchMarcas() {
   const [pdvDialogBrand, setPdvDialogBrand] = useState<any>(null);
   const [pdvSearch, setPdvSearch] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [linkImportOpen, setLinkImportOpen] = useState(false);
 
   const { user } = useAuth();
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
