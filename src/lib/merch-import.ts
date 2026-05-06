@@ -107,17 +107,17 @@ export function mapCategoryImportRow(row: ImportParsedRow) {
 }
 
 export function mapProductImportRow(row: ImportParsedRow) {
-  const categoryName = getImportValue(row, ["category_name", "categoria", "category", "departamento"]);
+  const categoryName = getImportValue(row, ["category_name", "categoria", "category", "departamento", "depto"]);
   const subcategoryName =
-    getImportValue(row, ["subcategory_name", "subcategoria", "subcategory", "linha", "segmento"]) || categoryName;
+    getImportValue(row, ["subcategory_name", "subcategoria", "subcategory", "linha", "segmento", "seção", "secao"]) || categoryName;
 
   return {
     __line: getImportValue(row, ["__line"]),
-    brand_code: getImportValue(row, ["id_familia", "familia", "família", "family_id", "brand_code", "codigo_familia", "codigo", "código"]),
-    brand_name: getImportValue(row, ["brand_name", "marca", "brand", "cliente"]),
-    name: getImportValue(row, ["name", "nome", "produto", "descricao", "descrição", "product", "product_name"]),
-    sku: getImportValue(row, ["sku", "internal_code", "codigo_interno"]),
-    barcode: getImportValue(row, ["barcode", "codigo_barras", "código de barras", "ean"]),
+    brand_code: getImportValue(row, ["id_familia", "familia", "família", "family_id", "brand_code", "codigo_familia", "codigo_marca", "codigo", "código"]),
+    brand_name: getImportValue(row, ["brand_name", "marca", "marcas", "brand", "cliente", "fornecedor"]),
+    name: getImportValue(row, ["name", "nome", "produto", "produtos", "descricao", "descrição", "product", "product_name", "item"]),
+    sku: getImportValue(row, ["sku", "internal_code", "codigo_interno", "código interno", "ref"]),
+    barcode: getImportValue(row, ["barcode", "codigo_barras", "código de barras", "ean", "gtin"]),
     category_name: categoryName,
     subcategory_name: subcategoryName,
     image_url: getImportValue(row, ["image_url", "imagem", "foto", "image"]),
