@@ -369,7 +369,7 @@ export default function MerchProdutos() {
               </Select>
             </div>
             <div className="space-y-2"><Label>Subcategoria</Label>
-              <Select value={form.subcategory_id || undefined} onValueChange={v => set('subcategory_id', v)}>
+              <Select value={form.subcategory_id || "_none_"} onValueChange={v => set('subcategory_id', v === '_none_' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent className="z-[9999]">
                   <SelectItem value="_none_">Nenhuma</SelectItem>
