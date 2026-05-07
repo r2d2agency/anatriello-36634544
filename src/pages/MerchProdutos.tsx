@@ -51,7 +51,7 @@ export default function MerchProdutos() {
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.name || !form.brand_id || !form.category_id) { toast.error('Preencha nome, marca e categoria'); return; }
+    if (!form.name || !form.brand_id) { toast.error('Preencha nome e marca'); return; }
     try {
       if (editingId) { await updateProduct.mutateAsync({ id: editingId, ...form }); toast.success('Atualizado'); }
       else { await createProduct.mutateAsync(form); toast.success('Criado'); }
@@ -359,16 +359,22 @@ export default function MerchProdutos() {
                 <SelectContent className="z-[9999]">{brands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Categoria *</Label>
-              <Select value={form.category_id || undefined} onValueChange={v => { setForm(prev => ({ ...prev, category_id: v, subcategory_id: '' })); }}>
+            <div className="space-y-2"><Label>Categoria</Label>
+              <Select value={form.category_id || "_none_"} onValueChange={v => { setForm(prev => ({ ...prev, category_id: v === '_none_' ? '' : v, subcategory_id: '' })); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent className="z-[9999]">{categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="z-[9999]">
+                  <SelectItem value="_none_">Nenhuma</SelectItem>
+                  {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2"><Label>Subcategoria</Label>
-              <Select value={form.subcategory_id || undefined} onValueChange={v => set('subcategory_id', v)}>
+              <Select value={form.subcategory_id || "_none_"} onValueChange={v => set('subcategory_id', v === '_none_' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent className="z-[9999]">{subcategories.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="z-[9999]">
+                  <SelectItem value="_none_">Nenhuma</SelectItem>
+                  {subcategories.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2"><Label>SKU</Label><Input value={form.sku} onChange={e => set('sku', e.target.value)} /></div>

@@ -86,8 +86,8 @@ async function ensureMerchandisingInfra() {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organization_id UUID NOT NULL,
       brand_id UUID NOT NULL REFERENCES merch_brands(id) ON DELETE CASCADE,
-      category_id UUID NOT NULL REFERENCES merch_categories(id) ON DELETE RESTRICT,
-      subcategory_id UUID NOT NULL REFERENCES merch_subcategories(id) ON DELETE RESTRICT,
+      category_id UUID REFERENCES merch_categories(id) ON DELETE RESTRICT,
+      subcategory_id UUID REFERENCES merch_subcategories(id) ON DELETE RESTRICT,
       name VARCHAR(255) NOT NULL,
       sku VARCHAR(100),
       internal_code VARCHAR(100),
@@ -135,8 +135,10 @@ async function ensureMerchandisingInfra() {
     `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS number VARCHAR(50); EXCEPTION WHEN others THEN NULL; END $$`,
     `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(255); EXCEPTION WHEN others THEN NULL; END $$`,
     `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS city VARCHAR(255); EXCEPTION WHEN others THEN NULL; END $$`,
-    `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS zip VARCHAR(20); EXCEPTION WHEN others THEN NULL; END $$`,
-  ];
+      `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS zip VARCHAR(20); EXCEPTION WHEN others THEN NULL; END $$`,
+      `ALTER TABLE merch_products ALTER COLUMN category_id DROP NOT NULL`,
+      `ALTER TABLE merch_products ALTER COLUMN subcategory_id DROP NOT NULL`,
+    ];
   for (const sql of statements) {
     try { await query(sql); } catch (err) { logError('merch infra stmt', err, { sql: sql.slice(0, 80) }); }
   }
@@ -474,8 +476,8 @@ router.get('/products', async (req, res) => {
     let sql = `SELECT p.*, b.name as brand_name, b.internal_code as brand_code, c.name as category_name, sc.name as subcategory_name
                FROM merch_products p
                JOIN merch_brands b ON b.id = p.brand_id
-               JOIN merch_categories c ON c.id = p.category_id
-               JOIN merch_subcategories sc ON sc.id = p.subcategory_id
+               LEFT JOIN merch_categories c ON c.id = p.category_id
+               LEFT JOIN merch_subcategories sc ON sc.id = p.subcategory_id
                WHERE p.organization_id = $1`;
     const params = [orgId];
     if (brand_id) { params.push(brand_id); sql += ` AND p.brand_id=$${params.length}`; }
@@ -494,10 +496,13 @@ router.post('/products', async (req, res) => {
     await ensureMerchandisingInfra();
     const orgId = req.orgId;
     const { name, brand_id, category_id, subcategory_id, sku, internal_code, barcode, description, image_url, unit, status } = req.body;
+    const safeCat = category_id || null;
+    const safeSub = subcategory_id || null;
+    const safeBrand = brand_id || null;
     const r = await query(
       `INSERT INTO merch_products (organization_id, brand_id, category_id, subcategory_id, name, sku, internal_code, barcode, description, image_url, unit, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [orgId, brand_id, category_id, subcategory_id, name, sku, internal_code, barcode, description, image_url, unit || 'un', status || 'active']
+      [orgId, safeBrand, safeCat, safeSub, name, sku, internal_code, barcode, description, image_url, unit || 'un', status || 'active']
     );
     res.json(r.rows[0]);
   } catch (e) { logError('create product', e); res.status(500).json({ error: e.message }); }
@@ -957,9 +962,9 @@ router.get('/mix/:pdvId/:brandId', async (req, res) => {
       `SELECT pbp.*, p.name as product_name, p.sku, p.barcode, p.image_url, p.unit,
               c.name as category_name, sc.name as subcategory_name
        FROM merch_pdv_brand_products pbp
-       JOIN merch_products p ON p.id = pbp.product_id
-       JOIN merch_categories c ON c.id = p.category_id
-       JOIN merch_subcategories sc ON sc.id = p.subcategory_id
+        JOIN merch_products p ON p.id = pbp.product_id
+        LEFT JOIN merch_categories c ON c.id = p.category_id
+        LEFT JOIN merch_subcategories sc ON sc.id = p.subcategory_id
        WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.organization_id=$3
        ORDER BY p.name`,
       [req.params.pdvId, req.params.brandId, req.orgId]
