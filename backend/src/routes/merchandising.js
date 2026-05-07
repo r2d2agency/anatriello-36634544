@@ -962,9 +962,9 @@ router.get('/mix/:pdvId/:brandId', async (req, res) => {
       `SELECT pbp.*, p.name as product_name, p.sku, p.barcode, p.image_url, p.unit,
               c.name as category_name, sc.name as subcategory_name
        FROM merch_pdv_brand_products pbp
-       JOIN merch_products p ON p.id = pbp.product_id
-       JOIN merch_categories c ON c.id = p.category_id
-       JOIN merch_subcategories sc ON sc.id = p.subcategory_id
+        JOIN merch_products p ON p.id = pbp.product_id
+        LEFT JOIN merch_categories c ON c.id = p.category_id
+        LEFT JOIN merch_subcategories sc ON sc.id = p.subcategory_id
        WHERE pbp.pdv_id=$1 AND pbp.brand_id=$2 AND pbp.organization_id=$3
        ORDER BY p.name`,
       [req.params.pdvId, req.params.brandId, req.orgId]
