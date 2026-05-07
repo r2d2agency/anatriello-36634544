@@ -360,7 +360,7 @@ export default function MerchProdutos() {
               </Select>
             </div>
             <div className="space-y-2"><Label>Categoria</Label>
-              <Select value={form.category_id || undefined} onValueChange={v => { setForm(prev => ({ ...prev, category_id: v, subcategory_id: '' })); }}>
+              <Select value={form.category_id || "_none_"} onValueChange={v => { setForm(prev => ({ ...prev, category_id: v === '_none_' ? '' : v, subcategory_id: '' })); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent className="z-[9999]">
                   <SelectItem value="_none_">Nenhuma</SelectItem>
