@@ -371,7 +371,10 @@ export default function MerchProdutos() {
             <div className="space-y-2"><Label>Subcategoria</Label>
               <Select value={form.subcategory_id || undefined} onValueChange={v => set('subcategory_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent className="z-[9999]">{subcategories.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="z-[9999]">
+                  <SelectItem value="_none_">Nenhuma</SelectItem>
+                  {subcategories.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2"><Label>SKU</Label><Input value={form.sku} onChange={e => set('sku', e.target.value)} /></div>
