@@ -17,7 +17,7 @@ import { Calendar, ChevronLeft, ChevronRight, Plus, MapPin, Clock, User, Eye, Co
 import { cn } from "@/lib/utils";
 import AIRoutePlanner from "@/components/merch/AIRoutePlanner";
 import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBrandChecklists, useBrandPromoters, useRouteMixPreview, useRouteProducts, useAddRouteProduct, useRemoveRouteProduct, useSyncRouteProducts } from "@/hooks/use-merch-routes";
-import { useBrands } from "@/hooks/use-merchandising";
+import { useBrands, useBrandPdvs } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { useEmployees } from "@/hooks/use-rh";
 import { toast } from "sonner";
