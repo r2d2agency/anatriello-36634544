@@ -632,7 +632,16 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
     : [];
 
   // Available brands not yet added
-  const availableBrands = (brands || []).filter((b: any) => b?.id && !multiBrands.some(mb => mb.brand_id === b.id));
+  const availableBrands = (brands || []).filter((b: any) => {
+    if (!b?.id) return false;
+    // If PDV is selected, only show brands linked to that PDV
+    if (form.pdv_id && pdvBrands.length > 0) {
+      const isLinkedToPdv = pdvBrands.some((pb: any) => pb.brand_id === b.id);
+      if (!isLinkedToPdv) return false;
+    }
+    // Don't show already selected brands
+    return !multiBrands.some(mb => mb.brand_id === b.id);
+  });
 
   const handleSave = () => {
     const payload = { ...form };
