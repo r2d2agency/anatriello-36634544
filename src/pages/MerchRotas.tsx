@@ -768,7 +768,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                 )}
               </div>
 
-              {availableBrands.length > 0 && form.pdv_id && (
+              {form.pdv_id && (
                 <Select value="" onValueChange={(v) => {
                   if (v) setMultiBrands(prev => [...prev, { brand_id: v }]);
                 }}>
@@ -776,7 +776,11 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                     <SelectValue placeholder="+ Adicionar marca" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableBrands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    {availableBrands.length > 0 ? (
+                      availableBrands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)
+                    ) : (
+                      <div className="p-2 text-xs text-muted-foreground text-center">Sem marcas disponíveis</div>
+                    )}
                   </SelectContent>
                 </Select>
               )}
