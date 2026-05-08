@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/use-rh";
-import { usePDVs, useCreatePDV, useUpdatePDV } from "@/hooks/use-promotor";
+import { usePDVs, useCreatePDV, useUpdatePDV, useDeletePDV } from "@/hooks/use-promotor";
 import { useGeocode } from "@/hooks/use-rh";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAuthToken } from "@/lib/api";
