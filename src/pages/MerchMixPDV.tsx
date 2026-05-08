@@ -7,13 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useBrands, useProducts, usePdvBrands, useAddPdvBrand, useRemovePdvBrand, useBrandPdvs, useMix, useAddToMix, useRemoveFromMix, useClearMixByBrand } from "@/hooks/use-merchandising";
+import { useBrands, useProducts, usePdvBrands, useAddPdvBrand, useRemovePdvBrand, useBrandPdvs, useMix, useAddToMix, useRemoveFromMix } from "@/hooks/use-merchandising";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Search, Plus, Trash2, Store, Building2, Package, ArrowRight, ArrowLeft, ChevronRight, Upload, AlertTriangle } from "lucide-react";
+import { Search, Plus, Store, Building2, Package, ArrowRight, ArrowLeft, ChevronRight, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { MixImportDialog } from "@/components/merchandising/MixImportDialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function MerchMixPDV() {
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
