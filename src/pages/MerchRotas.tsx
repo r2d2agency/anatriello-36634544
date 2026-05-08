@@ -17,7 +17,7 @@ import { Calendar, ChevronLeft, ChevronRight, Plus, MapPin, Clock, User, Eye, Co
 import { cn } from "@/lib/utils";
 import AIRoutePlanner from "@/components/merch/AIRoutePlanner";
 import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBrandChecklists, useBrandPromoters, useRouteMixPreview, useRouteProducts, useAddRouteProduct, useRemoveRouteProduct, useSyncRouteProducts } from "@/hooks/use-merch-routes";
-import { useBrands } from "@/hooks/use-merchandising";
+import { useBrands, useBrandPdvs } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { useEmployees } from "@/hooks/use-rh";
 import { toast } from "sonner";
@@ -507,11 +507,14 @@ export default function MerchRotas() {
 function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDelete, onDuplicate }: any) {
   const [form, setForm] = useState<any>({});
   const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string }[]>([]);
+  const [pdvOpen, setPdvOpen] = useState(false);
   const { data: brands = [] } = useBrands();
-  // For single-brand backward compat, use first brand for checklists/promoters
+  
+  // For single-brand backward compat, use first brand for checklists/promoters/pdv filter
   const activeBrandId = multiBrands.length > 0 ? multiBrands[0].brand_id : form.brand_id;
   const { data: checklists = [] } = useBrandChecklists(activeBrandId);
   const { data: brandPromoters = [] } = useBrandPromoters(activeBrandId);
+  const { data: brandPdvs = [] } = useBrandPdvs(activeBrandId);
   const { data: mixPreview = [] } = useRouteMixPreview(form.pdv_id, activeBrandId);
   const { data: routeProducts = [] } = useRouteProducts(route?.id);
   const addProduct = useAddRouteProduct();
@@ -671,12 +674,64 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
             </div>
             <div>
               <Label className="text-xs">PDV *</Label>
-              <Select value={form.pdv_id || ''} onValueChange={v => setForm({ ...form, pdv_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {(pdvs || []).filter((p: any) => p?.id).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover open={pdvOpen} onOpenChange={setPdvOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={pdvOpen}
+                    className="w-full justify-between"
+                  >
+                    <span className="truncate">
+                      {form.pdv_id
+                        ? pdvs.find((p: any) => p.id === form.pdv_id)?.name || "PDV"
+                        : "Selecione o PDV"}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar PDV..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum PDV encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {(() => {
+                          const availablePdvs = activeBrandId 
+                            ? (pdvs || []).filter((p: any) => brandPdvs.some((bp: any) => bp.pdv_id === p.id))
+                            : (pdvs || []);
+                          
+                          if (availablePdvs.length === 0 && activeBrandId) {
+                            return <div className="p-4 text-xs text-center text-muted-foreground">Nenhum PDV vinculado a esta marca.</div>;
+                          }
+
+                          return availablePdvs.map((p: any) => (
+                            <CommandItem
+                              key={p.id}
+                              value={p.name}
+                              onSelect={() => {
+                                setForm({ ...form, pdv_id: p.id });
+                                setPdvOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  form.pdv_id === p.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{p.name}</span>
+                                <span className="text-[10px] text-muted-foreground">{p.city} - {p.state}</span>
+                              </div>
+                            </CommandItem>
+                          ));
+                        })()}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
