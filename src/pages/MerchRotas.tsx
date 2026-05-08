@@ -611,6 +611,17 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
     }
   };
 
+  const handleAddAllProducts = () => {
+    if (route?.id && availableToAdd.length > 0) {
+      // Add all available products one by one (or if there's a bulk action, use it)
+      // Since useAddRouteProduct seems to be single-product, we'll map them
+      availableToAdd.forEach((p: any) => {
+        addProduct.mutate({ routeId: route.id, product_id: p.product_id, category_id: p.category_id });
+      });
+      toast.success(`${availableToAdd.length} produtos sendo adicionados...`);
+    }
+  };
+
   const handleRemoveProduct = (productId: string) => {
     if (route?.id) {
       removeProduct.mutate({ routeId: route.id, productId }, {
