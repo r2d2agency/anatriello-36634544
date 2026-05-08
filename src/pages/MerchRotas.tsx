@@ -611,6 +611,17 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
     }
   };
 
+  const handleAddAllProducts = () => {
+    if (route?.id && availableToAdd.length > 0) {
+      // Add all available products one by one (or if there's a bulk action, use it)
+      // Since useAddRouteProduct seems to be single-product, we'll map them
+      availableToAdd.forEach((p: any) => {
+        addProduct.mutate({ routeId: route.id, product_id: p.product_id, category_id: p.category_id });
+      });
+      toast.success(`${availableToAdd.length} produtos sendo adicionados...`);
+    }
+  };
+
   const handleRemoveProduct = (productId: string) => {
     if (route?.id) {
       removeProduct.mutate({ routeId: route.id, productId }, {
@@ -757,7 +768,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                 )}
               </div>
 
-              {availableBrands.length > 0 && form.pdv_id && (
+              {form.pdv_id && (
                 <Select value="" onValueChange={(v) => {
                   if (v) setMultiBrands(prev => [...prev, { brand_id: v }]);
                 }}>
@@ -765,7 +776,11 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                     <SelectValue placeholder="+ Adicionar marca" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableBrands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    {availableBrands.length > 0 ? (
+                      availableBrands.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)
+                    ) : (
+                      <div className="p-2 text-xs text-muted-foreground text-center">Sem marcas disponíveis</div>
+                    )}
                   </SelectContent>
                 </Select>
               )}
@@ -960,7 +975,17 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
 
               {route?.id && availableToAdd.length > 0 && (
                 <div className="pt-2 border-t">
-                  <Label className="text-xs text-muted-foreground mb-1 block">Adicionar do mix ({availableToAdd.length} disponíveis)</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs text-muted-foreground">Adicionar do mix ({availableToAdd.length} disponíveis)</Label>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 text-[10px] px-2 text-primary border-primary/30 hover:bg-primary/5"
+                      onClick={handleAddAllProducts}
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1" /> Incluir Todos
+                    </Button>
+                  </div>
                   <div className="max-h-32 overflow-y-auto space-y-1">
                     {availableToAdd.map((p: any) => (
                       <div key={p.product_id} className="flex items-center justify-between py-1 px-2 rounded-md bg-background/30 text-xs">
