@@ -507,11 +507,14 @@ export default function MerchRotas() {
 function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDelete, onDuplicate }: any) {
   const [form, setForm] = useState<any>({});
   const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string }[]>([]);
+  const [pdvOpen, setPdvOpen] = useState(false);
   const { data: brands = [] } = useBrands();
-  // For single-brand backward compat, use first brand for checklists/promoters
+  
+  // For single-brand backward compat, use first brand for checklists/promoters/pdv filter
   const activeBrandId = multiBrands.length > 0 ? multiBrands[0].brand_id : form.brand_id;
   const { data: checklists = [] } = useBrandChecklists(activeBrandId);
   const { data: brandPromoters = [] } = useBrandPromoters(activeBrandId);
+  const { data: brandPdvs = [] } = useBrandPdvs(activeBrandId);
   const { data: mixPreview = [] } = useRouteMixPreview(form.pdv_id, activeBrandId);
   const { data: routeProducts = [] } = useRouteProducts(route?.id);
   const addProduct = useAddRouteProduct();
