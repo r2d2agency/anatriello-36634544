@@ -708,12 +708,10 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                       <CommandEmpty>Nenhum PDV encontrado.</CommandEmpty>
                       <CommandGroup>
                         {(() => {
-                          const availablePdvs = activeBrandId 
-                            ? (pdvs || []).filter((p: any) => brandPdvs.some((bp: any) => bp.pdv_id === p.id))
-                            : (pdvs || []);
+                          const availablePdvs = (pdvs || []);
                           
-                          if (availablePdvs.length === 0 && activeBrandId) {
-                            return <div className="p-4 text-xs text-center text-muted-foreground">Nenhum PDV vinculado a esta marca.</div>;
+                          if (availablePdvs.length === 0) {
+                            return <div className="p-4 text-xs text-center text-muted-foreground">Nenhum PDV encontrado.</div>;
                           }
 
                           return availablePdvs.map((p: any) => (
