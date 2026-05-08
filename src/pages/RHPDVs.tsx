@@ -97,6 +97,8 @@ export default function RHPDVs() {
       }
       toast({ title: editId ? 'PDV atualizado!' : 'PDV criado!' });
       setShowDialog(false);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     }
   };
 
