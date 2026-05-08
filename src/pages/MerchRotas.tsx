@@ -509,12 +509,14 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
   const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string }[]>([]);
   const [pdvOpen, setPdvOpen] = useState(false);
   const { data: brands = [] } = useBrands();
+  const { data: pdvBrands = [] } = usePdvBrands(form.pdv_id);
   
   // For single-brand backward compat, use first brand for checklists/promoters/pdv filter
   const activeBrandId = multiBrands.length > 0 ? multiBrands[0].brand_id : form.brand_id;
   const { data: checklists = [] } = useBrandChecklists(activeBrandId);
   const { data: brandPromoters = [] } = useBrandPromoters(activeBrandId);
-  const { data: brandPdvs = [] } = useBrandPdvs(activeBrandId);
+  // const { data: brandPdvs = [] } = useBrandPdvs(activeBrandId); // No longer filtering PDVs by brand primary logic
+
   const { data: mixPreview = [] } = useRouteMixPreview(form.pdv_id, activeBrandId);
   const { data: routeProducts = [] } = useRouteProducts(route?.id);
   const addProduct = useAddRouteProduct();
