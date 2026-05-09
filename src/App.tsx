@@ -78,6 +78,7 @@ import MerchMarcas from "./pages/MerchMarcas";
 import MerchCategorias from "./pages/MerchCategorias";
 import MerchProdutos from "./pages/MerchProdutos";
 import MerchMixPDV from "./pages/MerchMixPDV";
+import MerchRedes from "./pages/MerchRedes";
 import MerchRelatorios from "./pages/MerchRelatorios";
 import MerchRotas from "./pages/MerchRotas";
 import MerchExecucao from "./pages/MerchExecucao";
@@ -249,6 +250,7 @@ const App = () => (
             <Route path="/merch/categorias" element={<ProtectedRoute><MerchCategorias /></ProtectedRoute>} />
             <Route path="/merch/produtos" element={<ProtectedRoute><MerchProdutos /></ProtectedRoute>} />
             <Route path="/merch/mix" element={<ProtectedRoute><MerchMixPDV /></ProtectedRoute>} />
+            <Route path="/merch/redes" element={<ProtectedRoute><MerchRedes /></ProtectedRoute>} />
             <Route path="/merch/relatorios" element={<ProtectedRoute><MerchRelatorios /></ProtectedRoute>} />
             <Route path="/merch/contratos" element={<ProtectedRoute><MerchContratos /></ProtectedRoute>} />
             <Route path="/merch/equipe" element={<ProtectedRoute><MerchEquipe /></ProtectedRoute>} />
