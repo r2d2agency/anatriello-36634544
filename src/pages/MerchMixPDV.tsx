@@ -17,6 +17,8 @@ import { MixImportDialog } from "@/components/merchandising/MixImportDialog";
 export default function MerchMixPDV() {
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
   const [selectedPdvId, setSelectedPdvId] = useState<string>('');
+  const [selectedNetworkId, setSelectedNetworkId] = useState<string>('');
+  const [selectionType, setSelectionType] = useState<'pdv' | 'network'>('pdv');
   const [productSearch, setProductSearch] = useState('');
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
   const [selectedToRemove, setSelectedToRemove] = useState<string[]>([]);
