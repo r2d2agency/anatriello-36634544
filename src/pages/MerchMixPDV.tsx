@@ -131,7 +131,7 @@ export default function MerchMixPDV() {
                   <div className="flex bg-muted p-1 rounded-md">
                     <Button 
                       variant={selectionType === 'pdv' ? 'secondary' : 'ghost'} 
-                      size="xs" 
+                      size="sm" 
                       className="h-6 text-[10px] px-2"
                       onClick={() => setSelectionType('pdv')}
                     >
@@ -139,7 +139,7 @@ export default function MerchMixPDV() {
                     </Button>
                     <Button 
                       variant={selectionType === 'network' ? 'secondary' : 'ghost'} 
-                      size="xs" 
+                      size="sm" 
                       className="h-6 text-[10px] px-2"
                       onClick={() => setSelectionType('network')}
                     >
