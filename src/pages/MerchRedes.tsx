@@ -66,7 +66,7 @@ export default function MerchRedes() {
     const nextIds = new Set(currentNetworkPdvIds);
     if (nextIds.has(pdvId)) nextIds.delete(pdvId); else nextIds.add(pdvId);
     try {
-      await updateNetworkPdvs.mutateAsync({ id: selectedNetwork.id, pdv_ids: Array.from(nextIds) });
+      await updateNetworkPdvs.mutateAsync({ id: selectedNetwork.id, pdv_ids: Array.from(nextIds) as string[] });
     } catch (e: any) { toast.error(e.message); }
   };
 
