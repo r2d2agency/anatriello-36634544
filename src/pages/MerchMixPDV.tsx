@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useBrands, useProducts, usePdvBrands, useAddPdvBrand, useRemovePdvBrand, useBrandPdvs, useMix, useAddToMix, useRemoveFromMix } from "@/hooks/use-merchandising";
+import { useBrands, useProducts, usePdvBrands, useAddPdvBrand, useRemovePdvBrand, useBrandPdvs, useMix, useAddToMix, useRemoveFromMix, useNetworks, useNetworkPdvs, useAddToMixBulk } from "@/hooks/use-merchandising";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Search, Plus, Store, Building2, Package, ArrowRight, ArrowLeft, ChevronRight, Upload } from "lucide-react";
