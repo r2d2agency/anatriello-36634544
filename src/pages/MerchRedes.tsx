@@ -34,7 +34,7 @@ export default function MerchRedes() {
 
   const filteredNetworks = networks.filter((n: any) => n.name.toLowerCase().includes(search.toLowerCase()));
   
-  const currentNetworkPdvIds = new Set(networkPdvs.map((p: any) => p.id));
+  const currentNetworkPdvIds = new Set((networkPdvs || []).map((p: any) => typeof p === 'string' ? p : p.id));
   const filteredPdvs = allPdvs.filter((p: any) => 
     p.name?.toLowerCase().includes(pdvSearch.toLowerCase()) || 
     p.city?.toLowerCase().includes(pdvSearch.toLowerCase())
