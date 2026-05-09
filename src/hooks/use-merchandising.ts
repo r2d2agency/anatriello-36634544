@@ -306,15 +306,46 @@ export function usePdvReport(pdvId?: string) {
 export function useNetworks() {
   return useQuery({
     queryKey: ['merch-networks'],
-    queryFn: () => api<any[]>('/api/merchandising/networks'),
-    retry: false, // Don't retry if endpoint doesn't exist yet
+    queryFn: async () => {
+      try {
+        return await api<any[]>('/api/merchandising/networks');
+      } catch (e: any) {
+        if (e.status === 404) {
+          const stored = localStorage.getItem('mock_merch_networks');
+          return stored ? JSON.parse(stored) : [];
+        }
+        throw e;
+      }
+    },
+    retry: (failureCount, error: any) => {
+      if (error?.status === 404) return false;
+      return failureCount < 3;
+    },
   });
 }
 
 export function useCreateNetwork() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => api<any>('/api/merchandising/networks', { method: 'POST', body: data }),
+    mutationFn: async (data: any) => {
+      try {
+        return await api<any>('/api/merchandising/networks', { method: 'POST', body: data });
+      } catch (e: any) {
+        if (e.status === 404) {
+          const stored = localStorage.getItem('mock_merch_networks');
+          const networks = stored ? JSON.parse(stored) : [];
+          const newNetwork = { 
+            ...data, 
+            id: `mock-net-${Math.random().toString(36).substr(2, 9)}`,
+            pdv_ids: [] 
+          };
+          networks.push(newNetwork);
+          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
+          return newNetwork;
+        }
+        throw e;
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-networks'] }),
   });
 }
@@ -322,7 +353,20 @@ export function useCreateNetwork() {
 export function useUpdateNetwork() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: any) => api<any>(`/api/merchandising/networks/${id}`, { method: 'PUT', body: data }),
+    mutationFn: async ({ id, ...data }: any) => {
+      try {
+        return await api<any>(`/api/merchandising/networks/${id}`, { method: 'PUT', body: data });
+      } catch (e: any) {
+        if (e.status === 404 || id.startsWith('mock-')) {
+          const stored = localStorage.getItem('mock_merch_networks');
+          let networks = stored ? JSON.parse(stored) : [];
+          networks = networks.map((n: any) => n.id === id ? { ...n, ...data } : n);
+          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
+          return { id, ...data };
+        }
+        throw e;
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-networks'] }),
   });
 }
@@ -330,7 +374,20 @@ export function useUpdateNetwork() {
 export function useDeleteNetwork() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api<any>(`/api/merchandising/networks/${id}`, { method: 'DELETE' }),
+    mutationFn: async (id: string) => {
+      try {
+        return await api<any>(`/api/merchandising/networks/${id}`, { method: 'DELETE' });
+      } catch (e: any) {
+        if (e.status === 404 || id.startsWith('mock-')) {
+          const stored = localStorage.getItem('mock_merch_networks');
+          let networks = stored ? JSON.parse(stored) : [];
+          networks = networks.filter((n: any) => n.id !== id);
+          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
+          return { ok: true };
+        }
+        throw e;
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-networks'] }),
   });
 }
@@ -338,7 +395,19 @@ export function useDeleteNetwork() {
 export function useNetworkPdvs(networkId?: string) {
   return useQuery({
     queryKey: ['merch-network-pdvs', networkId],
-    queryFn: () => api<any[]>(`/api/merchandising/networks/${networkId}/pdvs`),
+    queryFn: async () => {
+      try {
+        return await api<any[]>(`/api/merchandising/networks/${networkId}/pdvs`);
+      } catch (e: any) {
+        if (e.status === 404 || networkId?.startsWith('mock-')) {
+          const stored = localStorage.getItem('mock_merch_networks');
+          const networks = stored ? JSON.parse(stored) : [];
+          const network = networks.find((n: any) => n.id === networkId);
+          return network?.pdv_ids || [];
+        }
+        throw e;
+      }
+    },
     enabled: !!networkId,
     retry: false,
   });
@@ -347,8 +416,20 @@ export function useNetworkPdvs(networkId?: string) {
 export function useUpdateNetworkPdvs() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, pdv_ids }: { id: string; pdv_ids: string[] }) => 
-      api<any>(`/api/merchandising/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } }),
+    mutationFn: async ({ id, pdv_ids }: { id: string; pdv_ids: string[] }) => {
+      try {
+        return await api<any>(`/api/merchandising/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } });
+      } catch (e: any) {
+        if (e.status === 404 || id.startsWith('mock-')) {
+          const stored = localStorage.getItem('mock_merch_networks');
+          let networks = stored ? JSON.parse(stored) : [];
+          networks = networks.map((n: any) => n.id === id ? { ...n, pdv_ids } : n);
+          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
+          return { id, pdv_ids };
+        }
+        throw e;
+      }
+    },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['merch-networks'] });
       qc.invalidateQueries({ queryKey: ['merch-network-pdvs', variables.id] });
@@ -367,28 +448,3 @@ export function useAddToMixBulk() {
   });
 }
 
-// ===== MOCK API FALLBACKS FOR LOCAL DEVELOPMENT OR MISSING ENDPOINTS =====
-const useMockNetworks = () => {
-  return useQuery({
-    queryKey: ['merch-networks-mock'],
-    queryFn: () => {
-      const stored = localStorage.getItem('mock_merch_networks');
-      return stored ? JSON.parse(stored) : [];
-    }
-  });
-};
-
-const useMockCreateNetwork = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (data: any) => {
-      const stored = localStorage.getItem('mock_merch_networks');
-      const networks = stored ? JSON.parse(stored) : [];
-      const newNetwork = { ...data, id: Math.random().toString(36).substr(2, 9) };
-      networks.push(newNetwork);
-      localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
-      return newNetwork;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-networks-mock'] })
-  });
-};
