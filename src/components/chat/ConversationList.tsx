@@ -747,6 +747,18 @@ export function ConversationList({
                       </span>
                     </div>
 
+                    {/* Automation Flag */}
+                    {conv.automation_active && (
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-purple-600 dark:text-purple-400 mb-0.5">
+                        <Bot className="h-3 w-3" />
+                        <span>Automação ativa</span>
+                        <span className="flex h-1.5 w-1.5 ml-0.5">
+                          <span className="animate-ping absolute inline-flex h-1.5 w-1.5 rounded-full bg-purple-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-500"></span>
+                        </span>
+                      </div>
+                    )}
+
                     {/* Last message preview */}
                     <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
                       {getMessageTypeIcon(conv.last_message_type)}
