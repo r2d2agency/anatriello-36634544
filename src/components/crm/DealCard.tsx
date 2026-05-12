@@ -160,6 +160,16 @@ export const DealCard = forwardRef<HTMLDivElement, DealCardProps>(
             {formatCurrency(deal.value)}
           </Badge>
         </div>
+        
+        {/* Automation Flag */}
+        {deal.automation_active && (
+          <div className="mb-2">
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] px-1.5 flex items-center gap-1 border-purple-200">
+              <Bot className="h-3 w-3" />
+              Automação ativa (aguardando resposta)
+            </Badge>
+          </div>
+        )}
 
         {/* Company & Source */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
