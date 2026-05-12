@@ -438,6 +438,25 @@ export default function MerchMixPDV() {
           </Card>
         )}
       </div>
+      
+      <Dialog open={isExporting} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportando Mix de Produtos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{exportStatus}</span>
+              <span className="font-medium">{exportProgress}%</span>
+            </div>
+            <Progress value={exportProgress} className="h-2" />
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Por favor, aguarde a conclusão do processo.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
