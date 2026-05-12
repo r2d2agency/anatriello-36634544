@@ -72,10 +72,10 @@ export function PWAUpdateBanner() {
           setShowPopup(true);
         }
 
-        // Check for updates every 30 seconds
+        // Check for updates every 15 seconds
         interval = setInterval(() => {
           reg.update().catch(() => {});
-        }, 30 * 1000);
+        }, 15 * 1000);
       } catch (err) {
         console.error("[PWA] Error setting up update listener:", err);
       }
