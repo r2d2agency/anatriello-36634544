@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Users, Route, Store, Package, Activity, 
   TrendingUp, TrendingDown, Clock, Camera, AlertTriangle, 
   ShoppingCart, Filter, RefreshCw, Calendar, Target,
-  ChevronRight, Building2, UserCheck
+  ChevronRight, Building2, UserCheck, CheckCircle2
 } from "lucide-react";
 import { useMerchDashboard, useMerchRoutesTimeline, useMerchRankingIssues } from "@/hooks/use-merch-analytics";
 import { format, startOfWeek, endOfWeek, subDays, startOfMonth } from "date-fns";
