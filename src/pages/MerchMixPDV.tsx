@@ -123,6 +123,28 @@ export default function MerchMixPDV() {
         }
       }
 
+      if (fullMix.length === 0) {
+        toast.error("Nenhum dado de mix encontrado para exportar");
+        return;
+      }
+
+      // Map IDs to names for better readability in CSV
+      const productMap = new Map(allProducts.map(p => [p.id, p]));
+      
+      const csvData = fullMix.map(item => {
+        const product = productMap.get(item.product_id);
+        
+        return {
+          'PDV ID': item.pdv_id,
+          'PDV': item.pdv_name || '',
+          'Marca': item.brand_name || '',
+          'Produto': product?.name || item.product_name || '',
+          'SKU': product?.sku || '',
+          'Obrigatório': item.mandatory ? 'Sim' : 'Não',
+          'Prioridade': item.priority || 'Normal'
+        };
+      });
+
       // Simple CSV generation
       const headers = Object.keys(csvData[0]);
       const csvRows = [
