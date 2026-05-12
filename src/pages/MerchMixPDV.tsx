@@ -87,16 +87,43 @@ export default function MerchMixPDV() {
     try {
       setIsExporting(true);
       
-      // 1. Fetch all PDVs
-      const allPdvs = await api<any[]>('/api/merchandising/pdv-brands/all');
+      // 1. Fetch all brands first
+      const brands = allBrands.length > 0 ? allBrands : await api<any[]>('/api/merchandising/brands');
       
       // 2. Fetch all products to have names/brands
       const allProducts = await api<any[]>('/api/merchandising/products');
       
-      // 3. Fetch full mix data
-      const fullMix = await api<any[]>('/api/merchandising/mix/all');
+      // 3. Since bulk endpoints might be missing or erroring, we fetch mix per brand
+      // This is safer than calling /all which seems to be interpreted as a UUID by the backend
+      const fullMix: any[] = [];
       
-      if (!fullMix || fullMix.length === 0) {
+      toast.info("Iniciando exportação de todas as marcas...");
+      
+      for (const brand of brands) {
+        try {
+          // Get all PDVs for this brand
+          const brandPdvs = await api<any[]>(`/api/merchandising/brand-pdvs/${brand.id}`);
+          
+          for (const bp of brandPdvs) {
+            try {
+              const pdvMix = await api<any[]>(`/api/merchandising/mix/${bp.pdv_id}/${brand.id}`);
+              if (pdvMix && pdvMix.length > 0) {
+                fullMix.push(...pdvMix.map(item => ({
+                  ...item,
+                  pdv_name: bp.pdv_name,
+                  brand_name: brand.name
+                })));
+              }
+            } catch (e) {
+              console.warn(`Could not fetch mix for PDV ${bp.pdv_id} and brand ${brand.id}`);
+            }
+          }
+        } catch (e) {
+          console.warn(`Could not fetch PDVs for brand ${brand.id}`);
+        }
+      }
+
+      if (fullMix.length === 0) {
         toast.error("Nenhum dado de mix encontrado para exportar");
         return;
       }
@@ -106,12 +133,11 @@ export default function MerchMixPDV() {
       
       const csvData = fullMix.map(item => {
         const product = productMap.get(item.product_id);
-        const brand = allBrands.find(b => b.id === item.brand_id);
         
         return {
           'PDV ID': item.pdv_id,
           'PDV': item.pdv_name || '',
-          'Marca': brand?.name || item.brand_id,
+          'Marca': item.brand_name || '',
           'Produto': product?.name || item.product_name || '',
           'SKU': product?.sku || '',
           'Obrigatório': item.mandatory ? 'Sim' : 'Não',
