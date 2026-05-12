@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { usePDVs, useCreatePDV, useUpdatePDV, useDeletePDV } from "@/hooks/use-p
 import { useGeocode } from "@/hooks/use-rh";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAuthToken } from "@/lib/api";
-import { MapPin, Plus, Edit, Search, Loader2, Navigation, Upload, Download, Trash2 } from "lucide-react";
+import { MapPin, Plus, Edit, Search, Loader2, Navigation, Upload, Download, Trash2, LayoutDashboard } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PDVImportDialog } from "@/components/promotor/PDVImportDialog";
@@ -149,7 +150,14 @@ export default function RHPDVs() {
     <MainLayout>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold flex items-center gap-2"><MapPin className="h-5 w-5" /> Cadastro de PDVs</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold flex items-center gap-2"><MapPin className="h-5 w-5" /> Cadastro de PDVs</h1>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/merch/dashboard" className="flex items-center gap-2">
+                <LayoutDashboard className="h-4 w-4" /> Dashboard
+              </Link>
+            </Button>
+          </div>
           <div className="flex gap-2">
             {selectedIds.size > 0 && (
               <Button variant="destructive" onClick={handleBulkDelete} disabled={deletePDV.isPending}>
