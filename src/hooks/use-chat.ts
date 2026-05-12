@@ -35,6 +35,7 @@ export interface Conversation {
   accepted_by_name: string | null;
   department_id: string | null;
   department_name: string | null;
+  automation_active?: boolean;
   created_at: string;
 }
 
