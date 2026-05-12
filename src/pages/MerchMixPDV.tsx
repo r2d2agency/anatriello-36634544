@@ -145,21 +145,12 @@ export default function MerchMixPDV() {
         };
       });
 
-      // Simple CSV generation
-      const headers = Object.keys(csvData[0]);
-      const csvRows = [
-        headers.join(','),
-        ...csvData.map(row => headers.map(header => `"${(row as any)[header]}"`).join(','))
-      ];
-      const csvString = csvRows.join('\n');
-      
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `mix_completo_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Excel XLSX generation (avoids accent/encoding issues and ensures rows)
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(csvData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Mix');
+      XLSX.writeFile(wb, `mix_completo_${new Date().toISOString().split('T')[0]}.xlsx`);
       
       toast.success("Exportação concluída com sucesso!");
     } catch (error: any) {
