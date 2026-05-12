@@ -16,7 +16,7 @@ import { usePDVs } from "@/hooks/use-promotor";
 import { FileUploadInput } from "@/components/ui/file-upload-input";
 import { BrandImportDialog } from "@/components/merchandising/BrandImportDialog";
 import { BrandPdvLinkImportDialog } from "@/components/merchandising/BrandPdvLinkImportDialog";
-import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload, Download, Link2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, Store, ArrowRight, ArrowLeft, Upload, Download, Link2, LayoutDashboard } from "lucide-react";
 import { getAuthToken } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
