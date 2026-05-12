@@ -909,7 +909,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
           {!isMultiBrand && checklists.length > 0 && multiBrands.length === 1 && (
             <div>
               <Label className="text-xs">Checklist</Label>
-              <Select value={multiBrands[0]?.checklist_id || ''} onValueChange={v => setMultiBrands(prev => prev.map((b, i) => i === 0 ? { ...b, checklist_id: v } : b))}>
+              <Select value={multiBrands[0]?.checklist_id || ''} onValueChange={v => setMultiBrands(prev => prev.map((b, i) => i === 0 ? { ...b, checklist_id: v === '__none__' ? undefined : v } : b))}>
                 <SelectTrigger className="flex items-center">
                   <SelectValue placeholder="Sem checklist (opcional)" />
                 </SelectTrigger>
@@ -924,10 +924,6 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                   Limpar checklist
                 </Button>
               )}
-                <SelectContent>
-                  {checklists.filter((c: any) => c?.id).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
             </div>
           )}
 
