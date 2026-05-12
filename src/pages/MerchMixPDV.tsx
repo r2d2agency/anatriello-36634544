@@ -27,6 +27,8 @@ export default function MerchMixPDV() {
   const [importOpen, setImportOpen] = useState(false);
   const [pdvSearch, setPdvSearch] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportStatus, setExportStatus] = useState('');
   const queryClient = useQueryClient();
 
   const { data: allBrands = [] } = useBrands({ status: 'active' });
