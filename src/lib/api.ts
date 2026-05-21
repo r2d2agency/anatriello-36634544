@@ -66,12 +66,6 @@ const ENDPOINT_RESILIENCE: Record<string, EndpointResilienceConfig> = {
     maxRetries: 0,
     silent: true,
   },
-  '/api/merchandising/networks': {
-    cooldownMs: 60000,
-    fallbackToOtherBases: false,
-    fallbackValue: () => [],
-    silent: false,
-  },
   '/api/merchandising/mix/bulk': {
     cooldownMs: 60000,
     fallbackToOtherBases: false,
@@ -82,14 +76,6 @@ const ENDPOINT_RESILIENCE: Record<string, EndpointResilienceConfig> = {
 
 const getResilienceConfig = (endpoint: string) => {
   if (ENDPOINT_RESILIENCE[endpoint]) return ENDPOINT_RESILIENCE[endpoint];
-  if (endpoint.startsWith('/api/merchandising/networks')) {
-    return {
-      cooldownMs: 60000,
-      fallbackToOtherBases: false,
-      fallbackValue: () => (endpoint.endsWith('/pdvs') ? [] : {}),
-      silent: false,
-    };
-  }
   return undefined;
 };
 
