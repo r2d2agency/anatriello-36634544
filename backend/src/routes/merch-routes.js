@@ -1327,6 +1327,7 @@ async function ensureRouteBrandsTables() {
     )`);
     await query(`ALTER TABLE route_product_executions ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
     await query(`ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
+    await query(`ALTER TABLE merch_routes ALTER COLUMN brand_id DROP NOT NULL`);
     try { await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID`); } catch {}
   } catch (e) { logWarn('ensureRouteBrandsTables.failed', { error: e?.message }); }
 }
