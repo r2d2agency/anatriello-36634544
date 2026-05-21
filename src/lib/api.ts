@@ -70,7 +70,7 @@ const ENDPOINT_RESILIENCE: Record<string, EndpointResilienceConfig> = {
     cooldownMs: 60000,
     fallbackToOtherBases: false,
     fallbackValue: () => [],
-    silent: true,
+    silent: false,
   },
   '/api/merchandising/mix/bulk': {
     cooldownMs: 60000,
@@ -87,7 +87,7 @@ const getResilienceConfig = (endpoint: string) => {
       cooldownMs: 60000,
       fallbackToOtherBases: false,
       fallbackValue: () => (endpoint.endsWith('/pdvs') ? [] : {}),
-      silent: true,
+      silent: false,
     };
   }
   return undefined;
