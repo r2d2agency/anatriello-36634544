@@ -10,11 +10,9 @@ const normalizeEndpoint = (endpoint: string) => {
 const getBaseCandidates = (endpoint: string) => {
   const sameOriginBase = '';
   const supportsSameOrigin = endpoint.startsWith('/api/') || endpoint.startsWith('/uploads/');
-  const shouldPreferSameOrigin = isBrowser && !isLocalhost && supportsSameOrigin;
-
-  const ordered = shouldPreferSameOrigin
-    ? [sameOriginBase, ENV_API_URL]
-    : [ENV_API_URL, sameOriginBase];
+  const ordered = ENV_API_URL
+    ? [ENV_API_URL, supportsSameOrigin ? sameOriginBase : undefined]
+    : [sameOriginBase];
 
   return [...new Set(ordered.filter((base) => base !== undefined && base !== null))];
 };
