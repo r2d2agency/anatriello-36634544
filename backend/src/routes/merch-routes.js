@@ -632,9 +632,10 @@ router.get('/brand-checklists', authenticate, async (req, res) => {
       require_checkin_photo BOOLEAN DEFAULT true,
       require_checkout_photo BOOLEAN DEFAULT false,
       require_stock_count BOOLEAN DEFAULT false,
-      require_validity_check BOOLEAN DEFAULT false,
-      require_extra_point BOOLEAN DEFAULT false,
-      stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
+       require_validity_check BOOLEAN DEFAULT false,
+       require_extra_point BOOLEAN DEFAULT false,
+       require_category_photos BOOLEAN DEFAULT true,
+       stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
       validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
       active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -666,9 +667,10 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
       require_checkin_photo BOOLEAN DEFAULT true,
       require_checkout_photo BOOLEAN DEFAULT false,
       require_stock_count BOOLEAN DEFAULT false,
-      require_validity_check BOOLEAN DEFAULT false,
-      require_extra_point BOOLEAN DEFAULT false,
-      stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
+       require_validity_check BOOLEAN DEFAULT false,
+       require_extra_point BOOLEAN DEFAULT false,
+       require_category_photos BOOLEAN DEFAULT true,
+       stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
       validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
       active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -677,11 +679,11 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
 
     const result = await query(
       `INSERT INTO brand_checklists (organization_id, brand_id, name, description, require_checkin_photo,
-       require_checkout_photo, require_stock_count, require_validity_check, require_extra_point,
+       require_checkout_photo, require_stock_count, require_validity_check, require_extra_point, require_category_photos,
        stock_count_frequency, validity_check_frequency)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [orgId, brand_id, name, description, require_checkin_photo ?? true, require_checkout_photo ?? false,
-       require_stock_count ?? false, require_validity_check ?? false, require_extra_point ?? false,
+       require_stock_count ?? false, require_validity_check ?? false, require_extra_point ?? false, require_category_photos ?? true,
        stock_count_frequency || 'every_visit', validity_check_frequency || 'every_visit']
     );
     res.json(result.rows[0]);
@@ -1417,7 +1419,7 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
        p.latitude as pdv_lat, p.longitude as pdv_lng, p.radius_meters as pdv_radius,
        b.name as brand_name, bc.name as checklist_name,
        bc.require_checkin_photo, bc.require_checkout_photo, bc.require_stock_count,
-       bc.require_validity_check, bc.require_extra_point
+       bc.require_validity_check, bc.require_extra_point, bc.require_category_photos
        FROM merch_routes r
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN merch_brands b ON b.id = r.brand_id
@@ -1460,14 +1462,16 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     // Auto-create category entries for categories that have products but no entry yet
     const existingCatIds = new Set(categoryStatuses.map(c => c.category_id));
     const categoriesInRoute = [...new Set(executions.rows.filter(e => e.category_id).map(e => e.category_id))];
+    const requireCategoryPhotos = route.rows[0].require_category_photos !== false;
+
     for (const catId of categoriesInRoute) {
       if (!existingCatIds.has(catId)) {
         const catName = executions.rows.find(e => e.category_id === catId)?.category_name || 'Sem nome';
         try {
           const ins = await query(
-            `INSERT INTO merch_execution_categories (route_id, category_id, category_name, performed_by)
-             VALUES ($1,$2,$3,$4) ON CONFLICT (route_id, category_id) DO NOTHING RETURNING *`,
-            [req.params.id, catId, catName, req.employeeId]
+            `INSERT INTO merch_execution_categories (route_id, category_id, category_name, performed_by, products_unlocked)
+             VALUES ($1,$2,$3,$4,$5) ON CONFLICT (route_id, category_id) DO NOTHING RETURNING *`,
+            [req.params.id, catId, catName, req.employeeId, !requireCategoryPhotos]
           );
           if (ins.rows[0]) categoryStatuses.push(ins.rows[0]);
         } catch (e) { if (e.code !== '42P01') logError('promotor.auto_create_cat', e); }

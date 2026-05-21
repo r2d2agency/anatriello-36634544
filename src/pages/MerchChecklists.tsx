@@ -39,6 +39,7 @@ export default function MerchChecklists() {
     setForm({
       brand_id: selectedBrand, name: '', description: '',
       require_checkin_photo: true, require_checkout_photo: false,
+      require_category_photos: true,
       require_stock_count: false, require_validity_check: false,
       require_extra_point: false,
       stock_count_frequency: 'every_visit', validity_check_frequency: 'every_visit',
@@ -129,6 +130,7 @@ export default function MerchChecklists() {
                     {c.require_stock_count && <Badge variant="outline" className="text-[10px] gap-1"><Package className="h-3 w-3" /> Estoque ({FREQUENCIES.find(f => f.value === c.stock_count_frequency)?.label})</Badge>}
                     {c.require_validity_check && <Badge variant="outline" className="text-[10px] gap-1"><CalendarDays className="h-3 w-3" /> Validade ({FREQUENCIES.find(f => f.value === c.validity_check_frequency)?.label})</Badge>}
                     {c.require_extra_point && <Badge variant="outline" className="text-[10px] gap-1"><Archive className="h-3 w-3" /> Ponto Extra</Badge>}
+                    {c.require_category_photos !== false && <Badge variant="outline" className="text-[10px] gap-1"><Camera className="h-3 w-3" /> Fotos Categoria (A/D)</Badge>}
                   </div>
                 </CardContent>
               </Card>
@@ -194,6 +196,7 @@ export default function MerchChecklists() {
                 { key: 'require_stock_count', label: 'Contagem de estoque obrigatória', icon: Package },
                 { key: 'require_validity_check', label: 'Verificação de validade obrigatória', icon: CalendarDays },
                 { key: 'require_extra_point', label: 'Verificação de ponto extra', icon: Archive },
+                { key: 'require_category_photos', label: 'Fotos da categoria (Antes/Depois) obrigatórias', icon: Camera },
               ].map(r => (
                 <div key={r.key} className="flex items-center justify-between p-3 rounded-lg border">
                   <div className="flex items-center gap-2">
