@@ -677,6 +677,7 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`);
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`).catch(() => {});
 
     const result = await query(
       `INSERT INTO brand_checklists (organization_id, brand_id, name, description, require_checkin_photo,
