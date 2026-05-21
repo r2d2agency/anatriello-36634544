@@ -7,13 +7,27 @@ import { authenticate } from '../middleware/auth.js';
 import { logInfo, logError } from '../logger.js';
 
 const router = express.Router();
+router.use((req, res, next) => {
+  // Skip auth for promotor app routes that use their own middleware
+  const isPromotorRoute = req.path.startsWith('/home') || 
+                          req.path.startsWith('/punch') || 
+                          req.path.startsWith('/overtime-request') ||
+                          req.path.startsWith('/location-update') ||
+                          req.path.startsWith('/punches') ||
+                          req.path.startsWith('/documents') ||
+                          req.path.startsWith('/inbound-documents') ||
+                          req.path.startsWith('/payslips') ||
+                          req.path.startsWith('/timesheets') ||
+                          req.path.startsWith('/notifications') ||
+                          req.path.startsWith('/settings') ||
+                          req.path.startsWith('/change-password') ||
+                          req.path.startsWith('/sync');
 
-// Public helper to resolve orgId from user_id (needed by some admin endpoints)
-async function resolveOrganizationId(req) {
-  if (req.orgId) return req.orgId;
-  const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
-  return orgRes.rows[0]?.organization_id;
-}
+  if (isPromotorRoute) {
+    return next();
+  }
+  return authenticate(req, res, next);
+});
 
 const BR_GEOCODE_USER_AGENT = 'Ayratech/1.0 (suporte@ayratech.app.br)';
 
@@ -610,7 +624,7 @@ router.get('/rh/overtime-requests', async (req, res) => {
 // =============================================
 // RH/SUPERVISOR: APROVAR/RECUSAR HORA EXTRA
 // =============================================
-router.put('/rh/overtime-requests/:id', authenticate, async (req, res) => {
+router.put('/rh/overtime-requests/:id', async (req, res) => {
   try {
     const { status, supervisor_notes } = req.body;
     if (!['aprovado', 'recusado'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
@@ -960,7 +974,7 @@ router.delete('/rh/pdvs/:id', async (req, res) => {
   }
 });
 
-router.post('/rh/pdvs/import', authenticate, async (req, res) => {
+router.post('/rh/pdvs/import', async (req, res) => {
   try {
     const orgId = await resolveOrganizationId(req);
     if (!orgId) return res.status(401).json({ error: 'Organização não encontrada para o usuário' });
@@ -1104,7 +1118,7 @@ router.post('/rh/pdvs/import', authenticate, async (req, res) => {
   }
 });
 
-router.get('/rh/pdvs/export', authenticate, async (req, res) => {
+router.get('/rh/pdvs/export', async (req, res) => {
   try {
     const orgId = await resolveOrganizationId(req);
     if (!orgId) return res.status(401).json({ error: 'Organização não encontrada' });
@@ -1291,7 +1305,7 @@ router.put('/rh/inbound-documents/:id', async (req, res) => {
 // =============================================
 // RH: MONITORAMENTO DE PONTO EM TEMPO REAL
 // =============================================
-router.get('/rh/punch-monitor', authenticate, async (req, res) => {
+router.get('/rh/punch-monitor', async (req, res) => {
   try {
     const orgId = await resolveOrganizationId(req);
     const today = new Date().toISOString().slice(0, 10);
