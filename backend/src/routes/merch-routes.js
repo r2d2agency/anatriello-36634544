@@ -632,9 +632,10 @@ router.get('/brand-checklists', authenticate, async (req, res) => {
       require_checkin_photo BOOLEAN DEFAULT true,
       require_checkout_photo BOOLEAN DEFAULT false,
       require_stock_count BOOLEAN DEFAULT false,
-      require_validity_check BOOLEAN DEFAULT false,
-      require_extra_point BOOLEAN DEFAULT false,
-      stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
+       require_validity_check BOOLEAN DEFAULT false,
+       require_extra_point BOOLEAN DEFAULT false,
+       require_category_photos BOOLEAN DEFAULT true,
+       stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
       validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
       active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -666,9 +667,10 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
       require_checkin_photo BOOLEAN DEFAULT true,
       require_checkout_photo BOOLEAN DEFAULT false,
       require_stock_count BOOLEAN DEFAULT false,
-      require_validity_check BOOLEAN DEFAULT false,
-      require_extra_point BOOLEAN DEFAULT false,
-      stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
+       require_validity_check BOOLEAN DEFAULT false,
+       require_extra_point BOOLEAN DEFAULT false,
+       require_category_photos BOOLEAN DEFAULT true,
+       stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
       validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
       active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -677,11 +679,11 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
 
     const result = await query(
       `INSERT INTO brand_checklists (organization_id, brand_id, name, description, require_checkin_photo,
-       require_checkout_photo, require_stock_count, require_validity_check, require_extra_point,
+       require_checkout_photo, require_stock_count, require_validity_check, require_extra_point, require_category_photos,
        stock_count_frequency, validity_check_frequency)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [orgId, brand_id, name, description, require_checkin_photo ?? true, require_checkout_photo ?? false,
-       require_stock_count ?? false, require_validity_check ?? false, require_extra_point ?? false,
+       require_stock_count ?? false, require_validity_check ?? false, require_extra_point ?? false, require_category_photos ?? true,
        stock_count_frequency || 'every_visit', validity_check_frequency || 'every_visit']
     );
     res.json(result.rows[0]);

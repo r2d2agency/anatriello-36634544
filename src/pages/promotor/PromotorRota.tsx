@@ -595,7 +595,9 @@ export default function PromotorRota() {
 
   const handleOpenProduct = useCallback((exec: any) => {
     const catStatus = categoryStatusMap[exec.category_id];
-    if (!catStatus?.products_unlocked) {
+    const requireCategoryPhotos = route?.require_category_photos !== false;
+    
+    if (requireCategoryPhotos && !catStatus?.products_unlocked) {
       toast.error('Finalize a etapa de preparação da categoria antes de executar produtos.');
       return;
     }
@@ -818,7 +820,7 @@ export default function PromotorRota() {
                   {/* Category header */}
                   <div className="flex items-center justify-between mb-2 mt-3">
                     <div className="flex items-center gap-2">
-                      {hasAfterPhoto ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : isExtraGroup ? <Target className="h-4 w-4 text-orange-600" /> : isLocked ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Unlock className="h-4 w-4 text-green-600" />}
+                      {hasAfterPhoto ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : isExtraGroup ? <Target className="h-4 w-4 text-orange-600" /> : (requireCategoryPhotos && isLocked) ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Unlock className="h-4 w-4 text-green-600" />}
                       <h3 className="text-sm font-bold">{category}</h3>
                       {hasAfterPhoto && (
                         <Badge variant="secondary" className="text-[9px] bg-green-100 text-green-700">✅ Concluída</Badge>
@@ -886,13 +888,14 @@ export default function PromotorRota() {
               const totalExecs = filteredExecs.length;
               const completedExecs = filteredExecs.filter((e: any) => e.status === 'completed').length;
               const allProductsDone = totalExecs > 0 && completedExecs === totalExecs;
+              const requireCategoryPhotos = route?.require_category_photos !== false;
               
               const categoryEntries = Object.entries(groupedExecs);
-              const categoriesMissingAfterPhoto = categoryEntries.filter(([, { catId, execs }]) => {
+              const categoriesMissingAfterPhoto = requireCategoryPhotos ? categoryEntries.filter(([, { catId, execs }]) => {
                 const catStatus = categoryStatusMap[catId];
                 const catDone = execs.every((e: any) => e.status === 'completed');
                 return catDone && !catStatus?.category_after_photo && !catStatus?.completed;
-              });
+              }) : [];
               const allCategoriesCompleted = categoriesMissingAfterPhoto.length === 0;
               const allDone = allProductsDone && allCategoriesCompleted;
               
