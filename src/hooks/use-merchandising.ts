@@ -325,21 +325,7 @@ export function useCreateNetwork() {
 export function useUpdateNetwork() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
-      try {
-        return await api<any>(`/api/merchandising/networks/${id}`, { method: 'PUT', body: data });
-      } catch (e: any) {
-        const is404 = e.status === 404 || (e.message && e.message.includes('404'));
-        if (is404 || id.startsWith('mock-')) {
-          const stored = localStorage.getItem('mock_merch_networks');
-          let networks = stored ? JSON.parse(stored) : [];
-          networks = networks.map((n: any) => n.id === id ? { ...n, ...data } : n);
-          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
-          return { id, ...data };
-        }
-        throw e;
-      }
-    },
+    mutationFn: ({ id, ...data }: any) => api<any>(`/api/merchandising/networks/${id}`, { method: 'PUT', body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-networks'] }),
   });
 }
@@ -347,21 +333,7 @@ export function useUpdateNetwork() {
 export function useDeleteNetwork() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        return await api<any>(`/api/merchandising/networks/${id}`, { method: 'DELETE' });
-      } catch (e: any) {
-        const is404 = e.status === 404 || (e.message && e.message.includes('404'));
-        if (is404 || id.startsWith('mock-')) {
-          const stored = localStorage.getItem('mock_merch_networks');
-          let networks = stored ? JSON.parse(stored) : [];
-          networks = networks.filter((n: any) => n.id !== id);
-          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
-          return { ok: true };
-        }
-        throw e;
-      }
-    },
+    mutationFn: (id: string) => api<any>(`/api/merchandising/networks/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['merch-networks'] }),
   });
 }
@@ -369,20 +341,7 @@ export function useDeleteNetwork() {
 export function useNetworkPdvs(networkId?: string) {
   return useQuery({
     queryKey: ['merch-network-pdvs', networkId],
-    queryFn: async () => {
-      try {
-        return await api<any[]>(`/api/merchandising/networks/${networkId}/pdvs`);
-      } catch (e: any) {
-        const is404 = e.status === 404 || (e.message && e.message.includes('404'));
-        if (is404 || networkId?.startsWith('mock-')) {
-          const stored = localStorage.getItem('mock_merch_networks');
-          const networks = stored ? JSON.parse(stored) : [];
-          const network = networks.find((n: any) => n.id === networkId);
-          return network?.pdv_ids || [];
-        }
-        throw e;
-      }
-    },
+    queryFn: () => api<any[]>(`/api/merchandising/networks/${networkId}/pdvs`),
     enabled: !!networkId,
     retry: false,
   });
