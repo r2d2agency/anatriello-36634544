@@ -692,17 +692,20 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
 
 router.put('/brand-checklists/:id', authenticate, async (req, res) => {
   try {
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`).catch(() => {});
     const { name, description, require_checkin_photo, require_checkout_photo, require_stock_count,
-            require_validity_check, require_extra_point, stock_count_frequency, validity_check_frequency, active } = req.body;
+            require_validity_check, require_extra_point, require_category_photos,
+            stock_count_frequency, validity_check_frequency, active } = req.body;
     const result = await query(
       `UPDATE brand_checklists SET name=COALESCE($2,name), description=COALESCE($3,description),
        require_checkin_photo=COALESCE($4,require_checkin_photo), require_checkout_photo=COALESCE($5,require_checkout_photo),
        require_stock_count=COALESCE($6,require_stock_count), require_validity_check=COALESCE($7,require_validity_check),
        require_extra_point=COALESCE($8,require_extra_point), stock_count_frequency=COALESCE($9,stock_count_frequency),
-       validity_check_frequency=COALESCE($10,validity_check_frequency), active=COALESCE($11,active), updated_at=NOW()
+       validity_check_frequency=COALESCE($10,validity_check_frequency), active=COALESCE($11,active),
+       require_category_photos=COALESCE($12,require_category_photos), updated_at=NOW()
        WHERE id=$1 RETURNING *`,
       [req.params.id, name, description, require_checkin_photo, require_checkout_photo, require_stock_count,
-       require_validity_check, require_extra_point, stock_count_frequency, validity_check_frequency, active]
+       require_validity_check, require_extra_point, stock_count_frequency, validity_check_frequency, active, require_category_photos]
     );
     res.json(result.rows[0]);
   } catch (err) { logError('checklists.update', err); res.status(500).json({ error: 'Erro' }); }
