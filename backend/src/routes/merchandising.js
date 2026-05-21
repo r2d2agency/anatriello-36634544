@@ -122,6 +122,24 @@ async function ensureMerchandisingInfra() {
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(pdv_id, brand_id, product_id)
     )`,
+    `CREATE TABLE IF NOT EXISTS merch_redes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(20) DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, name)
+    )`,
+    `CREATE TABLE IF NOT EXISTS merch_rede_pdvs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      rede_id UUID NOT NULL REFERENCES merch_redes(id) ON DELETE CASCADE,
+      pdv_id UUID NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(rede_id, pdv_id)
+    )`,
     `CREATE INDEX IF NOT EXISTS idx_merch_brands_org ON merch_brands(organization_id)`,
     `CREATE INDEX IF NOT EXISTS idx_merch_brands_code ON merch_brands(organization_id, internal_code)`,
     `CREATE INDEX IF NOT EXISTS idx_merch_products_brand ON merch_products(brand_id)`,
@@ -130,6 +148,9 @@ async function ensureMerchandisingInfra() {
     `CREATE INDEX IF NOT EXISTS idx_merch_pdv_brands_brand ON merch_pdv_brands(brand_id)`,
     `CREATE INDEX IF NOT EXISTS idx_merch_pdv_bp_pdv ON merch_pdv_brand_products(pdv_id)`,
     `CREATE INDEX IF NOT EXISTS idx_merch_pdv_bp_brand ON merch_pdv_brand_products(brand_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_redes_org ON merch_redes(organization_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_rede_pdvs_rede ON merch_rede_pdvs(rede_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_merch_rede_pdvs_pdv ON merch_rede_pdvs(pdv_id)`,
     `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS internal_code VARCHAR(100); EXCEPTION WHEN others THEN NULL; END $$`,
     `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS street VARCHAR(255); EXCEPTION WHEN others THEN NULL; END $$`,
     `DO $$ BEGIN ALTER TABLE merch_brands ADD COLUMN IF NOT EXISTS number VARCHAR(50); EXCEPTION WHEN others THEN NULL; END $$`,
