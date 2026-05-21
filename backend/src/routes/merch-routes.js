@@ -1444,7 +1444,8 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
        p.latitude as pdv_lat, p.longitude as pdv_lng, p.radius_meters as pdv_radius,
        b.name as brand_name, bc.name as checklist_name,
        bc.require_checkin_photo, bc.require_checkout_photo, bc.require_stock_count,
-       bc.require_validity_check, bc.require_extra_point, bc.require_category_photos
+       bc.require_validity_check, bc.require_extra_point, bc.require_category_photos,
+       bc.min_category_photos_before, bc.min_category_photos_after
        FROM merch_routes r
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN merch_brands b ON b.id = r.brand_id
