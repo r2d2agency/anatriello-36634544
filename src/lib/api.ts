@@ -87,7 +87,7 @@ const getResilienceConfig = (endpoint: string) => {
       cooldownMs: 60000,
       fallbackToOtherBases: false,
       fallbackValue: () => (endpoint.endsWith('/pdvs') ? [] : {}),
-      silent: true,
+      silent: false,
     };
   }
   return undefined;
