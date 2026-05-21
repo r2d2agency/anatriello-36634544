@@ -308,7 +308,7 @@ export function useNetworks() {
     queryKey: ['merch-networks'],
     queryFn: async () => {
       try {
-        return await api<any[]>('/api/merchandising/networks');
+        return await api<any[]>('/api/merch/networks');
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404) {
@@ -331,7 +331,7 @@ export function useCreateNetwork() {
   return useMutation({
     mutationFn: async (data: any) => {
       try {
-        return await api<any>('/api/merchandising/networks', { method: 'POST', body: data });
+        return await api<any>('/api/merch/networks', { method: 'POST', body: data });
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404) {
@@ -358,7 +358,7 @@ export function useUpdateNetwork() {
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
       try {
-        return await api<any>(`/api/merchandising/networks/${id}`, { method: 'PUT', body: data });
+        return await api<any>(`/api/merch/networks/${id}`, { method: 'PUT', body: data });
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404 || id.startsWith('mock-')) {
@@ -380,7 +380,7 @@ export function useDeleteNetwork() {
   return useMutation({
     mutationFn: async (id: string) => {
       try {
-        return await api<any>(`/api/merchandising/networks/${id}`, { method: 'DELETE' });
+        return await api<any>(`/api/merch/networks/${id}`, { method: 'DELETE' });
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404 || id.startsWith('mock-')) {
@@ -402,7 +402,7 @@ export function useNetworkPdvs(networkId?: string) {
     queryKey: ['merch-network-pdvs', networkId],
     queryFn: async () => {
       try {
-        return await api<any[]>(`/api/merchandising/networks/${networkId}/pdvs`);
+        return await api<any[]>(`/api/merch/networks/${networkId}/pdvs`);
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404 || networkId?.startsWith('mock-')) {
@@ -424,7 +424,7 @@ export function useUpdateNetworkPdvs() {
   return useMutation({
     mutationFn: async ({ id, pdv_ids }: { id: string; pdv_ids: string[] }) => {
       try {
-        return await api<any>(`/api/merchandising/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } });
+        return await api<any>(`/api/merch/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } });
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404 || id.startsWith('mock-')) {
