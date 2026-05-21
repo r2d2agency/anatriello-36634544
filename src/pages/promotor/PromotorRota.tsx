@@ -879,6 +879,7 @@ export default function PromotorRota() {
                       brandName={currentBrand?.brand_name || route.brand_name}
                       promotorName={route.promotor_name}
                       qualityConfig={photoQualityConfig}
+                      minPhotos={Math.max(1, parseInt((route as any)?.min_category_photos_after, 10) || 1)}
                       onCompleted={() => refetch()}
                     />
                   )}
