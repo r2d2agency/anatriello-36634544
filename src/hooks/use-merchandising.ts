@@ -350,21 +350,8 @@ export function useNetworkPdvs(networkId?: string) {
 export function useUpdateNetworkPdvs() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, pdv_ids }: { id: string; pdv_ids: string[] }) => {
-      try {
-        return await api<any>(`/api/merchandising/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } });
-      } catch (e: any) {
-        const is404 = e.status === 404 || (e.message && e.message.includes('404'));
-        if (is404 || id.startsWith('mock-')) {
-          const stored = localStorage.getItem('mock_merch_networks');
-          let networks = stored ? JSON.parse(stored) : [];
-          networks = networks.map((n: any) => n.id === id ? { ...n, pdv_ids } : n);
-          localStorage.setItem('mock_merch_networks', JSON.stringify(networks));
-          return { id, pdv_ids };
-        }
-        throw e;
-      }
-    },
+    mutationFn: ({ id, pdv_ids }: { id: string; pdv_ids: string[] }) =>
+      api<any>(`/api/merchandising/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } }),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['merch-networks'] });
       qc.invalidateQueries({ queryKey: ['merch-network-pdvs', variables.id] });
