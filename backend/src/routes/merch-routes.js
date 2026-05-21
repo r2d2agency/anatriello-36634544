@@ -78,9 +78,14 @@ router.post('/routes', async (req, res) => {
             recurrence_type, recurrence_interval, recurrence_until, recurrence_weekdays,
             brands: multiBrands } = req.body;
 
-    // Determine if multi-brand
-    const isMultiBrand = Array.isArray(multiBrands) && multiBrands.length > 0;
+    // Determine if truly multi-brand. The frontend also sends `brands` for a
+    // single selected brand, but old databases still require merch_routes.brand_id.
+    const isMultiBrand = Array.isArray(multiBrands) && multiBrands.length > 1;
     const primaryBrandId = isMultiBrand ? multiBrands[0].brand_id : brand_id;
+
+    if (isMultiBrand) {
+      await ensureRouteBrandsTables();
+    }
 
     // Resolve effective checklist for this brand when not explicitly passed
     let effectiveChecklistId = checklist_id || null;
