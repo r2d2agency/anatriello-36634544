@@ -428,7 +428,7 @@ export function useUpdateNetworkPdvs() {
   return useMutation({
     mutationFn: async ({ id, pdv_ids }: { id: string; pdv_ids: string[] }) => {
       try {
-        return await api<any>(`/api/merch/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } });
+        return await api<any>(`/api/merchandising/networks/${id}/pdvs`, { method: 'POST', body: { pdv_ids } });
       } catch (e: any) {
         const is404 = e.status === 404 || (e.message && e.message.includes('404'));
         if (is404 || id.startsWith('mock-')) {
