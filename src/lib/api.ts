@@ -66,7 +66,7 @@ const ENDPOINT_RESILIENCE: Record<string, EndpointResilienceConfig> = {
     maxRetries: 0,
     silent: true,
   },
-  '/api/merch/networks': {
+  '/api/merchandising/networks': {
     cooldownMs: 60000,
     fallbackToOtherBases: false,
     fallbackValue: () => [],
