@@ -868,11 +868,12 @@ export default function PromotorRota() {
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">{exec.product_name}</div>
                               {exec.exposure_point !== 'natural' && <Badge variant="secondary" className="text-[9px] mt-0.5">{exec.exposure_point}</Badge>}
-                              {(exec.qty_store > 0 || exec.qty_stock > 0) && (
+                              {requireStockCount && (exec.qty_store > 0 || exec.qty_stock > 0) && (
                                 <div className="text-[10px] text-muted-foreground mt-0.5">
                                   Loja: {exec.qty_store} | Estoque: {exec.qty_stock} | Total: {exec.qty_total}
                                 </div>
                               )}
+
                             </div>
                             <div className="flex items-center gap-1.5">
                               {exec.has_rupture && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
