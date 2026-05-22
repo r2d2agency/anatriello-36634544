@@ -942,11 +942,10 @@ export default function PromotorRota() {
                         : 'Tire a foto DEPOIS de todas as categorias para concluir a rota.'}
                     </p>
                   )}
-                </>
-              );
-            })()}
-            {/* End of IIFE wrapper for requirement flags */}
-            </>)()}
+                    </>
+                  );
+                })()}
+
 
 
             {/* Extra Point button */}
