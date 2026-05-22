@@ -490,11 +490,10 @@ export default function PromotorRota() {
     return map;
   }, [route?.category_statuses, isMultiBrand, activeBrandId, routeBrands]);
 
-  const currentBrand = useMemo(() => routeBrands.find((b: any) => b.brand_id === activeBrandId), [routeBrands, activeBrandId]);
-  
   const requireStockCount = useMemo(() => isMultiBrand ? currentBrand?.require_stock_count : route?.require_stock_count, [isMultiBrand, currentBrand, route]);
   const requireValidityCheck = useMemo(() => isMultiBrand ? currentBrand?.require_validity_check : route?.require_validity_check, [isMultiBrand, currentBrand, route]);
   const canQuickCheck = requireStockCount === false && requireValidityCheck === false;
+
 
 
   // Filter executions by active brand
