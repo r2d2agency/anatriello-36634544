@@ -1029,28 +1029,31 @@ export default function PromotorRota() {
               </div>
 
               {/* Counting */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold flex items-center gap-1">
-                  <Store className="h-3.5 w-3.5" /> Contagem
-                </Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Qtd Loja</Label>
-                    <Input type="number" min="0" placeholder="0"
-                      value={actionForm.qty_store ?? selectedExec?.qty_store ?? 0}
-                      onChange={e => setActionForm({ ...actionForm, qty_store: parseInt(e.target.value) || 0 })} />
+              {requireStockCount !== false && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold flex items-center gap-1">
+                    <Store className="h-3.5 w-3.5" /> Contagem
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Qtd Loja</Label>
+                      <Input type="number" min="0" placeholder="0"
+                        value={actionForm.qty_store ?? selectedExec?.qty_store ?? 0}
+                        onChange={e => setActionForm({ ...actionForm, qty_store: parseInt(e.target.value) || 0 })} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Qtd Estoque</Label>
+                      <Input type="number" min="0" placeholder="0"
+                        value={actionForm.qty_stock ?? selectedExec?.qty_stock ?? 0}
+                        onChange={e => setActionForm({ ...actionForm, qty_stock: parseInt(e.target.value) || 0 })} />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Qtd Estoque</Label>
-                    <Input type="number" min="0" placeholder="0"
-                      value={actionForm.qty_stock ?? selectedExec?.qty_stock ?? 0}
-                      onChange={e => setActionForm({ ...actionForm, qty_stock: parseInt(e.target.value) || 0 })} />
+                  <div className="text-[10px] text-muted-foreground text-right">
+                    Total: {(actionForm.qty_store ?? selectedExec?.qty_store ?? 0) + (actionForm.qty_stock ?? selectedExec?.qty_stock ?? 0)}
                   </div>
                 </div>
-                <div className="text-[10px] text-muted-foreground text-right">
-                  Total: {(actionForm.qty_store ?? selectedExec?.qty_store ?? 0) + (actionForm.qty_stock ?? selectedExec?.qty_stock ?? 0)}
-                </div>
-              </div>
+              )}
+
 
               {/* Observation */}
               <div>
