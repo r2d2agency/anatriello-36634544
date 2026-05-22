@@ -784,7 +784,12 @@ export default function PromotorRota() {
         {/* Active route: categories with step-by-step flow */}
         {isActive && (!isMultiBrand || activeBrandId) && (
           <div className="space-y-4">
-            {Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
+            {(() => {
+              const requireStockCount = isMultiBrand ? currentBrand?.require_stock_count : route?.require_stock_count;
+              const requireValidityCheck = isMultiBrand ? currentBrand?.require_validity_check : route?.require_validity_check;
+              const canQuickCheck = requireStockCount === false && requireValidityCheck === false;
+
+              return Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
               const catStatus = categoryStatusMap[catId];
               // For extra groups: need photo but NOT point type
               const requireCategoryPhotos = route?.require_category_photos !== false;
