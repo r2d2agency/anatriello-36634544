@@ -1068,11 +1068,11 @@ export default function PromotorRota() {
                 <Label className="text-xs font-semibold">Registrar ocorrência</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { key: 'validity', label: 'Validade', icon: CalendarIcon, color: 'text-blue-600' },
-                    { key: 'rupture', label: 'Ruptura', icon: AlertTriangle, color: 'text-red-600' },
-                    { key: 'damage', label: 'Avaria', icon: Archive, color: 'text-orange-600' },
-                    { key: 'discard', label: 'Descarte', icon: Trash2, color: 'text-purple-600' },
-                  ].map(a => (
+                    { key: 'validity', label: 'Validade', icon: CalendarIcon, color: 'text-blue-600', show: requireValidityCheck !== false },
+                    { key: 'rupture', label: 'Ruptura', icon: AlertTriangle, color: 'text-red-600', show: true },
+                    { key: 'damage', label: 'Avaria', icon: Archive, color: 'text-orange-600', show: true },
+                    { key: 'discard', label: 'Descarte', icon: Trash2, color: 'text-purple-600', show: true },
+                  ].filter(a => a.show).map(a => (
                     <Button key={a.key} variant="outline" className="h-12 flex-col gap-0.5 text-[10px]"
                       onClick={() => setActiveAction(a.key as ActionType)}>
                       <a.icon className={`h-4 w-4 ${a.color}`} />
@@ -1081,6 +1081,7 @@ export default function PromotorRota() {
                   ))}
                 </div>
               </div>
+
             </div>
             <DialogFooter className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setSelectedExec(null)}>Fechar</Button>
