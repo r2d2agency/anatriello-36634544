@@ -1030,7 +1030,8 @@ export default function PromotorRota() {
               </div>
 
               {/* Counting */}
-              {requireStockCount !== false && (
+              {requireStockCount && (
+
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold flex items-center gap-1">
                     <Store className="h-3.5 w-3.5" /> Contagem
