@@ -942,6 +942,9 @@ export default function PromotorRota() {
                 </>
               );
             })()}
+            {/* End of IIFE wrapper for requirement flags */}
+            </>)()}
+
 
             {/* Extra Point button */}
             <Button variant="outline" className="w-full h-10 border-dashed border-orange-400/50 text-orange-600 hover:bg-orange-50"
