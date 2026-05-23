@@ -193,7 +193,13 @@ function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, s
       heatData.push([Number(lat), Number(lng), isSupervisor ? 1.0 : 0.8]);
 
       if (!showHeatmap) {
-        const isOnline = e.live_status === 'online';
+        const now = new Date();
+        const updatedTime = e.location_updated_at ? new Date(e.location_updated_at) : null;
+        const isLocRecent = updatedTime && (now.getTime() - updatedTime.getTime()) < 15 * 60 * 1000; // Recente se < 15min
+        
+        // Consider online if server says so OR if we have a very recent location update
+        const isOnline = e.live_status === 'online' || isLocRecent;
+        
         const hasCheckedIn = parseInt(e.punch_count) > 0;
         let icon;
         if (isSupervisor) {
@@ -287,7 +293,12 @@ export default function LiveMaps() {
   const promoters = employees.filter((e: any) => e.worker_profile !== 'supervisor' && e.worker_profile !== 'administrativo');
   const supervisors = employees.filter((e: any) => e.worker_profile === 'supervisor' || e.worker_profile === 'administrativo');
 
-  const onlineCount = employees.filter((e: any) => e.live_status === 'online').length;
+  const onlineCount = employees.filter((e: any) => {
+    const isOnlineServer = e.live_status === 'online';
+    const updatedTime = e.location_updated_at ? new Date(e.location_updated_at) : null;
+    const isLocRecent = updatedTime && (new Date().getTime() - updatedTime.getTime()) < 15 * 60 * 1000;
+    return isOnlineServer || isLocRecent;
+  }).length;
   const offlineCount = employees.length - onlineCount;
   const checkedInCount = employees.filter((e: any) => parseInt(e.punch_count) > 0).length;
   const noCheckinCount = employees.length - checkedInCount;
@@ -427,7 +438,11 @@ export default function LiveMaps() {
 
               <div className="divide-y">
                 {filteredEmployeeList.map((e: any) => {
-                  const isOnline = e.live_status === 'online';
+                  const now = new Date();
+                  const updatedTime = e.location_updated_at ? new Date(e.location_updated_at) : null;
+                  const isLocRecent = updatedTime && (now.getTime() - updatedTime.getTime()) < 15 * 60 * 1000;
+                  const isOnline = e.live_status === 'online' || isLocRecent;
+                  
                   const hasCheckedIn = parseInt(e.punch_count) > 0;
                   const isSupervisor = e.worker_profile === 'supervisor' || e.worker_profile === 'administrativo';
                   const BatIcon = getBatteryIcon(e.battery_level);
@@ -579,7 +594,11 @@ export default function LiveMaps() {
             </DialogHeader>
             {selectedEmployee && (() => {
               const empRoutes = routesByPromoter[selectedEmployee.id] || [];
-              const isOnline = selectedEmployee.live_status === 'online';
+              const now = new Date();
+              const updatedTime = selectedEmployee.location_updated_at ? new Date(selectedEmployee.location_updated_at) : null;
+              const isLocRecent = updatedTime && (now.getTime() - updatedTime.getTime()) < 15 * 60 * 1000;
+              const isOnline = selectedEmployee.live_status === 'online' || isLocRecent;
+              
               const hasCheckedIn = parseInt(selectedEmployee.punch_count) > 0;
 
               return (
