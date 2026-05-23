@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { useLiveRoutes, useMerchDamages, useReturnRequests } from "@/hooks/use-merch-routes";
+import { useLiveRoutes, useMerchDamages, useReturnRequests, useMerchRouteDetail } from "@/hooks/use-merch-routes";
 import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight, Calendar, Filter } from "lucide-react";
 import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,7 +65,9 @@ export default function MerchExecucao() {
   const [damageFilter, setDamageFilter] = useState('');
   const { data: damages = [] } = useMerchDamages({ status: damageFilter || undefined });
   const { data: returnRequests = [] } = useReturnRequests();
-  const [viewRoute, setViewRoute] = useState<any>(null);
+  const [viewRouteId, setViewRouteId] = useState<string | null>(null);
+  const { data: routeDetail, isLoading: isLoadingDetail } = useMerchRouteDetail(viewRouteId || undefined);
+  const viewRoute = routeDetail || liveRoutes.find((r: any) => r.id === viewRouteId);
 
   const inProgress = liveRoutes.filter((r: any) => r.status === 'in_progress');
   const completed = liveRoutes.filter((r: any) => r.status === 'completed');
@@ -153,7 +155,7 @@ export default function MerchExecucao() {
                 </h3>
                 {inProgress.map((r: any) => (
                   <Card key={r.id} className="border-orange-500/30 cursor-pointer hover:border-orange-500/60 transition-colors"
-                    onClick={() => setViewRoute(r)}>
+                    onClick={() => setViewRouteId(r.id)}>
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div>
@@ -210,7 +212,7 @@ export default function MerchExecucao() {
                 <h3 className="text-sm font-semibold text-green-600">✅ Concluídas Hoje ({completed.length})</h3>
                 {completed.map((r: any) => (
                   <Card key={r.id} className="border-green-500/20 cursor-pointer hover:border-green-500/40 transition-colors"
-                    onClick={() => setViewRoute(r)}>
+                    onClick={() => setViewRouteId(r.id)}>
                     <CardContent className="p-3 flex items-center justify-between">
                       <div>
                         <div className="font-semibold text-sm">{r.pdv_name}</div>
@@ -233,7 +235,7 @@ export default function MerchExecucao() {
                 <h3 className="text-sm font-semibold text-blue-600">📅 Aguardando ({scheduled.length})</h3>
                 {scheduled.map((r: any) => (
                   <Card key={r.id} className="cursor-pointer hover:border-primary/30 transition-colors"
-                    onClick={() => setViewRoute(r)}>
+                    onClick={() => setViewRouteId(r.id)}>
                     <CardContent className="p-3 flex items-center justify-between">
                       <div>
                         <div className="font-semibold text-sm">{r.pdv_name}</div>
@@ -307,8 +309,8 @@ export default function MerchExecucao() {
         </Tabs>
 
         {/* Route Detail Dialog */}
-        <Dialog open={!!viewRoute} onOpenChange={() => setViewRoute(null)}>
-          <DialogContent className="max-w-md">
+        <Dialog open={!!viewRouteId} onOpenChange={(open) => !open && setViewRouteId(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Store className="h-5 w-5 text-primary" />
@@ -324,23 +326,41 @@ export default function MerchExecucao() {
                   <span className="text-xs text-muted-foreground">{viewRoute.scheduled_time?.slice(0, 5) || '--:--'}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <div className="text-[10px] text-muted-foreground">Promotor</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Promotor</div>
                     <div className="font-medium flex items-center gap-1"><User className="h-3.5 w-3.5" /> {viewRoute.promoter_name}</div>
                   </div>
+                  {viewRoute.supervisor_name && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Supervisor</div>
+                      <div className="font-medium flex items-center gap-1"><User className="h-3.5 w-3.5 text-blue-500" /> {viewRoute.supervisor_name}</div>
+                    </div>
+                  )}
                   <div>
-                    <div className="text-[10px] text-muted-foreground">Marca</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Marca</div>
                     <div className="font-medium">
                       {viewRoute.is_multi_brand
                         ? `🏷️ ${viewRoute.route_brands?.length || 0} marcas`
                         : viewRoute.brand_name}
                     </div>
                   </div>
+                  {viewRoute.checkin_at && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Check-in</div>
+                      <div className="font-medium flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-green-500" /> {new Date(viewRoute.checkin_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  )}
+                  {viewRoute.checkout_at && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Check-out</div>
+                      <div className="font-medium flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-red-500" /> {new Date(viewRoute.checkout_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  )}
                   {!viewRoute.is_multi_brand && viewRoute.checklist_name && (
-                    <div className="col-span-2">
-                      <div className="text-[10px] text-muted-foreground">Checklist</div>
-                      <div className="font-medium">{viewRoute.checklist_name}</div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Checklist</div>
+                      <div className="font-medium truncate">{viewRoute.checklist_name}</div>
                     </div>
                   )}
                 </div>
@@ -425,8 +445,118 @@ export default function MerchExecucao() {
                   </Card>
                 )}
 
+                {/* Check-in/out Photos */}
+                {(viewRoute.checkin_photo || viewRoute.checkout_photo) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {viewRoute.checkin_photo && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase">Foto Check-in</div>
+                        <div className="aspect-video rounded-md overflow-hidden bg-muted border">
+                          <img src={viewRoute.checkin_photo} alt="Check-in" className="w-full h-full object-cover cursor-pointer" 
+                            onClick={() => window.open(viewRoute.checkin_photo, '_blank')} />
+                        </div>
+                      </div>
+                    )}
+                    {viewRoute.checkout_photo && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase">Foto Check-out</div>
+                        <div className="aspect-video rounded-md overflow-hidden bg-muted border">
+                          <img src={viewRoute.checkout_photo} alt="Check-out" className="w-full h-full object-cover cursor-pointer" 
+                            onClick={() => window.open(viewRoute.checkout_photo, '_blank')} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Photos Section */}
+                {viewRoute.photos && viewRoute.photos.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Camera className="h-4 w-4" /> Fotos da Execução ({viewRoute.photos.length})
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {viewRoute.photos.map((photo: any) => (
+                        <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden bg-muted border group">
+                          <img src={photo.photo_url} alt="Execução" className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-110" 
+                            onClick={() => window.open(photo.photo_url, '_blank')} />
+                          {photo.category_name && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[8px] text-white p-1 truncate">
+                              {photo.category_name}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Damages & Ruptures */}
+                {(viewRoute.damages?.length > 0 || viewRoute.ruptures?.length > 0) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {viewRoute.damages?.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-red-600 flex items-center gap-1">
+                          <AlertTriangle className="h-4 w-4" /> Avarias ({viewRoute.damages.length})
+                        </div>
+                        <div className="space-y-1">
+                          {viewRoute.damages.map((d: any) => (
+                            <div key={d.id} className="text-[10px] bg-red-50 p-1.5 rounded border border-red-100">
+                              <span className="font-bold">{d.product_name}</span>: {d.qty_total} un.
+                              {d.reason && <div className="text-muted-foreground italic mt-0.5">{d.reason}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {viewRoute.ruptures?.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-orange-600 flex items-center gap-1">
+                          <Package className="h-4 w-4" /> Rupturas ({viewRoute.ruptures.length})
+                        </div>
+                        <div className="space-y-1">
+                          {viewRoute.ruptures.map((r: any) => (
+                            <div key={r.id} className="text-[10px] bg-orange-50 p-1.5 rounded border border-orange-100">
+                              <span className="font-bold">{r.product_name}</span>
+                              {r.reason && <div className="text-muted-foreground italic mt-0.5">{r.reason}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Logs / Timeline */}
+                {viewRoute.logs && viewRoute.logs.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Activity className="h-4 w-4" /> Histórico da Rota
+                    </div>
+                    <div className="space-y-1.5 border-l-2 border-muted ml-2 pl-3 py-1">
+                      {viewRoute.logs.slice(-5).map((log: any) => (
+                        <div key={log.id} className="relative">
+                          <div className="absolute -left-[17px] top-1.5 w-2 h-2 rounded-full bg-primary" />
+                          <div className="text-[10px]">
+                            <span className="font-medium text-muted-foreground">{new Date(log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="ml-2">{log.action_description || log.action_type}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {viewRoute.logs.length > 5 && (
+                        <div className="text-[9px] text-primary cursor-pointer hover:underline">Ver todo o histórico (+{viewRoute.logs.length - 5})</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {viewRoute.notes && (
-                  <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">{viewRoute.notes}</div>
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase">Observações</div>
+                    <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border italic">
+                      "{viewRoute.notes}"
+                    </div>
+                  </div>
                 )}
               </div>
             )}
