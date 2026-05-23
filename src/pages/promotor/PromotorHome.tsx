@@ -357,17 +357,23 @@ export default function PromotorHome() {
             <div>
               <h3 className="text-sm font-semibold mb-2">Rotas do Dia</h3>
               <div className="space-y-2">
-                {todayRoutes.map((r: any) => (
-                  <Card key={r.id}
-                    className={`cursor-pointer active:scale-[0.98] transition-all ${
-                      r.id === activeRoute?.id ? 'border-orange-400/50' :
-                      r.status === 'completed' ? 'opacity-60' : 'hover:border-primary/30'
-                    }`}
-                    onClick={() => {
-                      if (r.status !== 'cancelled' && r.status !== 'not_done') {
-                        navigate(`/promotor/rota/${r.id}`);
-                      }
-                    }}>
+                {todayRoutes.map((r: any) => {
+                  // Determine if the route should show as "Awaiting Checkout"
+                  const isAwaitingCheckout = r.status === 'completed' && pdvVisits && !pdvVisits.some((v: any) => v.pdv_id === r.pdv_id && v.checkout_at);
+                  const displayStatus = isAwaitingCheckout ? 'awaiting_checkout' : r.status;
+                  
+                  return (
+                    <Card key={r.id}
+                      className={`cursor-pointer active:scale-[0.98] transition-all ${
+                        r.id === activeRoute?.id ? 'border-orange-400/50' :
+                        r.status === 'completed' && !isAwaitingCheckout ? 'opacity-60' : 'hover:border-primary/30'
+                      }`}
+                      onClick={() => {
+                        if (r.status !== 'cancelled' && r.status !== 'not_done') {
+                          navigate(`/promotor/rota/${r.id}`);
+                        }
+                      }}>
+
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
