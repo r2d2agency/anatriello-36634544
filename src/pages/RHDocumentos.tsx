@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/use-rh";
 import { useDocumentDeliveries, useSendDocumentDelivery, useInboundDocumentsRH, useDocumentTypes, useSendNotice } from "@/hooks/use-promotor";
-import { FileText, Send, Search, Megaphone, Loader2 } from "lucide-react";
+import { FileUploadInput } from "@/components/ui/file-upload-input";
+import { FileText, Send, Search, Megaphone, Loader2, Users } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_MAP: Record<string, { label: string; variant: string }> = {
