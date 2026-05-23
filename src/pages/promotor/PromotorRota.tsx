@@ -852,7 +852,39 @@ export default function PromotorRota() {
                         </Badge>
                       )}
                     </div>
-                    <Badge variant="outline" className="text-[10px]">{doneCount}/{execs.length}</Badge>
+                    <div className="flex items-center gap-2">
+                      {canQuickCheck && !allProductsDone && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[10px] bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+                          onClick={async () => {
+                            if (!window.confirm(`Deseja marcar todos os ${execs.length - doneCount} produto(s) desta categoria como concluídos?`)) return;
+                            try {
+                              for (const exec of execs) {
+                                if (exec.status !== 'completed') {
+                                  await updateExec.mutateAsync({
+                                    id: exec.id,
+                                    status: 'completed',
+                                    checked: true,
+                                    qty_store: 0,
+                                    qty_stock: 0
+                                  });
+                                }
+                              }
+                              toast.success('Todos os produtos marcados como concluídos!');
+                              refetch();
+                            } catch (err: any) {
+                              toast.error('Erro ao concluir produtos: ' + err.message);
+                            }
+                          }}
+                          disabled={updateExec.isPending}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Marcar todos
+                        </Button>
+                      )}
+                      <Badge variant="outline" className="text-[10px]">{doneCount}/{execs.length}</Badge>
+                    </div>
                   </div>
 
                   {/* Products list (locked or unlocked) */}
