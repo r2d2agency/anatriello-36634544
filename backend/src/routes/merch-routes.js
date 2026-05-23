@@ -715,19 +715,27 @@ router.put('/brand-checklists/:id', authenticate, async (req, res) => {
     const minAfter = (min_category_photos_after === undefined || min_category_photos_after === null)
       ? null : Math.max(1, parseInt(min_category_photos_after, 10) || 1);
     const result = await query(
-      `UPDATE brand_checklists SET name=COALESCE($2,name), description=COALESCE($3,description),
-       require_checkin_photo=COALESCE($4,require_checkin_photo), require_checkout_photo=COALESCE($5,require_checkout_photo),
-       require_stock_count=COALESCE($6,require_stock_count), require_validity_check=COALESCE($7,require_validity_check),
-       require_extra_point=COALESCE($8,require_extra_point), stock_count_frequency=COALESCE($9,stock_count_frequency),
-       validity_check_frequency=COALESCE($10,validity_check_frequency), active=COALESCE($11,active),
-       require_category_photos=COALESCE($12,require_category_photos),
+      `UPDATE brand_checklists SET 
+       name=COALESCE($2,name), 
+       description=COALESCE($3,description),
+       require_checkin_photo=$4, 
+       require_checkout_photo=$5,
+       require_stock_count=$6, 
+       require_validity_check=$7,
+       require_extra_point=$8, 
+       stock_count_frequency=COALESCE($9,stock_count_frequency),
+       validity_check_frequency=COALESCE($10,validity_check_frequency), 
+       active=COALESCE($11,active),
+       require_category_photos=$12,
        min_category_photos_before=COALESCE($13,min_category_photos_before),
        min_category_photos_after=COALESCE($14,min_category_photos_after),
        updated_at=NOW()
        WHERE id=$1 RETURNING *`,
-      [req.params.id, name, description, require_checkin_photo, require_checkout_photo, require_stock_count,
-       require_validity_check, require_extra_point, stock_count_frequency, validity_check_frequency, active,
-       require_category_photos, minBefore, minAfter]
+      [req.params.id, name, description, 
+       require_checkin_photo ?? true, require_checkout_photo ?? false, 
+       require_stock_count ?? false, require_validity_check ?? false,
+       require_extra_point ?? false, stock_count_frequency, validity_check_frequency, active,
+       require_category_photos ?? true, minBefore, minAfter]
     );
     res.json(result.rows[0]);
   } catch (err) { logError('checklists.update', err); res.status(500).json({ error: 'Erro' }); }
@@ -1442,15 +1450,23 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     const route = await query(
       `SELECT r.*, p.name as pdv_name, p.address as pdv_address, p.city as pdv_city,
        p.latitude as pdv_lat, p.longitude as pdv_lng, p.radius_meters as pdv_radius,
-       b.name as brand_name, bc.name as checklist_name,
-       bc.require_checkin_photo, bc.require_checkout_photo, bc.require_stock_count,
-       bc.require_validity_check, bc.require_extra_point, bc.require_category_photos,
-       bc.min_category_photos_before, bc.min_category_photos_after
+       b.name as brand_name, 
+       COALESCE(bc.name, bc2.name) as checklist_name,
+       COALESCE(bc.require_checkin_photo, bc2.require_checkin_photo, true) as require_checkin_photo,
+       COALESCE(bc.require_checkout_photo, bc2.require_checkout_photo, false) as require_checkout_photo,
+       COALESCE(bc.require_stock_count, bc2.require_stock_count, false) as require_stock_count,
+       COALESCE(bc.require_validity_check, bc2.require_validity_check, false) as require_validity_check,
+       COALESCE(bc.require_extra_point, bc2.require_extra_point, false) as require_extra_point,
+       COALESCE(bc.require_category_photos, bc2.require_category_photos, true) as require_category_photos,
+       COALESCE(bc.min_category_photos_before, bc2.min_category_photos_before, 1) as min_category_photos_before,
+       COALESCE(bc.min_category_photos_after, bc2.min_category_photos_after, 1) as min_category_photos_after
        FROM merch_routes r
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN merch_brands b ON b.id = r.brand_id
        LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
-       WHERE r.id=$1 AND r.promoter_id=$2`, [req.params.id, req.employeeId]
+       LEFT JOIN brand_checklists bc2 ON bc2.brand_id = r.brand_id AND bc2.active = true
+       WHERE r.id=$1 AND r.promoter_id=$2
+       ORDER BY bc2.created_at DESC LIMIT 1`, [req.params.id, req.employeeId]
     );
     if (!route.rows.length) return res.status(404).json({ error: 'Rota não encontrada' });
 
@@ -1471,17 +1487,26 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     let routeBrands = [];
     try {
       const rbRes = await query(
-        `SELECT rb.*, b.name as brand_name, bc.name as checklist_name,
-         bc.require_checkin_photo, bc.require_checkout_photo, bc.require_stock_count,
-         bc.require_validity_check, bc.require_extra_point, bc.require_category_photos,
-         bc.min_category_photos_before, bc.min_category_photos_after,
+        `SELECT DISTINCT ON (rb.id) rb.*, b.name as brand_name, 
+         COALESCE(bc.name, bc2.name) as checklist_name,
+         COALESCE(bc.require_checkin_photo, bc2.require_checkin_photo, true) as require_checkin_photo,
+         COALESCE(bc.require_checkout_photo, bc2.require_checkout_photo, false) as require_checkout_photo,
+         COALESCE(bc.require_stock_count, bc2.require_stock_count, false) as require_stock_count,
+         COALESCE(bc.require_validity_check, bc2.require_validity_check, false) as require_validity_check,
+         COALESCE(bc.require_extra_point, bc2.require_extra_point, false) as require_extra_point,
+         COALESCE(bc.require_category_photos, bc2.require_category_photos, true) as require_category_photos,
+         COALESCE(bc.min_category_photos_before, bc2.min_category_photos_before, 1) as min_category_photos_before,
+         COALESCE(bc.min_category_photos_after, bc2.min_category_photos_after, 1) as min_category_photos_after,
          (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id) as total_products,
          (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id AND rpe.status = 'completed') as completed_products
          FROM route_brands rb
          LEFT JOIN merch_brands b ON b.id = rb.brand_id
          LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id
-         WHERE rb.route_id = $1 ORDER BY rb.sort_order`, [req.params.id]);
+         LEFT JOIN brand_checklists bc2 ON bc2.brand_id = rb.brand_id AND bc2.active = true
+         WHERE rb.route_id = $1 ORDER BY rb.id, bc2.created_at DESC`, [req.params.id]);
       routeBrands = rbRes.rows;
+      // Re-sort by original sort_order if needed, or just keep rb.id ordering
+      routeBrands.sort((a, b) => a.sort_order - b.sort_order);
     } catch (e) { logWarn('promotor.route_detail.route_brands_failed', e); }
 
 
