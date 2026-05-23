@@ -326,23 +326,41 @@ export default function MerchExecucao() {
                   <span className="text-xs text-muted-foreground">{viewRoute.scheduled_time?.slice(0, 5) || '--:--'}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <div className="text-[10px] text-muted-foreground">Promotor</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Promotor</div>
                     <div className="font-medium flex items-center gap-1"><User className="h-3.5 w-3.5" /> {viewRoute.promoter_name}</div>
                   </div>
+                  {viewRoute.supervisor_name && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Supervisor</div>
+                      <div className="font-medium flex items-center gap-1"><User className="h-3.5 w-3.5 text-blue-500" /> {viewRoute.supervisor_name}</div>
+                    </div>
+                  )}
                   <div>
-                    <div className="text-[10px] text-muted-foreground">Marca</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Marca</div>
                     <div className="font-medium">
                       {viewRoute.is_multi_brand
                         ? `🏷️ ${viewRoute.route_brands?.length || 0} marcas`
                         : viewRoute.brand_name}
                     </div>
                   </div>
+                  {viewRoute.checkin_at && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Check-in</div>
+                      <div className="font-medium flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-green-500" /> {new Date(viewRoute.checkin_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  )}
+                  {viewRoute.checkout_at && (
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Check-out</div>
+                      <div className="font-medium flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-red-500" /> {new Date(viewRoute.checkout_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  )}
                   {!viewRoute.is_multi_brand && viewRoute.checklist_name && (
-                    <div className="col-span-2">
-                      <div className="text-[10px] text-muted-foreground">Checklist</div>
-                      <div className="font-medium">{viewRoute.checklist_name}</div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-bold">Checklist</div>
+                      <div className="font-medium truncate">{viewRoute.checklist_name}</div>
                     </div>
                   )}
                 </div>
