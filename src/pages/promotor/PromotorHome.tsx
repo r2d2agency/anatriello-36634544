@@ -166,7 +166,7 @@ export default function PromotorHome() {
           photo_url: pdvCheckoutPhoto || undefined,
           notes: pdvCheckoutNotes || undefined,
           // If no photo was taken, mark as awaiting_photo
-          status_override: !pdvCheckoutPhoto ? 'awaiting_photo' : undefined
+          status_override: !pdvCheckoutPhoto ? 'awaiting_photo' : 'completed'
         }),
       });
       const result = await response.json();
