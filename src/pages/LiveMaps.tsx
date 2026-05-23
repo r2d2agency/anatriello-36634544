@@ -373,7 +373,9 @@ export default function LiveMaps() {
                   showSupervisors={showSupervisors}
                   showRegions={showRegions}
                   searchTerm={searchTerm}
+                  showHeatmap={showHeatmap}
                 />
+
               )}
             </CardContent>
           </Card>
