@@ -1479,15 +1479,22 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     let routeBrands = [];
     try {
       const rbRes = await query(
-        `SELECT rb.*, b.name as brand_name, bc.name as checklist_name,
-         bc.require_checkin_photo, bc.require_checkout_photo, bc.require_stock_count,
-         bc.require_validity_check, bc.require_extra_point, bc.require_category_photos,
-         bc.min_category_photos_before, bc.min_category_photos_after,
+        `SELECT rb.*, b.name as brand_name, 
+         COALESCE(bc.name, bc2.name) as checklist_name,
+         COALESCE(bc.require_checkin_photo, bc2.require_checkin_photo, true) as require_checkin_photo,
+         COALESCE(bc.require_checkout_photo, bc2.require_checkout_photo, false) as require_checkout_photo,
+         COALESCE(bc.require_stock_count, bc2.require_stock_count, false) as require_stock_count,
+         COALESCE(bc.require_validity_check, bc2.require_validity_check, false) as require_validity_check,
+         COALESCE(bc.require_extra_point, bc2.require_extra_point, false) as require_extra_point,
+         COALESCE(bc.require_category_photos, bc2.require_category_photos, true) as require_category_photos,
+         COALESCE(bc.min_category_photos_before, bc2.min_category_photos_before, 1) as min_category_photos_before,
+         COALESCE(bc.min_category_photos_after, bc2.min_category_photos_after, 1) as min_category_photos_after,
          (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id) as total_products,
          (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id AND rpe.status = 'completed') as completed_products
          FROM route_brands rb
          LEFT JOIN merch_brands b ON b.id = rb.brand_id
          LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id
+         LEFT JOIN brand_checklists bc2 ON bc2.brand_id = rb.brand_id AND bc2.active = true
          WHERE rb.route_id = $1 ORDER BY rb.sort_order`, [req.params.id]);
       routeBrands = rbRes.rows;
     } catch (e) { logWarn('promotor.route_detail.route_brands_failed', e); }
