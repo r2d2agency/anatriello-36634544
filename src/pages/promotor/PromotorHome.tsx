@@ -106,6 +106,47 @@ export default function PromotorHome() {
     });
   }, [todayRoutes, pdvVisits]);
 
+  // PDV Check-in handler
+  const handlePdvCheckin = useCallback(async (pdvId: string) => {
+    if (!pdvCheckinPhoto) {
+      toast({ title: 'Foto obrigatória', description: 'Tire uma foto da fachada da loja para o check-in.', variant: 'destructive' });
+      return;
+    }
+    setPdvCheckinLoading(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      );
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const token = localStorage.getItem('promotor_token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const url = `${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/merch/promotor/pdv-checkin`;
+      const response = await fetch(url, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          pdv_id: pdvId,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          photo_url: pdvCheckinPhoto,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || 'Erro');
+      toast({ title: 'Check-in da loja realizado!' });
+      setShowPdvCheckin(false);
+      setPdvCheckinPhoto('');
+      // Find the first route for this PDV and navigate to it
+      const pdvRoute = todayRoutes.find((r: any) => r.pdv_id === pdvId && r.status !== 'completed');
+      if (pdvRoute) {
+        navigate(`/promotor/rota/${pdvRoute.id}`);
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro no check-in', description: err.message, variant: 'destructive' });
+    } finally {
+      setPdvCheckinLoading(false);
+    }
+  }, [pdvCheckinPhoto, todayRoutes, navigate, toast]);
+
   const handlePdvCheckout = useCallback(async (pdvId: string) => {
     setPdvCheckoutLoading(true);
     try {
@@ -137,6 +178,7 @@ export default function PromotorHome() {
     } finally {
       setPdvCheckoutLoading(false);
     }
+  }, [pdvCheckoutPhoto, pdvCheckoutNotes, toast]);
   }, [pdvCheckoutPhoto, pdvCheckoutNotes, toast]);
 
   useEffect(() => {
