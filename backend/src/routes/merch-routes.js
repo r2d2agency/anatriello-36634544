@@ -463,9 +463,11 @@ router.get('/routes/:id', authenticate, async (req, res) => {
   try {
     const route = await query(
       `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, b.name as brand_name,
+       sv.full_name as supervisor_name,
        p.latitude as pdv_lat, p.longitude as pdv_lng, p.address as pdv_address, p.city as pdv_city
        FROM merch_routes r
        LEFT JOIN employees e ON e.id = r.promoter_id
+       LEFT JOIN employees sv ON sv.id = r.supervisor_id
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN merch_brands b ON b.id = r.brand_id
        WHERE r.id=$1`, [req.params.id]
