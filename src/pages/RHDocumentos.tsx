@@ -233,24 +233,70 @@ export default function RHDocumentos() {
 
       {/* Send Document Dialog */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Enviar Documento</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" /> Enviar Documento</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label>Colaborador *</Label>
-              <Select value={sendForm.employee_id} onValueChange={v => setSendForm(f => ({ ...f, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{activeEmployees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2"><Users className="h-4 w-4" /> Destinatários *</Label>
+              <div className="flex items-center gap-2 pb-1">
+                <Checkbox
+                  id="docSendAll"
+                  checked={sendForm.sendToAll}
+                  onCheckedChange={(v) => setSendForm(f => ({ ...f, sendToAll: !!v, employee_ids: [] }))}
+                />
+                <label htmlFor="docSendAll" className="text-sm font-medium cursor-pointer">Enviar para todos ({activeEmployees.length})</label>
+              </div>
+              {!sendForm.sendToAll && (
+                <>
+                  <Input
+                    placeholder="Buscar colaborador..."
+                    value={empSearch}
+                    onChange={e => setEmpSearch(e.target.value)}
+                    className="h-8"
+                  />
+                  <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
+                    {filteredEmployeesForSend.map((e: any) => (
+                      <div key={e.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`doc-emp-${e.id}`}
+                          checked={sendForm.employee_ids.includes(e.id)}
+                          onCheckedChange={() => toggleSendEmployee(e.id)}
+                        />
+                        <label htmlFor={`doc-emp-${e.id}`} className="text-sm cursor-pointer">{e.full_name}</label>
+                      </div>
+                    ))}
+                    {filteredEmployeesForSend.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhum colaborador</p>}
+                  </div>
+                  {sendForm.employee_ids.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{sendForm.employee_ids.length} selecionado(s)</p>
+                  )}
+                </>
+              )}
             </div>
-            <div className="space-y-1"><Label>Título *</Label><Input value={sendForm.title} onChange={e => setSendForm(f => ({ ...f, title: e.target.value }))} /></div>
+
+            <div className="space-y-1"><Label>Título *</Label><Input value={sendForm.title} onChange={e => setSendForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Holerite Janeiro/2026" /></div>
             <div className="space-y-1"><Label>Descrição</Label><Textarea value={sendForm.description} onChange={e => setSendForm(f => ({ ...f, description: e.target.value }))} rows={2} /></div>
-            <div className="space-y-1"><Label>Tipo de Documento</Label>
-              <Select value={sendForm.document_type_id} onValueChange={v => setSendForm(f => ({ ...f, document_type_id: v }))}>
+
+            <div className="space-y-1">
+              <Label>Tipo de Documento</Label>
+              <Select value={sendForm.document_type_id || undefined} onValueChange={v => setSendForm(f => ({ ...f, document_type_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione (opcional)..." /></SelectTrigger>
-                <SelectContent>{(docTypes || []).map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{availableDocTypes.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-4">
+
+            <div className="space-y-1">
+              <Label>Arquivo</Label>
+              <FileUploadInput
+                value={sendForm.file_url}
+                onChange={(url) => setSendForm(f => ({ ...f, file_url: url }))}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                placeholder="Selecione, cole (Ctrl+V) ou arraste o arquivo"
+                previewType="file"
+              />
+            </div>
+
+            <div className="flex items-center gap-4 flex-wrap">
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={sendForm.requires_confirmation} onChange={e => setSendForm(f => ({ ...f, requires_confirmation: e.target.checked }))} /> Confirmar recebimento</label>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={sendForm.requires_signature} onChange={e => setSendForm(f => ({ ...f, requires_signature: e.target.checked }))} /> Assinatura obrigatória</label>
             </div>
