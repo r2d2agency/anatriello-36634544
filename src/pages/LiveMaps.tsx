@@ -116,8 +116,30 @@ function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, s
   useEffect(() => {
     if (!mapRef.current) return;
     layersRef.current.clearLayers();
+    if (clusterRef.current) {
+      mapRef.current.removeLayer(clusterRef.current);
+      clusterRef.current = null;
+    }
+    if (heatLayerRef.current) {
+      mapRef.current.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
+    }
+
     const bounds: L.LatLng[] = [];
     const search = searchTerm.toLowerCase();
+    const heatData: any[] = [];
+
+    // Initialize cluster group with some spacing/jitter
+    const markerCluster = (L as any).markerClusterGroup({
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      maxClusterRadius: 40,
+      spiderfyOnMaxZoom: true,
+      removeOutsideVisibleBounds: true,
+      // Spacing: slightly offset markers at exact same location
+      animate: true
+    });
+    clusterRef.current = markerCluster;
 
     // Regions
     if (showRegions) {
@@ -138,12 +160,20 @@ function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, s
         if (search && !p.name?.toLowerCase().includes(search) && !p.city?.toLowerCase().includes(search)) return;
         const pos = L.latLng(Number(p.latitude), Number(p.longitude));
         bounds.push(pos);
+        heatData.push([Number(p.latitude), Number(p.longitude), 0.5]);
+
         const marker = L.marker(pos, { icon: PDV_ICON });
         marker.bindPopup(`<b>📍 ${p.name}</b><br/>${p.client_name || ''}<br/>${p.city || ''}-${p.state || ''}`);
-        if (p.radius_meters) {
+        
+        if (showHeatmap) {
+          // In heatmap mode, we don't add individual markers to map, just collect data
+        } else {
+          markerCluster.addLayer(marker);
+        }
+        
+        if (p.radius_meters && !showHeatmap) {
           L.circle(pos, { radius: p.radius_meters, color: '#3b82f6', fillOpacity: 0.05, weight: 1 }).addTo(layersRef.current);
         }
-        layersRef.current.addLayer(marker);
       });
     }
 
@@ -154,63 +184,75 @@ function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, s
       if (!isSupervisor && !showPromoters) return;
       if (search && !e.full_name?.toLowerCase().includes(search)) return;
 
-      // Use live location if available, otherwise home coords
       const lat = e.live_lat || e.home_latitude;
       const lng = e.live_lng || e.home_longitude;
       if (!lat || !lng) return;
 
       const pos = L.latLng(Number(lat), Number(lng));
       bounds.push(pos);
+      heatData.push([Number(lat), Number(lng), isSupervisor ? 1.0 : 0.8]);
 
-      const isOnline = e.live_status === 'online';
-      const hasCheckedIn = parseInt(e.punch_count) > 0;
-      let icon;
-      if (isSupervisor) {
-        icon = isOnline ? SUPERVISOR_ONLINE_ICON : SUPERVISOR_OFFLINE_ICON;
-      } else if (!hasCheckedIn) {
-        icon = NOCHECKIN_ICON;
-      } else {
-        icon = isOnline ? ONLINE_ICON : OFFLINE_ICON;
+      if (!showHeatmap) {
+        const isOnline = e.live_status === 'online';
+        const hasCheckedIn = parseInt(e.punch_count) > 0;
+        let icon;
+        if (isSupervisor) {
+          icon = isOnline ? SUPERVISOR_ONLINE_ICON : SUPERVISOR_OFFLINE_ICON;
+        } else if (!hasCheckedIn) {
+          icon = NOCHECKIN_ICON;
+        } else {
+          icon = isOnline ? ONLINE_ICON : OFFLINE_ICON;
+        }
+
+        const marker = L.marker(pos, { icon });
+        const statusHtml = isOnline
+          ? '<span style="color:#22c55e;font-weight:600;">🟢 Online</span>'
+          : '<span style="color:#9ca3af;">⚫ Offline</span>';
+
+        const lastUpdate = e.location_updated_at
+          ? `<br/><span style="font-size:11px;color:#888;">📡 ${formatDistanceToNow(new Date(e.location_updated_at), { addSuffix: true, locale: ptBR })}</span>`
+          : '';
+
+        const punchInfo = hasCheckedIn
+          ? `<br/><span style="font-size:11px;color:#22c55e;">✅ Check-in: ${e.last_punch_type}${e.last_pdv_name ? ` @ ${e.last_pdv_name}` : ''}</span>`
+          : '<br/><span style="font-size:11px;color:#ef4444;">❌ Sem check-in hoje</span>';
+
+        const batteryHtml = e.battery_level != null
+          ? `<br/><span style="font-size:11px;">🔋 ${e.battery_level}%</span>`
+          : '';
+
+        marker.bindPopup(`
+          <div style="min-width:180px;">
+            <b>${isSupervisor ? '👨‍💼' : '👷'} ${e.full_name}</b>
+            <br/><span style="font-size:12px;color:#666;">${e.position || e.worker_profile}</span>
+            <br/>${statusHtml}
+            ${punchInfo}
+            ${e.current_brands ? `<br/><span style="font-size:11px;color:#f59e0b;">🏷️ ${e.current_brands}</span>` : ''}
+            ${lastUpdate}
+            ${batteryHtml}
+            <br/><span style="font-size:11px;color:#888;">⏰ Jornada: ${formatWorkSchedule(e.work_schedule)}</span>
+          </div>
+        `);
+        markerCluster.addLayer(marker);
       }
-
-      const marker = L.marker(pos, { icon });
-
-      const statusHtml = isOnline
-        ? '<span style="color:#22c55e;font-weight:600;">🟢 Online</span>'
-        : '<span style="color:#9ca3af;">⚫ Offline</span>';
-
-      const lastUpdate = e.location_updated_at
-        ? `<br/><span style="font-size:11px;color:#888;">📡 ${formatDistanceToNow(new Date(e.location_updated_at), { addSuffix: true, locale: ptBR })}</span>`
-        : '';
-
-      const punchInfo = hasCheckedIn
-        ? `<br/><span style="font-size:11px;color:#22c55e;">✅ Check-in: ${e.last_punch_type}${e.last_pdv_name ? ` @ ${e.last_pdv_name}` : ''}</span>`
-        : '<br/><span style="font-size:11px;color:#ef4444;">❌ Sem check-in hoje</span>';
-
-      const batteryHtml = e.battery_level != null
-        ? `<br/><span style="font-size:11px;">🔋 ${e.battery_level}%</span>`
-        : '';
-
-      marker.bindPopup(`
-        <div style="min-width:180px;">
-          <b>${isSupervisor ? '👨‍💼' : '👷'} ${e.full_name}</b>
-          <br/><span style="font-size:12px;color:#666;">${e.position || e.worker_profile}</span>
-          <br/>${statusHtml}
-          ${punchInfo}
-          ${e.current_brands ? `<br/><span style="font-size:11px;color:#f59e0b;">🏷️ ${e.current_brands}</span>` : ''}
-          ${lastUpdate}
-          ${batteryHtml}
-          <br/><span style="font-size:11px;color:#888;">⏰ Jornada: ${formatWorkSchedule(e.work_schedule)}</span>
-        </div>
-      `);
-
-      layersRef.current.addLayer(marker);
     });
 
-    if (bounds.length > 0) {
-      mapRef.current.fitBounds(L.latLngBounds(bounds).pad(0.1));
+    if (showHeatmap && heatData.length > 0) {
+      heatLayerRef.current = (L as any).heatLayer(heatData, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17,
+        gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1: 'red' }
+      }).addTo(mapRef.current!);
+    } else {
+      mapRef.current!.addLayer(markerCluster);
     }
-  }, [employees, pdvs, regions, showPDVs, showPromoters, showSupervisors, showRegions, searchTerm]);
+
+    if (bounds.length > 0) {
+      mapRef.current!.fitBounds(L.latLngBounds(bounds).pad(0.1));
+    }
+  }, [employees, pdvs, regions, showPDVs, showPromoters, showSupervisors, showRegions, searchTerm, showHeatmap]);
+
 
   return <div ref={containerRef} className="w-full h-full rounded-lg" style={{ minHeight: '500px' }} />;
 }
