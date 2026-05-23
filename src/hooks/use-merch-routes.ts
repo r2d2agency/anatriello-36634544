@@ -121,12 +121,15 @@ export function useLiveRoutes(filters?: { date_from?: string; date_to?: string }
     enabled: isLiveRoutesScreenActive(),
     queryFn: async () => {
       if (!isLiveRoutesScreenActive()) return [];
+      const url = `/api/merch/routes${qs ? `?${qs}` : ''}`;
       try {
-        return await api<any[]>(`/api/merch/routes/live${qs ? `?${qs}` : ''}`, { silent: true, fallbackToOtherBases: false });
-      } catch {
+        return await api<any[]>(url, { silent: true });
+      } catch (err) {
+        console.error('Live routes fallback failed:', err);
         return [];
       }
     },
+
     refetchInterval: (query) => {
       if (!isLiveRoutesScreenActive()) return false;
       return query.state.status === 'error' ? false : 15000;
