@@ -299,6 +299,34 @@ export default function LiveMaps() {
     );
   }, [employees, searchTerm]);
 
+  const monitoringStats = useMemo(() => {
+    const activeRoutes = liveRoutes.filter((r: any) => r.status === 'in_progress');
+    
+    const byBrand: Record<string, number> = {};
+    const byNetwork: Record<string, number> = {};
+    const byPDV: Record<string, number> = {};
+    
+    activeRoutes.forEach((r: any) => {
+      if (r.brand_name) {
+        byBrand[r.brand_name] = (byBrand[r.brand_name] || 0) + 1;
+      }
+      
+      const network = r.pdv_client || r.pdv_name?.split(' - ')[0] || 'Outros';
+      byNetwork[network] = (byNetwork[network] || 0) + 1;
+      
+      if (r.pdv_name) {
+        byPDV[r.pdv_name] = (byPDV[r.pdv_name] || 0) + 1;
+      }
+    });
+    
+    return {
+      byBrand: Object.entries(byBrand).sort((a, b) => b[1] - a[1]),
+      byNetwork: Object.entries(byNetwork).sort((a, b) => b[1] - a[1]),
+      byPDV: Object.entries(byPDV).sort((a, b) => b[1] - a[1]),
+      activeCount: activeRoutes.length
+    };
+  }, [liveRoutes]);
+
   return (
     <MainLayout>
       <div className="flex flex-col h-[calc(100vh-6rem)] gap-3">
