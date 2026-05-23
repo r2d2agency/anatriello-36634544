@@ -27,6 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-500/20 text-green-700',
   not_done: 'bg-red-500/20 text-red-700',
   cancelled: 'bg-muted text-muted-foreground',
+  awaiting_checkout: 'bg-yellow-500/20 text-yellow-700',
 };
 
 const STATUS_LABELS: Record<string, string> = {
