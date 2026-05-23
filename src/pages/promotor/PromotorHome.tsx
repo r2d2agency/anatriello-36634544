@@ -179,7 +179,6 @@ export default function PromotorHome() {
       setPdvCheckoutLoading(false);
     }
   }, [pdvCheckoutPhoto, pdvCheckoutNotes, toast]);
-  }, [pdvCheckoutPhoto, pdvCheckoutNotes, toast]);
 
   useEffect(() => {
     const onOn = () => setIsOnline(true);
