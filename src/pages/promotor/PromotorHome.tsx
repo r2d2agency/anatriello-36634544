@@ -165,6 +165,8 @@ export default function PromotorHome() {
           longitude: pos.coords.longitude,
           photo_url: pdvCheckoutPhoto || undefined,
           notes: pdvCheckoutNotes || undefined,
+          // If no photo was taken, mark as awaiting_photo
+          status_override: !pdvCheckoutPhoto ? 'awaiting_photo' : undefined
         }),
       });
       const result = await response.json();
@@ -780,11 +782,15 @@ export default function PromotorHome() {
               <Textarea rows={2} placeholder="Observações sobre a visita..." value={pdvCheckoutNotes} onChange={e => setPdvCheckoutNotes(e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowPdvCheckout(false); setActionPdv(null); }}>Cancelar</Button>
-            <Button onClick={() => actionPdv && handlePdvCheckout(actionPdv.pdv_id)} disabled={pdvCheckoutLoading}>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              if (actionPdv) handlePdvCheckout(actionPdv.pdv_id);
+            }} disabled={pdvCheckoutLoading}>
+              Pular Foto
+            </Button>
+            <Button onClick={() => actionPdv && handlePdvCheckout(actionPdv.pdv_id)} disabled={pdvCheckoutLoading || !pdvCheckoutPhoto}>
               {pdvCheckoutLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Fazer Checkout
+              Finalizar Checkout
             </Button>
           </DialogFooter>
         </DialogContent>
