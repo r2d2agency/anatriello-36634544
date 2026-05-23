@@ -189,9 +189,14 @@ export default function PromotorEquipe() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {p.live_status === 'online' && (
-                      <Badge className="bg-green-500/20 text-green-700 text-[10px]">Online</Badge>
-                    )}
+                    {(() => {
+                      const updatedTime = p.location_updated_at ? new Date(p.location_updated_at) : null;
+                      const isLocRecent = updatedTime && (new Date().getTime() - updatedTime.getTime()) < 15 * 60 * 1000;
+                      if (p.live_status === 'online' || isLocRecent) {
+                        return <Badge className="bg-green-500/20 text-green-700 text-[10px]">Online</Badge>;
+                      }
+                      return null;
+                    })()}
                     {p.last_latitude && (
                       <Navigation className="h-3.5 w-3.5 text-primary" />
                     )}
@@ -228,7 +233,11 @@ export default function PromotorEquipe() {
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <p className="text-muted-foreground">Status</p>
-                  <p className="font-medium">{selectedPromoter.live_status === 'online' ? '🟢 Online' : '⚪ Offline'}</p>
+                  <p className="font-medium">{(() => {
+                    const updatedTime = selectedPromoter.location_updated_at ? new Date(selectedPromoter.location_updated_at) : null;
+                    const isLocRecent = updatedTime && (new Date().getTime() - updatedTime.getTime()) < 15 * 60 * 1000;
+                    return (selectedPromoter.live_status === 'online' || isLocRecent) ? '🟢 Online' : '⚪ Offline';
+                  })()}</p>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <p className="text-muted-foreground">Jornada</p>
