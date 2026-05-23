@@ -85,7 +85,9 @@ interface LiveMapComponentProps {
   showSupervisors: boolean;
   showRegions: boolean;
   searchTerm: string;
+  showHeatmap: boolean;
 }
+
 
 function LiveMapComponent({ employees, pdvs, regions, showPDVs, showPromoters, showSupervisors, showRegions, searchTerm }: LiveMapComponentProps) {
   const mapRef = useRef<L.Map | null>(null);
