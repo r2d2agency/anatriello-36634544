@@ -607,6 +607,7 @@ export default function PromotorRota() {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         photo_url: pdvCheckoutPhoto || undefined,
+        status_override: !pdvCheckoutPhoto ? 'awaiting_photo' : 'completed',
         notes: actionForm.pdv_notes,
       });
       toast.success('Checkout do PDV realizado!');
