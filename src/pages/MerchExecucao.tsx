@@ -65,7 +65,9 @@ export default function MerchExecucao() {
   const [damageFilter, setDamageFilter] = useState('');
   const { data: damages = [] } = useMerchDamages({ status: damageFilter || undefined });
   const { data: returnRequests = [] } = useReturnRequests();
-  const [viewRoute, setViewRoute] = useState<any>(null);
+  const [viewRouteId, setViewRouteId] = useState<string | null>(null);
+  const { data: routeDetail, isLoading: isLoadingDetail } = useMerchRouteDetail(viewRouteId || undefined);
+  const viewRoute = routeDetail || liveRoutes.find((r: any) => r.id === viewRouteId);
 
   const inProgress = liveRoutes.filter((r: any) => r.status === 'in_progress');
   const completed = liveRoutes.filter((r: any) => r.status === 'completed');
