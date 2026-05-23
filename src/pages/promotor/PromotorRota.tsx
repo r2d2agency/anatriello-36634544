@@ -890,14 +890,28 @@ export default function PromotorRota() {
                   {/* Products list (locked or unlocked) */}
                   <div className={`space-y-1.5 ${isLocked ? 'opacity-40 pointer-events-none select-none' : ''}`}>
                     {execs.map((exec: any) => (
-                      <Card key={exec.id} className={`cursor-pointer transition-colors hover:border-primary/40 ${exec.status === 'completed' ? 'border-green-500/30 bg-green-500/5' : ''}`}
-                        onClick={() => handleOpenProduct(exec)}>
+                      <Card key={exec.id} className={`transition-colors hover:border-primary/40 ${exec.status === 'completed' ? 'border-green-500/30 bg-green-500/5' : ''}`}>
                         <CardContent className="p-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0 cursor-pointer" onClick={() => {
+                              if (canQuickCheck) {
+                                updateExec.mutate({
+                                  id: exec.id,
+                                  status: exec.status === 'completed' ? 'pending' : 'completed',
+                                  checked: exec.status !== 'completed',
+                                  qty_store: 0,
+                                  qty_stock: 0
+                                }, {
+                                  onSuccess: () => toast.success(exec.status === 'completed' ? 'Produto desmarcado' : 'Produto concluído!'),
+                                  onError: (err: any) => toast.error(err.message)
+                                });
+                              } else {
+                                handleOpenProduct(exec);
+                              }
+                            }}>
                               {EXEC_STATUS_ICON[exec.status] || EXEC_STATUS_ICON.pending}
                             </div>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
                               <div className="text-sm font-medium truncate">{exec.product_name}</div>
                               {exec.exposure_point !== 'natural' && <Badge variant="secondary" className="text-[9px] mt-0.5">{exec.exposure_point}</Badge>}
                               {requireStockCount && (exec.qty_store > 0 || exec.qty_stock > 0) && (
@@ -905,39 +919,12 @@ export default function PromotorRota() {
                                   Loja: {exec.qty_store} | Estoque: {exec.qty_stock} | Total: {exec.qty_total}
                                 </div>
                               )}
-
                             </div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
                               {exec.has_rupture && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
                               {exec.has_damage && <Archive className="h-3.5 w-3.5 text-orange-500" />}
-                              
-                              {canQuickCheck && exec.status !== 'completed' && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-full"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateExec.mutate({
-                                      id: exec.id,
-                                      status: 'completed',
-                                      checked: true,
-                                      qty_store: 0,
-                                      qty_stock: 0
-                                    }, {
-                                      onSuccess: () => toast.success('Produto concluído!'),
-                                      onError: (err: any) => toast.error(err.message)
-                                    });
-                                  }}
-                                  disabled={updateExec.isPending}
-                                >
-                                  <Check className="h-5 w-5" />
-                                </Button>
-                              )}
-                              
                               <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </div>
-
                           </div>
                         </CardContent>
                       </Card>
