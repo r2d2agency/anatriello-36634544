@@ -625,10 +625,12 @@ router.get('/routes/live', async (req, res) => {
 
     res.json(rows);
   } catch (err) {
+    console.error('ERROR in /routes/live:', err);
     logError('routes.live', err);
     if (err.code === '42P01' || err.code === '42703') return res.json([]);
-    res.status(500).json({ error: 'Erro' });
+    res.status(500).json({ error: err.message || 'Erro interno no servidor' });
   }
+
 });
 
 // ===== BRAND CHECKLISTS =====
