@@ -470,12 +470,19 @@ export default function PromotorRota() {
   const currentBrand = useMemo(() => routeBrands.find((rb: any) => rb.brand_id === activeBrandId), [routeBrands, activeBrandId]);
 
 
-  // Auto-select first brand for non-multi-brand routes
   useEffect(() => {
     if (route && !isMultiBrand && !activeBrandId) {
       setActiveBrandId(route.brand_id);
     }
   }, [route, isMultiBrand, activeBrandId]);
+
+  // Timer to keep current time updated for min duration check
+  useEffect(() => {
+    if (route?.status === 'in_progress') {
+      const timer = setInterval(() => setCurrentTime(new Date()), 10000);
+      return () => clearInterval(timer);
+    }
+  }, [route?.status]);
 
   // Build category status map - filter by active brand if multi-brand
   const categoryStatusMap = useMemo(() => {
