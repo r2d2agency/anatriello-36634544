@@ -27,7 +27,7 @@ export function useUpload(customTokenGetter?: () => string | null) {
     setIsUploading(true);
     setProgress(0);
 
-    console.log('[useUpload] Starting upload:', { 
+    logger.info('[useUpload] Iniciando upload de arquivo', { 
       name: file.name, 
       type: file.type, 
       size: file.size,
