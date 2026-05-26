@@ -210,7 +210,6 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
               customTokenGetter={() => localStorage.getItem('promotor_token')}
               buttonLabel={photos.length === 0 ? 'Tirar foto da categoria' : 'Tirar foto adicional'}
               qualityConfig={qualityConfig}
-              all_routes_at_pdv={true} // Sugestão para o backend unificar se necessário
             />
 
             {/* Submit button */}
