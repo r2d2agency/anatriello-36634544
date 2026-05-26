@@ -388,7 +388,7 @@ function CategoryAfterPhotoGate({ catId, categoryName, routeId, pdvName, brandNa
         <CameraCapture
           onCapture={(url: string) => setPhotos(prev => [...prev, url])}
           watermark={{ pdvName, brandName, promotorName, photoType: `Categoria (depois)` }}
-          customTokenGetter={() => localStorage.getItem('promotor_token')}
+          customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
           buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto DEPOIS'}
           qualityConfig={qualityConfig}
         />
