@@ -26,6 +26,7 @@ import {
   Lock, Unlock, ChevronRight, Target, ImagePlus, Plus, ScanFace, Package,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { logger } from "@/lib/logger";
 
 const EXEC_STATUS_ICON: Record<string, any> = {
   pending: <Circle className="h-4 w-4 text-muted-foreground" />,
