@@ -44,8 +44,8 @@ const usePromotorPdvCheckout = () => {
 };
 
 // ===== Category Preparation Component =====
-function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, onUnlocked }: {
-  category: any; catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; onUnlocked: () => void;
+function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, photoMode, onUnlocked }: {
+  category: any; catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; photoMode?: 'before' | 'after' | 'both'; onUnlocked: () => void;
 }) {
   const setPointType = usePromotorSetPointType();
   const setCategoryPhoto = usePromotorCategoryPhoto();
@@ -61,7 +61,17 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
 
   const handleSetPointType = (type: string) => {
     logger.info(`Promotor tentando selecionar tipo de ponto: ${type}`, { routeId, catId, categoryName });
-    setPointType.mutate({ routeId, catId, point_type: type }, {
+    
+    // Se o modo for "after" (Somente Depois), já desbloqueamos os produtos imediatamente após escolher o tipo de ponto
+    const shouldUnlockImmediately = photoMode === 'after';
+    
+    setPointType.mutate({ 
+      routeId, 
+      catId, 
+      point_type: type,
+      // Passamos um flag para o hook se ele precisar tratar o desbloqueio imediato no backend
+      products_unlocked: shouldUnlockImmediately 
+    }, {
       onSuccess: () => { 
         toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); 
         onUnlocked(); 
@@ -168,7 +178,7 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
         )}
 
         {/* Bloco 3: Photos (multiple) */}
-        {hasPointType && !hasPhoto && (
+        {hasPointType && !hasPhoto && photoMode !== 'after' && (
           <div className="space-y-2">
             <Label className="text-xs font-semibold flex items-center gap-1">
               <Camera className="h-3.5 w-3.5" /> Foto obrigatória da categoria (ANTES da execução)
@@ -222,7 +232,7 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
           <span>
             {!hasPointType
               ? 'Antes de iniciar, selecione se é ponto natural ou extra.'
-              : photos.length === 0 && !hasPhoto
+              : photos.length === 0 && !hasPhoto && photoMode !== 'after'
                 ? 'É necessário tirar a foto da categoria antes de acessar os produtos.'
                 : 'Registre a(s) foto(s) para liberar os produtos.'}
           </span>
@@ -841,16 +851,30 @@ export default function PromotorRota() {
           <div className="space-y-4">
             {Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
               const catStatus = categoryStatusMap[catId];
-              // For extra groups: need photo but NOT point type
-              const requireCategoryPhotos = route?.require_category_photos !== false;
+              // Use checklist settings if available
+              const photoMode = (route as any)?.category_photo_mode || 'both';
+              const requireCategoryPhotos = (route as any)?.require_category_photos !== false;
+              
               const extraPhotoKey = `extra_${catId}`;
               const hasExtraPhoto = extraGroupPhotos[extraPhotoKey];
-              const isLocked = requireCategoryPhotos ? (isExtraGroup ? !hasExtraPhoto : !catStatus?.products_unlocked) : false;
+              
+              // Unlocked depends on photoMode:
+              // if 'after', products_unlocked comes from point-type selection
+              // if 'before' or 'both', products_unlocked comes from before-photo upload
+              const isLocked = requireCategoryPhotos 
+                ? (isExtraGroup ? !hasExtraPhoto : !catStatus?.products_unlocked) 
+                : false;
+                
               const doneCount = execs.filter((e: any) => e.status === 'completed').length;
               const allProductsDone = doneCount === execs.length && execs.length > 0;
               const hasAfterPhoto = !!catStatus?.category_after_photo || !!catStatus?.completed;
-              // Show after photo gate when all products done but no after photo yet
-              const needsAfterPhoto = requireCategoryPhotos && allProductsDone && !isLocked && !hasAfterPhoto;
+              
+              // Show after photo gate when all products done AND mode is 'both' or 'after'
+              const needsAfterPhoto = requireCategoryPhotos && 
+                allProductsDone && 
+                !isLocked && 
+                !hasAfterPhoto && 
+                (photoMode === 'both' || photoMode === 'after');
 
               return (
 
@@ -867,6 +891,7 @@ export default function PromotorRota() {
                       promotorName={route.promotor_name}
                       qualityConfig={photoQualityConfig}
                       minPhotos={Math.max(1, parseInt((route as any)?.min_category_photos_before, 10) || 1)}
+                      photoMode={(route as any)?.category_photo_mode || 'both'}
                       onUnlocked={() => refetch()}
                     />
                   )}
