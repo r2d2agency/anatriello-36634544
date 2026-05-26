@@ -507,15 +507,15 @@ export default function MerchRotas() {
 function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDelete, onDuplicate }: any) {
   const [form, setForm] = useState<any>({});
   const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string }[]>([]);
+  const [configuringBrandId, setConfiguringBrandId] = useState<string | null>(null);
   const [pdvOpen, setPdvOpen] = useState(false);
   const { data: brands = [] } = useBrands();
   const { data: pdvBrands = [] } = usePdvBrands(form.pdv_id);
   
-  // For single-brand backward compat, use first brand for checklists/promoters/pdv filter
-  const activeBrandId = multiBrands.length > 0 ? multiBrands[0].brand_id : form.brand_id;
+  // Use currently configuring brand, or first brand, or form brand
+  const activeBrandId = configuringBrandId || (multiBrands.length > 0 ? multiBrands[0].brand_id : form.brand_id);
   const { data: checklists = [] } = useBrandChecklists(activeBrandId);
   const { data: brandPromoters = [] } = useBrandPromoters(activeBrandId);
-  // const { data: brandPdvs = [] } = useBrandPdvs(activeBrandId); // No longer filtering PDVs by brand primary logic
 
   const { data: mixPreview = [] } = useRouteMixPreview(form.pdv_id, activeBrandId);
   const { data: routeProducts = [] } = useRouteProducts(route?.id);
@@ -764,7 +764,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
           </div>
 
           {/* Multi-Brand Section */}
-          <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+          <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -776,11 +776,14 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                 )}
               </div>
 
-              {form.pdv_id && (
+              {form.pdv_id && !configuringBrandId && (
                 <Select value="" onValueChange={(v) => {
-                  if (v) setMultiBrands(prev => [...prev, { brand_id: v }]);
+                  if (v) {
+                    setMultiBrands(prev => [...prev, { brand_id: v }]);
+                    setConfiguringBrandId(v);
+                  }
                 }}>
-                  <SelectTrigger className="w-48 h-8 text-xs">
+                  <SelectTrigger className="w-48 h-8 text-xs bg-background">
                     <SelectValue placeholder="+ Adicionar marca" />
                   </SelectTrigger>
                   <SelectContent>
@@ -795,26 +798,71 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
             </div>
 
             {multiBrands.length === 0 && (
-              <div className="text-xs text-muted-foreground text-center py-3 bg-background/50 rounded-md">
+              <div className="text-xs text-muted-foreground text-center py-3 bg-background/50 rounded-md border border-dashed">
                 Selecione pelo menos uma marca para a rota
               </div>
             )}
 
-            <div className="space-y-1.5">
-              {multiBrands.map((mb) => (
-                <BrandChecklistSelector
-                  key={mb.brand_id}
-                  brandId={mb.brand_id}
-                  checklistId={mb.checklist_id}
-                  onChange={(v) => setMultiBrands(prev => prev.map(b => b.brand_id === mb.brand_id ? { ...b, checklist_id: v } : b))}
-                />
-              ))}
-            </div>
+            {multiBrands.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {multiBrands.map((mb) => {
+                  const brand = brands.find((b: any) => b.id === mb.brand_id);
+                  const isConfiguring = configuringBrandId === mb.brand_id;
+                  return (
+                    <div 
+                      key={mb.brand_id}
+                      onClick={() => setConfiguringBrandId(mb.brand_id)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs cursor-pointer transition-all",
+                        isConfiguring 
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm" 
+                          : "bg-background hover:bg-muted border-border"
+                      )}
+                    >
+                      <span className="font-medium">{brand?.name || mb.brand_id}</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMultiBrands(prev => prev.filter(b => b.brand_id !== mb.brand_id));
+                          if (configuringBrandId === mb.brand_id) setConfiguringBrandId(null);
+                        }}
+                        className={cn("p-0.5 rounded-full hover:bg-black/10", isConfiguring ? "text-primary-foreground" : "text-muted-foreground")}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-            {isMultiBrand && (
+            {configuringBrandId && (
+              <div className="p-3 rounded-md border bg-background space-y-3 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="text-xs font-semibold flex items-center gap-2">
+                    <Sparkles className="h-3 w-3 text-primary" />
+                    Configurando: {brands.find((b: any) => b.id === configuringBrandId)?.name}
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] text-primary" onClick={() => setConfiguringBrandId(null)}>
+                    <CheckCircle2 className="h-3 w-3 mr-1" /> Concluir Ajustes
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Checklist da Marca</Label>
+                  <BrandChecklistSelector
+                    brandId={configuringBrandId}
+                    checklistId={multiBrands.find(b => b.brand_id === configuringBrandId)?.checklist_id}
+                    onChange={(v) => setMultiBrands(prev => prev.map(b => b.brand_id === configuringBrandId ? { ...b, checklist_id: v } : b))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {isMultiBrand && !configuringBrandId && (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                O promotor fará check-in único e poderá alternar entre as marcas durante a visita.
+                Clique em uma marca acima para ajustar seu checklist e mix de produtos.
               </p>
             )}
           </div>
@@ -941,46 +989,58 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
 
           {/* Product Mix Section */}
           {form.pdv_id && multiBrands.length > 0 && (
-            <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+            <div className={cn(
+              "space-y-2 p-3 rounded-lg border transition-all",
+              configuringBrandId ? "border-primary/50 bg-primary/5 shadow-inner" : "bg-muted/30"
+            )}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Package className="h-4 w-4 text-primary" />
-                  Produtos ({displayProducts.length})
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Package className="h-4 w-4 text-primary" />
+                    Mix de Produtos ({displayProducts.length})
+                  </div>
+                  {activeBrandId && (
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Exibindo produtos da marca: {brands.find((b: any) => b.id === activeBrandId)?.name}
+                    </span>
+                  )}
                 </div>
-                {route?.id && (
-                  <Button variant="outline" size="sm" onClick={handleSyncProducts} disabled={syncProducts.isPending}
-                    className="h-7 text-xs">
-                    <RefreshCw className={`h-3 w-3 mr-1 ${syncProducts.isPending ? 'animate-spin' : ''}`} />
-                    Sincronizar do Mix
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {route?.id && (
+                    <Button variant="outline" size="sm" onClick={handleSyncProducts} disabled={syncProducts.isPending}
+                      className="h-7 text-xs">
+                      <RefreshCw className={`h-3 w-3 mr-1 ${syncProducts.isPending ? 'animate-spin' : ''}`} />
+                      Sincronizar
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {displayProducts.length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-3 bg-background/50 rounded-md">
+                <div className="text-xs text-muted-foreground text-center py-3 bg-background/50 rounded-md border border-dashed">
                   {!route?.id
-                    ? 'Nenhum produto no mix deste PDV/Marca. Configure o mix primeiro em Mix por PDV.'
-                    : 'Nenhum produto vinculado. Clique em "Sincronizar do Mix" ou adicione manualmente.'}
+                    ? `Nenhum produto no mix para ${brands.find((b: any) => b.id === activeBrandId)?.name || 'esta marca'}.`
+                    : 'Nenhum produto vinculado.'}
                 </div>
               ) : (
-                <div className="max-h-48 overflow-y-auto space-y-1">
+                <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
                   {displayProducts.map((p: any) => (
-                    <div key={p.product_id || p.id} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-background/50 text-xs">
+                    <div key={p.product_id || p.id} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-background/50 text-xs border border-border/50">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{p.product_name}</div>
-                        <div className="text-muted-foreground flex items-center gap-2">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-2">
                           {p.category_name && <span>{p.category_name}</span>}
                           {p.sku && <span>SKU: {p.sku}</span>}
-                          {p.mandatory && <Badge variant="secondary" className="text-[9px] h-4">Obrigatório</Badge>}
+                          {p.mandatory && <Badge variant="secondary" className="text-[8px] h-3.5 px-1 bg-orange-100 text-orange-700 border-orange-200">Obrigatório</Badge>}
                           {p.status && p.status !== 'pending' && (
-                            <Badge variant={p.status === 'completed' ? 'default' : 'secondary'} className="text-[9px] h-4">
+                            <Badge variant={p.status === 'completed' ? 'default' : 'secondary'} className="text-[8px] h-3.5 px-1">
                               {p.status === 'completed' ? 'Executado' : p.status}
                             </Badge>
                           )}
                         </div>
                       </div>
                       {route?.id && (!p.status || p.status === 'pending') && (
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => handleRemoveProduct(p.product_id)}>
                           <X className="h-3 w-3" />
                         </Button>
