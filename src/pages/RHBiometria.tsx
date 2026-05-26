@@ -80,6 +80,17 @@ const RHBiometria = () => {
     onError: () => toast({ title: "Erro ao remover", variant: "destructive" }),
   });
 
+  const toggleFacialMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      api(`/api/rh/facial-recognition/toggle-verification/${id}`, { method: "PUT", body: { enabled } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rh-facial-employees"] });
+      qc.invalidateQueries({ queryKey: ["rh-facial-alerts"] });
+      toast({ title: "Configuração atualizada" });
+    },
+    onError: () => toast({ title: "Erro ao atualizar configuração", variant: "destructive" }),
+  });
+
   const filtered = employees.filter((e) =>
     e.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     e.cpf?.includes(search)
