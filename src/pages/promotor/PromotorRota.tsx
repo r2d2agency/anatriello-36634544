@@ -210,6 +210,7 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
               customTokenGetter={() => localStorage.getItem('promotor_token')}
               buttonLabel={photos.length === 0 ? 'Tirar foto da categoria' : 'Tirar foto adicional'}
               qualityConfig={qualityConfig}
+              all_routes_at_pdv={true} // Sugestão para o backend unificar se necessário
             />
 
             {/* Submit button */}
@@ -595,6 +596,7 @@ export default function PromotorRota() {
         device: navigator.userAgent || 'Unknown Device',
         photo_url: checkinPhotoUrl || undefined,
         facial_verified: isFacialActiveCheckin || undefined,
+        all_routes_at_pdv: true, // Unificar check-in para todas as rotas do PDV
       }, {
         onSuccess: () => {
           logger.info('[handleCheckin] Check-in realizado com sucesso', { routeId: id });
