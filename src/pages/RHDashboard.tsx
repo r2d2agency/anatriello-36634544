@@ -74,6 +74,7 @@ export default function RHDashboard() {
   const createCert = useCreateMedicalCertificate();
   const validateCert = useValidateMedicalCertificate();
   const { data: inboundDocs = [] } = useInboundDocumentsRH();
+  const { data: facialAlerts = [] } = useFacialAlerts();
 
   const filteredEmpVac = useMemo(() => {
     if (!empSearchVac) return employees;
