@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { Cake } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations } from "@/hooks/use-rh";
+import { useRhDashboard, useEmployees, useCreateVacation, useCreateMedicalCertificate, useValidateMedicalCertificate, useMedicalCertificates, useVacations, useFacialAlerts } from "@/hooks/use-rh";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import { resolveMediaUrl } from "@/lib/media";
 import {
   LayoutDashboard, AlertTriangle, Clock, UserX, Palmtree, FileText,
   Plus, CheckCircle, XCircle, Stethoscope, CalendarDays, Users, Timer,
-  ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip, Sparkles, Search, ShieldCheck, ShieldX, ShieldQuestion
+  ShieldAlert, FileCheck, Upload, Loader2, FileUp, Paperclip, Sparkles, Search, ShieldCheck, ShieldX, ShieldQuestion, ScanFace
 } from "lucide-react";
 import { OvertimeRequestsPanel, useOvertimePendingCount } from "@/components/rh/OvertimeRequestsPanel";
 import { format } from "date-fns";
