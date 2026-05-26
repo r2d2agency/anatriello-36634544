@@ -73,6 +73,7 @@ import RHAcessos from "./pages/RHAcessos";
 import RHRastreamento from "./pages/RHRastreamento";
 import RHBiometria from "./pages/RHBiometria";
 import RHMapaOperacional from "./pages/RHMapaOperacional";
+import RHLogs from "./pages/RHLogs";
 import LiveMaps from "./pages/LiveMaps";
   import MerchDashboard from "./pages/MerchDashboard";
 import MerchMarcas from "./pages/MerchMarcas";
@@ -247,6 +248,7 @@ const App = () => (
             <Route path="/rh/biometria" element={<ProtectedRoute><RHBiometria /></ProtectedRoute>} />
             <Route path="/rh/rastreamento" element={<ProtectedRoute><RHRastreamento /></ProtectedRoute>} />
             <Route path="/rh/mapa" element={<ProtectedRoute><RHMapaOperacional /></ProtectedRoute>} />
+            <Route path="/rh/logs" element={<ProtectedRoute><RHLogs /></ProtectedRoute>} />
             <Route path="/live-maps" element={<ProtectedRoute><LiveMaps /></ProtectedRoute>} />
             <Route path="/merch/marcas" element={<ProtectedRoute><MerchMarcas /></ProtectedRoute>} />
             <Route path="/merch/categorias" element={<ProtectedRoute><MerchCategorias /></ProtectedRoute>} />

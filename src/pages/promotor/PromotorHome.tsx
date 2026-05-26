@@ -19,6 +19,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
+import { logger } from "@/lib/logger";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-500/20 text-blue-700',
@@ -114,7 +115,7 @@ export default function PromotorHome() {
     }
     setPdvCheckinLoading(true);
     try {
-      console.log('[handlePdvCheckin] Starting checkin for PDV:', pdvId);
+      logger.info('[handlePdvCheckin] Iniciando check-in da loja', { pdvId });
       
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { 
@@ -123,7 +124,7 @@ export default function PromotorHome() {
           maximumAge: 0
         })
       ).catch(err => {
-        console.error('[handlePdvCheckin] GPS Error:', err);
+        logger.error('[handlePdvCheckin] Erro de GPS', { err, pdvId });
         throw new Error('Não foi possível obter sua localização. Verifique se o GPS está ativado.');
       });
 
@@ -131,7 +132,7 @@ export default function PromotorHome() {
       const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       const url = `${baseUrl}/api/merch/promotor/pdv-checkin`;
       
-      console.log('[handlePdvCheckin] Calling API:', url);
+      logger.info('[handlePdvCheckin] Chamando API', { url, pdvId, coords: pos.coords });
 
       const response = await fetch(url, {
         method: 'POST',
@@ -151,12 +152,16 @@ export default function PromotorHome() {
       try {
         result = await response.json();
       } catch (e) {
-        console.error('[handlePdvCheckin] JSON Parse Error:', e);
+        logger.error('[handlePdvCheckin] Erro ao processar JSON da API', { e, pdvId, status: response.status });
         throw new Error(`Erro na resposta do servidor (${response.status})`);
       }
 
-      if (!response.ok) throw new Error(result?.error || 'Erro ao realizar check-in');
+      if (!response.ok) {
+        logger.warn('[handlePdvCheckin] API retornou erro', { result, pdvId });
+        throw new Error(result?.error || 'Erro ao realizar check-in');
+      }
 
+      logger.info('[handlePdvCheckin] Check-in realizado com sucesso', { pdvId });
       toast({ title: 'Check-in da loja realizado!' });
       setShowPdvCheckin(false);
       setPdvCheckinPhoto('');
@@ -166,7 +171,7 @@ export default function PromotorHome() {
         navigate(`/promotor/rota/${pdvRoute.id}`);
       }
     } catch (err: any) {
-      console.error('[handlePdvCheckin] Fatal Error:', err);
+      logger.error('[handlePdvCheckin] Erro fatal no check-in', { message: err.message, pdvId }, err);
       toast({ 
         title: 'Erro no check-in', 
         description: err.message || 'Erro desconhecido', 

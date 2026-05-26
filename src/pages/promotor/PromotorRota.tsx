@@ -26,6 +26,7 @@ import {
   Lock, Unlock, ChevronRight, Target, ImagePlus, Plus, ScanFace, Package,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { logger } from "@/lib/logger";
 
 const EXEC_STATUS_ICON: Record<string, any> = {
   pending: <Circle className="h-4 w-4 text-muted-foreground" />,
@@ -547,7 +548,7 @@ export default function PromotorRota() {
     }
     setFaceVerifyAction(null);
     try {
-      console.log('[handleCheckin] Starting checkin for route:', id);
+      logger.info('[handleCheckin] Iniciando check-in da rota', { routeId: id, pdvName: route?.pdv_name });
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { 
           enableHighAccuracy: true, 
@@ -555,11 +556,11 @@ export default function PromotorRota() {
           maximumAge: 0
         })
       ).catch(err => {
-        console.error('[handleCheckin] GPS Error:', err);
+        logger.error('[handleCheckin] Erro de GPS no check-in', { err, routeId: id });
         throw new Error('Não foi possível obter sua localização. Verifique se o GPS está ativado.');
       });
 
-      console.log('[handleCheckin] Location obtained:', pos.coords.latitude, pos.coords.longitude);
+      logger.info('[handleCheckin] Localização obtida', { routeId: id, coords: pos.coords });
 
       checkin.mutate({
         id,
@@ -570,19 +571,19 @@ export default function PromotorRota() {
         facial_verified: isFacialActiveCheckin || undefined,
       }, {
         onSuccess: () => {
-          console.log('[handleCheckin] Success');
+          logger.info('[handleCheckin] Check-in realizado com sucesso', { routeId: id });
           toast.success('Check-in realizado!');
         },
         onError: (err: any) => {
-          console.error('[handleCheckin] API Error:', err);
+          logger.error('[handleCheckin] Erro na API de check-in', { err, routeId: id });
           toast.error('Erro no servidor: ' + (err.message || 'Erro desconhecido'));
         },
       });
     } catch (err: any) {
-      console.error('[handleCheckin] Error:', err);
+      logger.error('[handleCheckin] Erro fatal no check-in', { message: err.message, routeId: id }, err);
       toast.error(err.message || 'Não foi possível realizar o check-in');
     }
-  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction]);
+  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name]);
 
   const handleCompleteRoute = useCallback(() => {
     if (!id) return;
