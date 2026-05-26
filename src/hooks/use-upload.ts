@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { API_URL, getAuthToken } from '@/lib/api';
+import { logger } from '@/lib/logger';
 
 interface UploadResult {
   success: boolean;
