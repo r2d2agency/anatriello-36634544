@@ -274,6 +274,9 @@ router.put('/routes/:id', async (req, res) => {
           UNIQUE(route_id, brand_id)
         )`);
         await query('DELETE FROM route_brands WHERE route_id=$1', [req.params.id]);
+        // Clear stale route_brand_id refs on executions so we can re-link cleanly
+        try { await query('UPDATE route_product_executions SET route_brand_id=NULL WHERE route_id=$1', [req.params.id]); } catch {}
+        const pdvIdForHydrate = req.body.pdv_id || old.pdv_id;
         for (let i = 0; i < brandsPayload.length; i++) {
           const mb = brandsPayload[i];
           if (!mb?.brand_id) continue;
@@ -284,11 +287,16 @@ router.put('/routes/:id', async (req, res) => {
               mbChecklistId = cr.rows[0]?.id || null;
             } catch {}
           }
-          await query(
+          const rbRes = await query(
             `INSERT INTO route_brands (route_id, brand_id, checklist_id, sort_order) VALUES ($1,$2,$3,$4)
-             ON CONFLICT (route_id, brand_id) DO UPDATE SET checklist_id=EXCLUDED.checklist_id, sort_order=EXCLUDED.sort_order`,
+             ON CONFLICT (route_id, brand_id) DO UPDATE SET checklist_id=EXCLUDED.checklist_id, sort_order=EXCLUDED.sort_order
+             RETURNING *`,
             [req.params.id, mb.brand_id, mbChecklistId, i]
           );
+          // Hydrate products from PDV mix for this brand
+          if (rbRes.rows[0] && pdvIdForHydrate) {
+            await hydrateRouteBrandProducts(req.params.id, rbRes.rows[0].id, pdvIdForHydrate, mb.brand_id);
+          }
         }
         // If multi-brand, null root brand/checklist; if single, keep as scalar
         if (brandsPayload.length > 1) {
