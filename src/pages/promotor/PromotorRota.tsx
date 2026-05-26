@@ -61,7 +61,17 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
 
   const handleSetPointType = (type: string) => {
     logger.info(`Promotor tentando selecionar tipo de ponto: ${type}`, { routeId, catId, categoryName });
-    setPointType.mutate({ routeId, catId, point_type: type }, {
+    
+    // Se o modo for "after" (Somente Depois), já desbloqueamos os produtos imediatamente após escolher o tipo de ponto
+    const shouldUnlockImmediately = photoMode === 'after';
+    
+    setPointType.mutate({ 
+      routeId, 
+      catId, 
+      point_type: type,
+      // Passamos um flag para o hook se ele precisar tratar o desbloqueio imediato no backend
+      products_unlocked: shouldUnlockImmediately 
+    }, {
       onSuccess: () => { 
         toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); 
         onUnlocked(); 
