@@ -129,7 +129,8 @@ const getScopedAuthToken = (endpoint: string) => {
     return localStorage.getItem('supermarket_auth_token') || localStorage.getItem('auth_token');
   }
 
-  if (endpoint.startsWith('/api/promotor')) {
+  // Use promotor_token for ALL merchandising/promotor related endpoints
+  if (endpoint.startsWith('/api/promotor') || endpoint.includes('/merch/promotor/')) {
     return localStorage.getItem('promotor_token') || localStorage.getItem('auth_token');
   }
 

@@ -123,7 +123,7 @@ export default function PromotorHome() {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { 
           enableHighAccuracy: true, 
-          timeout: 10000,
+          timeout: 15000,
           maximumAge: 0
         })
       ).catch(err => {
@@ -133,15 +133,17 @@ export default function PromotorHome() {
 
       const token = localStorage.getItem('promotor_token');
       const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-      // Endpoint correto do backend: /api/merch/promotor/routes/:id/checkin
+      
       // Buscamos a rota ativa do PDV para usar o id correto.
-      const activeRoute = todayRoutes.find((r: any) => r.pdv_id === pdvId && r.status !== 'completed');
-      if (!activeRoute?.id) {
+      const activeRouteForPdv = todayRoutes.find((r: any) => r.pdv_id === pdvId && r.status !== 'completed');
+      if (!activeRouteForPdv?.id) {
+        logger.warn('[handlePdvCheckin] Nenhuma rota ativa encontrada', { pdvId, todayRoutes });
         throw new Error('Nenhuma rota ativa encontrada para este PDV.');
       }
-      const url = `${baseUrl}/api/merch/promotor/routes/${activeRoute.id}/checkin`;
       
-      logger.info('[handlePdvCheckin] Chamando API', { url, pdvId, coords: pos.coords });
+      const url = `${baseUrl}/api/merch/promotor/routes/${activeRouteForPdv.id}/checkin`;
+      
+      logger.info('[handlePdvCheckin] Chamando API', { url, pdvId, routeId: activeRouteForPdv.id });
 
       const response = await fetch(url, {
         method: 'POST',
@@ -157,27 +159,31 @@ export default function PromotorHome() {
       });
 
       let result;
+      const rawResponse = await response.text();
       try {
-        result = await response.json();
+        result = rawResponse ? JSON.parse(rawResponse) : {};
       } catch (e) {
-        logger.error('[handlePdvCheckin] Erro ao processar JSON da API', { e, pdvId, status: response.status });
+        logger.error('[handlePdvCheckin] Erro ao processar JSON da API', { e, pdvId, status: response.status, raw: rawResponse.slice(0, 500) });
         throw new Error(`Erro na resposta do servidor (${response.status})`);
       }
 
       if (!response.ok) {
-        logger.warn('[handlePdvCheckin] API retornou erro', { result, pdvId });
-        throw new Error(result?.error || 'Erro ao realizar check-in');
+        logger.warn('[handlePdvCheckin] API retornou erro', { result, pdvId, status: response.status });
+        throw new Error(result?.error || result?.message || 'Erro ao realizar check-in');
       }
 
-      logger.info('[handlePdvCheckin] Check-in realizado com sucesso', { pdvId });
+      logger.info('[handlePdvCheckin] Check-in realizado com sucesso', { pdvId, routeId: activeRouteForPdv.id });
       toast({ title: 'Check-in da loja realizado!' });
+      
+      // Limpa estados e navega
       setShowPdvCheckin(false);
       setPdvCheckinPhoto('');
       
-      const pdvRoute = todayRoutes.find((r: any) => r.pdv_id === pdvId && r.status !== 'completed');
-      if (pdvRoute?.id) {
-        navigate(`/promotor/rota/${pdvRoute.id}`);
-      }
+      // Pequeno delay para garantir que o estado local foi limpo antes de navegar
+      setTimeout(() => {
+        navigate(`/promotor/rota/${activeRouteForPdv.id}`);
+      }, 100);
+      
     } catch (err: any) {
       logger.error('[handlePdvCheckin] Erro fatal no check-in', { message: err.message, pdvId }, err);
       toast({ 
