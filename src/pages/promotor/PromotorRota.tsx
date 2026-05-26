@@ -1345,8 +1345,8 @@ export default function PromotorRota() {
                   ) : (
                     <CameraCapture
                       onCapture={setPdvCheckoutPhoto}
-                      watermark={{ pdvName: route.pdv_name, brandName: route.brand_name, photoType: 'Checkout PDV' }}
-                      customTokenGetter={() => localStorage.getItem('promotor_token')}
+                      watermark={{ pdvName: route.pdv_name, brandName: route.brand_name || route.route_brands?.[0]?.brand_name, photoType: 'Checkout PDV' }}
+                      customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
                       buttonLabel="Tirar foto de saída da loja"
                       qualityConfig={photoQualityConfig}
                     />
