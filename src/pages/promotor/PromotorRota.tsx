@@ -70,9 +70,16 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
   const min = Math.max(1, minPhotos || 1);
 
   const handleSetPointType = (type: string) => {
+    logger.info(`Promotor tentando selecionar tipo de ponto: ${type}`, { routeId, catId, categoryName });
     setPointType.mutate({ routeId, catId, point_type: type }, {
-      onSuccess: () => { toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); onUnlocked(); },
-      onError: (err: any) => toast.error(err.message),
+      onSuccess: () => { 
+        toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); 
+        onUnlocked(); 
+      },
+      onError: (err: any) => {
+        logger.error(`Erro ao selecionar tipo de ponto: ${type}`, { error: err.message, routeId, catId }, err);
+        toast.error(`Erro ao selecionar ${type}: ${err.message}`);
+      },
     });
   };
 
