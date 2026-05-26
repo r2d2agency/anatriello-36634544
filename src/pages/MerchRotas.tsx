@@ -98,6 +98,7 @@ export default function MerchRotas() {
         onSuccess: () => { 
           toast.success('Rota atualizada'); 
           setSelectedRoute(null); 
+          setShowCreate(false);
         } 
       });
     } else {
@@ -105,6 +106,7 @@ export default function MerchRotas() {
         onSuccess: () => { 
           toast.success('Rota criada'); 
           setShowCreate(false); 
+          setSelectedRoute(null);
         } 
       });
     }
@@ -609,21 +611,16 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
         });
         
         // Load multi-brand data with fallbacks
-        if (route.route_brands && route.route_brands.length > 0) {
-          setMultiBrands(route.route_brands.map((rb: any) => ({ 
-            brand_id: rb.brand_id, 
-            checklist_id: rb.checklist_id 
-          })));
-        } else if (route.brands && Array.isArray(route.brands)) {
-          // Fallback if data comes in "brands" instead of "route_brands"
-          setMultiBrands(route.brands.map((rb: any) => ({
-            brand_id: rb.brand_id || rb.id,
-            checklist_id: rb.checklist_id
+        const rawBrands = route.route_brands || route.brands;
+        if (Array.isArray(rawBrands) && rawBrands.length > 0) {
+          setMultiBrands(rawBrands.map((rb: any) => ({ 
+            brand_id: rb.brand_id || rb.id || rb, 
+            checklist_id: rb.checklist_id || null
           })));
         } else if (route.brand_id) {
           setMultiBrands([{ 
             brand_id: route.brand_id, 
-            checklist_id: route.checklist_id 
+            checklist_id: route.checklist_id || null
           }]);
         } else {
           setMultiBrands([]);
