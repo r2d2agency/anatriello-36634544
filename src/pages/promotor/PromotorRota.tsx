@@ -592,8 +592,6 @@ export default function PromotorRota() {
         device: navigator.userAgent || 'Unknown Device',
         photo_url: checkinPhotoUrl || undefined,
         facial_verified: isFacialActiveCheckin || undefined,
-        // Garante que o ID da rota seja enviado no corpo se necessário, embora usePromotorCheckin use na URL
-        routeId: id,
       }, {
         onSuccess: () => {
           logger.info('[handleCheckin] Check-in realizado com sucesso', { routeId: id });
