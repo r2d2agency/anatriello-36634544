@@ -274,6 +274,9 @@ router.put('/routes/:id', async (req, res) => {
           UNIQUE(route_id, brand_id)
         )`);
         await query('DELETE FROM route_brands WHERE route_id=$1', [req.params.id]);
+        // Clear stale route_brand_id refs on executions so we can re-link cleanly
+        try { await query('UPDATE route_product_executions SET route_brand_id=NULL WHERE route_id=$1', [req.params.id]); } catch {}
+        const pdvIdForHydrate = req.body.pdv_id || old.pdv_id;
         for (let i = 0; i < brandsPayload.length; i++) {
           const mb = brandsPayload[i];
           if (!mb?.brand_id) continue;
@@ -284,11 +287,16 @@ router.put('/routes/:id', async (req, res) => {
               mbChecklistId = cr.rows[0]?.id || null;
             } catch {}
           }
-          await query(
+          const rbRes = await query(
             `INSERT INTO route_brands (route_id, brand_id, checklist_id, sort_order) VALUES ($1,$2,$3,$4)
-             ON CONFLICT (route_id, brand_id) DO UPDATE SET checklist_id=EXCLUDED.checklist_id, sort_order=EXCLUDED.sort_order`,
+             ON CONFLICT (route_id, brand_id) DO UPDATE SET checklist_id=EXCLUDED.checklist_id, sort_order=EXCLUDED.sort_order
+             RETURNING *`,
             [req.params.id, mb.brand_id, mbChecklistId, i]
           );
+          // Hydrate products from PDV mix for this brand
+          if (rbRes.rows[0] && pdvIdForHydrate) {
+            await hydrateRouteBrandProducts(req.params.id, rbRes.rows[0].id, pdvIdForHydrate, mb.brand_id);
+          }
         }
         // If multi-brand, null root brand/checklist; if single, keep as scalar
         if (brandsPayload.length > 1) {
@@ -1638,6 +1646,30 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
       // Re-sort by original sort_order if needed, or just keep rb.id ordering
       routeBrands.sort((a, b) => a.sort_order - b.sort_order);
     } catch (e) { logWarn('promotor.route_detail.route_brands_failed', e); }
+
+    // Safety net: hydrate products for any route_brand that has zero linked products
+    try {
+      let needsRefetch = false;
+      for (const rb of routeBrands) {
+        if (Number(rb.total_products) === 0 && route.pdv_id && rb.brand_id) {
+          const added = await hydrateRouteBrandProducts(req.params.id, rb.id, route.pdv_id, rb.brand_id);
+          if (added > 0) needsRefetch = true;
+        }
+      }
+      if (needsRefetch) {
+        const re = await query(
+          `SELECT rpe.*, (COALESCE(rpe.qty_store,0) + COALESCE(rpe.qty_stock,0)) as qty_total,
+           pr.name as product_name, pr.sku, pr.barcode, pr.image_url,
+           pc.name as category_name, ps.name as subcategory_name
+           FROM route_product_executions rpe
+           JOIN merch_products pr ON pr.id = rpe.product_id
+           LEFT JOIN merch_categories pc ON pc.id = rpe.category_id
+           LEFT JOIN merch_subcategories ps ON ps.id = pr.subcategory_id
+           WHERE rpe.route_id=$1 ORDER BY pc.name, ps.name, pr.name`, [req.params.id]
+        );
+        executions.rows = re.rows;
+      }
+    } catch (e) { logWarn('promotor.route_detail.hydrate_missing', e); }
 
 
     // Check postponed items
