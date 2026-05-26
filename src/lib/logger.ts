@@ -1,4 +1,12 @@
-import { supabase } from "@/integrations/supabase/client";
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+// Create a local client for logging to avoid circular dependencies or early initialization issues
+const logClient = (SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY) 
+  ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : null;
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
@@ -12,11 +20,19 @@ interface LogData {
 export const logger = {
   async log({ message, level = 'info', context = {}, stack_trace }: LogData) {
     try {
+      // Also log to console for development immediately
+      const consoleMethod = level === 'fatal' ? 'error' : (level as any);
+      if (console[consoleMethod]) {
+        console[consoleMethod](`[${level.toUpperCase()}] ${message}`, context);
+      }
+
+      if (!logClient) return;
+
       // Get user info from localStorage if available (promotor specific)
       const employeeRaw = localStorage.getItem('promotor_employee');
       const employee = employeeRaw ? JSON.parse(employeeRaw) : null;
       
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await logClient.auth.getSession();
       
       const deviceInfo = {
         userAgent: navigator.userAgent,
@@ -26,7 +42,7 @@ export const logger = {
         screen: `${window.screen.width}x${window.screen.height}`,
       };
 
-      await supabase.from('app_logs').insert({
+      await logClient.from('app_logs').insert({
         level,
         message,
         context: {
@@ -39,12 +55,6 @@ export const logger = {
         device_info: deviceInfo,
         stack_trace: stack_trace || (level === 'error' || level === 'fatal' ? new Error().stack : undefined),
       });
-
-      // Also log to console for development
-      const consoleMethod = level === 'fatal' ? 'error' : (level as any);
-      if (console[consoleMethod]) {
-        console[consoleMethod](`[${level.toUpperCase()}] ${message}`, context);
-      }
     } catch (err) {
       console.error('Failed to send log to server:', err);
     }

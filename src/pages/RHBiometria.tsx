@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ScanFace, Search, Camera, CheckCircle2, AlertTriangle, Users, Loader2, Trash2, ShieldCheck, Play } from "lucide-react";
+import { ScanFace, Search, Camera, CheckCircle2, AlertTriangle, Users, Loader2, Trash2, ShieldCheck, Play, ShieldX } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -194,6 +194,17 @@ const RHBiometria = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={emp.facial_verification_enabled ? "text-muted-foreground" : "text-amber-600 bg-amber-50"}
+                        title={emp.facial_verification_enabled ? "Desativar verificação facial" : "Ativar verificação facial"}
+                        onClick={() => toggleFacialMutation.mutate({ id: emp.id, enabled: !emp.facial_verification_enabled })}
+                        disabled={toggleFacialMutation.isPending}
+                      >
+                        {emp.facial_verification_enabled ? <ShieldCheck className="h-4 w-4" /> : <ShieldX className="h-4 w-4" />}
+                      </Button>
+                      
                       {emp.face_enrolled ? (
                         <>
                           <Badge variant="default" className="bg-green-600 text-white gap-1">
