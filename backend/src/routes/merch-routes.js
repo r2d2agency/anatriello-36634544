@@ -2156,26 +2156,33 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
 // Promotor: Upload category AFTER photo (to complete/close category)
 router.post('/promotor/routes/:routeId/categories/:catId/after-photo', promotorAuth, async (req, res) => {
   try {
-    const { photo_url, photos, latitude, longitude } = req.body;
+    const { photo_url, photos, latitude, longitude, route_brand_id } = req.body;
     const photoList = Array.isArray(photos) && photos.length ? photos : (photo_url ? [photo_url] : []);
     if (!photoList.length) return res.status(400).json({ error: 'Foto obrigatória' });
 
     const catId = req.params.catId === 'null' ? null : req.params.catId;
 
     const cat = await query(
-      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2`,
-      [req.params.routeId, catId]
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $3`,
+      [req.params.routeId, catId, route_brand_id || null]
     );
     if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
     if (!cat.rows[0].products_unlocked) return res.status(400).json({ error: 'Produtos ainda não foram liberados (foto do ANTES necessária)' });
 
     let minAfter = 1;
     try {
-      const minRes = await query(
-        `SELECT bc.min_category_photos_after FROM merch_routes r
-         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`,
-        [req.params.routeId]
-      );
+      // Prioritize brand-specific checklist if multi-brand
+      let checklistQuery = `SELECT bc.min_category_photos_after FROM merch_routes r
+         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`;
+      let checklistParams = [req.params.routeId];
+
+      if (route_brand_id) {
+        checklistQuery = `SELECT bc.min_category_photos_after FROM route_brands rb
+           LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id WHERE rb.id=$1`;
+        checklistParams = [route_brand_id];
+      }
+
+      const minRes = await query(checklistQuery, checklistParams);
       if (minRes.rows[0]?.min_category_photos_after) minAfter = Math.max(1, parseInt(minRes.rows[0].min_category_photos_after, 10));
     } catch {}
 
@@ -2195,8 +2202,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/after-photo', promotorA
        completed=CASE WHEN $7::boolean THEN true ELSE completed END,
        completed_at=CASE WHEN $7::boolean AND completed_at IS NULL THEN NOW() ELSE completed_at END,
        performed_by=$6, updated_at=NOW()
-       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 RETURNING *`,
-      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, completes]
+       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $8 RETURNING *`,
+      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, completes, route_brand_id || null]
     );
 
     for (const pUrl of photoList) {
