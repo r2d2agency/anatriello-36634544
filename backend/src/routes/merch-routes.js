@@ -2015,6 +2015,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
       return res.status(400).json({ error: 'Tipo de ponto inválido. Use: natural ou extra' });
     }
 
+    const { route_brand_id } = req.body;
     const catId = req.params.catId === 'null' ? null : req.params.catId;
     const products_unlocked = !!req.body?.products_unlocked;
 
@@ -2032,9 +2033,9 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
 
     const result = await query(
       `INSERT INTO merch_execution_categories (
-         route_id, category_id, category_name, point_type, point_type_at, performed_by, products_unlocked, updated_at
-       ) VALUES ($1,$2,$3,$4,NOW(),$5,$6,NOW())
-       ON CONFLICT (route_id, category_id)
+         route_id, category_id, route_brand_id, category_name, point_type, point_type_at, performed_by, products_unlocked, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,NOW(),$6,$7,NOW())
+       ON CONFLICT (route_id, category_id, COALESCE(route_brand_id, '00000000-0000-0000-0000-000000000000'::uuid))
        DO UPDATE SET
          category_name = EXCLUDED.category_name,
          point_type = EXCLUDED.point_type,
@@ -2043,7 +2044,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
          products_unlocked = CASE WHEN EXCLUDED.products_unlocked = true THEN true ELSE merch_execution_categories.products_unlocked END,
          updated_at = NOW()
        RETURNING *`,
-      [req.params.routeId, catId, categoryInRoute.rows[0].category_name, point_type, req.employeeId, products_unlocked]
+      [req.params.routeId, catId, route_brand_id || null, categoryInRoute.rows[0].category_name, point_type, req.employeeId, products_unlocked]
     );
 
     try {
