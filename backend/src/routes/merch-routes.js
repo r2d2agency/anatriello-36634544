@@ -2031,8 +2031,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
 
     // Count previously uploaded before photos for this category
     const prevCount = (await query(
-      `SELECT COUNT(*)::int as n FROM route_photos WHERE route_id=$1 AND category_id=$2 AND photo_type='category_before'`,
-      [req.params.routeId, req.params.catId]
+      `SELECT COUNT(*)::int as n FROM route_photos WHERE route_id=$1 AND ${catId ? 'category_id=$2' : 'category_id IS NULL'} AND photo_type='category_before'`,
+      catId ? [req.params.routeId, catId] : [req.params.routeId]
     )).rows[0]?.n || 0;
     const totalAfterUpload = prevCount + photoList.length;
     const unlocks = totalAfterUpload >= minBefore;
