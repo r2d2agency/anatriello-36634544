@@ -1029,9 +1029,22 @@ export default function PromotorRota() {
 
             {/* Complete Route button */}
             {(() => {
-              const totalExecs = filteredExecs.length;
-              const completedExecs = filteredExecs.filter((e: any) => e.status === 'completed').length;
-              const allProductsDone = totalExecs > 0 && completedExecs === totalExecs;
+              // Para rotas multi-marcas, a conclusão global deve checar TODOS os produtos de TODAS as marcas
+              const allExecutions = route?.executions || [];
+              const totalExecsGlobal = allExecutions.length;
+              const completedExecsGlobal = allExecutions.filter((e: any) => e.status === 'completed').length;
+              const allProductsDoneGlobal = totalExecsGlobal > 0 && completedExecsGlobal === totalExecsGlobal;
+              
+              // Também checamos se todas as marcas estão concluídas (para garantir que fotos obrigatórias foram tiradas)
+              const allBrandsCompleted = isMultiBrand 
+                ? routeBrands.every((rb: any) => rb.status === 'completed' || rb.progress_pct >= 100)
+                : true;
+
+              // Para o feedback visual no botão da marca atual
+              const totalExecsThisBrand = filteredExecs.length;
+              const completedExecsThisBrand = filteredExecs.filter((e: any) => e.status === 'completed').length;
+              const brandDone = totalExecsThisBrand > 0 && completedExecsThisBrand === totalExecsThisBrand;
+              
               const requireCategoryPhotos = route?.require_category_photos !== false;
               
               const categoryEntries = Object.entries(groupedExecs);
@@ -1040,24 +1053,25 @@ export default function PromotorRota() {
                 const catDone = execs.every((e: any) => e.status === 'completed');
                 return catDone && !catStatus?.category_after_photo && !catStatus?.completed;
               }) : [];
-              const allCategoriesCompleted = categoriesMissingAfterPhoto.length === 0;
+              const currentBrandCategoriesCompleted = categoriesMissingAfterPhoto.length === 0;
               
               const minDuration = parseInt(route?.min_duration_minutes || "0", 10);
               const checkinAt = route?.checkin_at ? new Date(route.checkin_at) : null;
               const elapsedMinutes = checkinAt ? Math.floor((currentTime.getTime() - checkinAt.getTime()) / 60000) : 0;
               const hasMinDurationMet = minDuration === 0 || elapsedMinutes >= minDuration;
               
-              const allDone = allProductsDone && allCategoriesCompleted && hasMinDurationMet;
+              // A rota só pode ser concluída se TODOS os produtos de TODAS as marcas estiverem prontos
+              const canCompleteRoute = allProductsDoneGlobal && allBrandsCompleted && hasMinDurationMet;
               
               return (
                 <>
                   <Button className="w-full h-12" onClick={() => {
-                    if (!allProductsDone) {
-                      toast.error(`Ainda faltam ${totalExecs - completedExecs} produto(s) para concluir. Todos devem estar 100% executados.`);
+                    if (!allProductsDoneGlobal) {
+                      toast.error(`Ainda faltam ${totalExecsGlobal - completedExecsGlobal} produto(s) no total para concluir a rota.`);
                       return;
                     }
-                    if (!allCategoriesCompleted) {
-                      toast.error(`${categoriesMissingAfterPhoto.length} categoria(s) ainda precisam da foto DEPOIS para serem concluídas.`);
+                    if (!allBrandsCompleted) {
+                      toast.error(`Existem marcas que ainda não foram totalmente concluídas.`);
                       return;
                     }
                     if (!hasMinDurationMet) {
@@ -1065,8 +1079,8 @@ export default function PromotorRota() {
                       return;
                     }
                     setShowCompleteRoute(true);
-                  }} disabled={checkout.isPending} variant={allDone ? 'default' : 'secondary'}>
-                    <Check className="h-5 w-5 mr-2" /> Concluir Rota ({completedExecs}/{totalExecs})
+                  }} disabled={checkout.isPending} variant={canCompleteRoute ? 'default' : 'secondary'}>
+                    <Check className="h-5 w-5 mr-2" /> Concluir Rota ({completedExecsGlobal}/{totalExecsGlobal})
                   </Button>
                   {!allDone && (
                     <div className="space-y-1">
