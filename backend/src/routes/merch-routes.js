@@ -1991,7 +1991,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
       await query(
         `INSERT INTO route_execution_logs (route_id, action, details, performed_by, source)
          VALUES ($1,'category_point_type',$2,$3,'app')`,
-        [req.params.routeId, JSON.stringify({ category_id: req.params.catId, point_type, received_body: req.body }), req.employeeId]
+        [req.params.routeId, JSON.stringify({ category_id: catId, point_type, received_body: req.body }), req.employeeId]
       );
     } catch (logErr) {
       logWarn('promotor.cat_point_type.log_failed', { routeId: req.params.routeId, catId: req.params.catId, error: logErr?.message });
