@@ -1602,8 +1602,9 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
        COALESCE(bc.require_extra_point, bc2.require_extra_point, false) as require_extra_point,
        COALESCE(bc.require_category_photos, bc2.require_category_photos, true) as require_category_photos,
        COALESCE(bc.category_photo_mode, bc2.category_photo_mode, 'both') as category_photo_mode,
-       COALESCE(bc.min_category_photos_before, bc2.min_category_photos_before, 1) as min_category_photos_before,
-       COALESCE(bc.min_category_photos_after, bc2.min_category_photos_after, 1) as min_category_photos_after
+        COALESCE(bc.min_category_photos_before, bc2.min_category_photos_before, 1) as min_category_photos_before,
+        COALESCE(bc.min_category_photos_after, bc2.min_category_photos_after, 1) as min_category_photos_after,
+        COALESCE(bc.category_photo_mode, bc2.category_photo_mode, 'both') as category_photo_mode
        FROM merch_routes r
        LEFT JOIN pdvs p ON p.id = r.pdv_id
        LEFT JOIN merch_brands b ON b.id = r.brand_id
@@ -2053,11 +2054,16 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
     let minBefore = 1;
     try {
       const minRes = await query(
-        `SELECT bc.min_category_photos_before FROM merch_routes r
+        `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM merch_routes r
          LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`,
         [req.params.routeId]
       );
-      if (minRes.rows[0]?.min_category_photos_before) minBefore = Math.max(1, parseInt(minRes.rows[0].min_category_photos_before, 10));
+      if (minRes.rows[0]?.min_category_photos_before !== undefined) {
+        minBefore = Math.max(0, parseInt(minRes.rows[0].min_category_photos_before, 10) || 0);
+      }
+      if (minRes.rows[0]?.category_photo_mode === 'after') {
+        minBefore = 0; // No photos required before if mode is 'after'
+      }
     } catch {}
 
     // Count previously uploaded before photos for this category
