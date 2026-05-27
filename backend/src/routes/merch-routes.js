@@ -2045,8 +2045,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
        products_unlocked=CASE WHEN $7::boolean THEN true ELSE products_unlocked END,
        unlocked_at=CASE WHEN $7::boolean AND unlocked_at IS NULL THEN NOW() ELSE unlocked_at END,
        performed_by=$6, updated_at=NOW()
-       WHERE route_id=$1 AND category_id=$2 RETURNING *`,
-      [req.params.routeId, req.params.catId, primaryPhoto, latitude, longitude, req.employeeId, unlocks]
+       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 RETURNING *`,
+      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, unlocks]
     );
 
     // Persist every photo
