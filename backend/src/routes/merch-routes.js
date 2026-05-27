@@ -777,7 +777,7 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
     const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
     const orgId = orgRes.rows[0].organization_id;
     const { brand_id, name, description, require_checkin_photo, require_checkout_photo, require_stock_count,
-            require_validity_check, require_extra_point, require_category_photos,
+            require_validity_check, require_extra_point, require_category_photos, category_photo_mode,
             min_category_photos_before, min_category_photos_after,
             stock_count_frequency, validity_check_frequency } = req.body;
 
@@ -794,6 +794,7 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
        require_validity_check BOOLEAN DEFAULT false,
        require_extra_point BOOLEAN DEFAULT false,
        require_category_photos BOOLEAN DEFAULT true,
+       category_photo_mode VARCHAR(20) DEFAULT 'both',
        stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
       validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
       active BOOLEAN DEFAULT true,
@@ -801,19 +802,21 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`);
     await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`).catch(() => {});
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS category_photo_mode VARCHAR(20) DEFAULT 'both'`).catch(() => {});
     await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_before INT DEFAULT 1`).catch(() => {});
     await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_after INT DEFAULT 1`).catch(() => {});
 
     const result = await query(
       `INSERT INTO brand_checklists (organization_id, brand_id, name, description, require_checkin_photo,
        require_checkout_photo, require_stock_count, require_validity_check, require_extra_point, require_category_photos,
-       min_category_photos_before, min_category_photos_after,
+       category_photo_mode, min_category_photos_before, min_category_photos_after,
        stock_count_frequency, validity_check_frequency)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
       [orgId, brand_id, name, description, require_checkin_photo ?? true, require_checkout_photo ?? false,
        require_stock_count ?? false, require_validity_check ?? false, require_extra_point ?? false, require_category_photos ?? true,
-       Math.max(1, parseInt(min_category_photos_before, 10) || 1),
-       Math.max(1, parseInt(min_category_photos_after, 10) || 1),
+       category_photo_mode || 'both',
+       parseInt(min_category_photos_before, 10) || 0,
+       parseInt(min_category_photos_after, 10) || 0,
        stock_count_frequency || 'every_visit', validity_check_frequency || 'every_visit']
     );
     res.json(result.rows[0]);
