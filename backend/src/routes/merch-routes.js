@@ -1958,12 +1958,14 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
       return res.status(400).json({ error: 'Tipo de ponto inválido. Use: natural ou extra' });
     }
 
+    const catId = req.params.catId === 'null' ? null : req.params.catId;
+
     const categoryInRoute = await query(
       `SELECT COUNT(*)::int AS total, COALESCE(MAX(pc.name), 'Sem nome') AS category_name
        FROM route_product_executions rpe
        LEFT JOIN merch_categories pc ON pc.id = rpe.category_id
-       WHERE rpe.route_id=$1 AND rpe.category_id=$2`,
-      [req.params.routeId, req.params.catId]
+       WHERE rpe.route_id=$1 AND ${catId ? 'rpe.category_id=$2' : 'rpe.category_id IS NULL'}`,
+      catId ? [req.params.routeId, catId] : [req.params.routeId]
     );
 
     if (!categoryInRoute.rows[0]?.total) {
