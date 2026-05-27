@@ -2008,10 +2008,12 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
     const photoList = Array.isArray(photos) && photos.length ? photos : (photo_url ? [photo_url] : []);
     if (!photoList.length) return res.status(400).json({ error: 'Foto obrigatória' });
 
+    const catId = req.params.catId === 'null' ? null : req.params.catId;
+
     // Check point_type was set first
     const cat = await query(
-      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id=$2`,
-      [req.params.routeId, req.params.catId]
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND ${catId ? 'category_id=$2' : 'category_id IS NULL'}`,
+      catId ? [req.params.routeId, catId] : [req.params.routeId]
     );
     if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
     if (!cat.rows[0].point_type) return res.status(400).json({ error: 'Selecione o tipo de ponto antes de tirar a foto' });
