@@ -2066,7 +2066,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
 // Promotor: Upload category before photo
 router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, async (req, res) => {
   try {
-    const { photo_url, photos, latitude, longitude } = req.body;
+    const { photo_url, photos, latitude, longitude, route_brand_id } = req.body;
     const photoList = Array.isArray(photos) && photos.length ? photos : (photo_url ? [photo_url] : []);
     if (!photoList.length) return res.status(400).json({ error: 'Foto obrigatória' });
 
@@ -2074,8 +2074,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
 
     // Check point_type was set first
     const cat = await query(
-      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND ${catId ? 'category_id=$2' : 'category_id IS NULL'}`,
-      catId ? [req.params.routeId, catId] : [req.params.routeId]
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $3`,
+      [req.params.routeId, catId, route_brand_id || null]
     );
     if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
     if (!cat.rows[0].point_type) return res.status(400).json({ error: 'Selecione o tipo de ponto antes de tirar a foto' });
@@ -2083,11 +2083,18 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
     // Lookup minimum required from checklist
     let minBefore = 1;
     try {
-      const minRes = await query(
-        `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM merch_routes r
-         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`,
-        [req.params.routeId]
-      );
+      // Prioritize brand-specific checklist if multi-brand
+      let checklistQuery = `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM merch_routes r
+         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`;
+      let checklistParams = [req.params.routeId];
+
+      if (route_brand_id) {
+        checklistQuery = `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM route_brands rb
+           LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id WHERE rb.id=$1`;
+        checklistParams = [route_brand_id];
+      }
+
+      const minRes = await query(checklistQuery, checklistParams);
       if (minRes.rows[0]?.min_category_photos_before !== undefined) {
         minBefore = Math.max(0, parseInt(minRes.rows[0].min_category_photos_before, 10) || 0);
       }
@@ -2096,10 +2103,10 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
       }
     } catch {}
 
-    // Count previously uploaded before photos for this category
+    // Count previously uploaded before photos for this category/brand
     const prevCount = (await query(
-      `SELECT COUNT(*)::int as n FROM route_photos WHERE route_id=$1 AND ${catId ? 'category_id=$2' : 'category_id IS NULL'} AND photo_type='category_before'`,
-      catId ? [req.params.routeId, catId] : [req.params.routeId]
+      `SELECT COUNT(*)::int as n FROM route_photos WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND photo_type='category_before'`,
+      [req.params.routeId, catId]
     )).rows[0]?.n || 0;
     const totalAfterUpload = prevCount + photoList.length;
     const unlocks = totalAfterUpload >= minBefore;
@@ -2112,8 +2119,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
        products_unlocked=CASE WHEN $7::boolean THEN true ELSE products_unlocked END,
        unlocked_at=CASE WHEN $7::boolean AND unlocked_at IS NULL THEN NOW() ELSE unlocked_at END,
        performed_by=$6, updated_at=NOW()
-       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 RETURNING *`,
-      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, unlocks]
+       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $8 RETURNING *`,
+      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, unlocks, route_brand_id || null]
     );
 
     // Persist every photo
