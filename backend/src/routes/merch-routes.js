@@ -2086,9 +2086,11 @@ router.post('/promotor/routes/:routeId/categories/:catId/after-photo', promotorA
     const photoList = Array.isArray(photos) && photos.length ? photos : (photo_url ? [photo_url] : []);
     if (!photoList.length) return res.status(400).json({ error: 'Foto obrigatória' });
 
+    const catId = req.params.catId === 'null' ? null : req.params.catId;
+
     const cat = await query(
-      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id=$2`,
-      [req.params.routeId, req.params.catId]
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2`,
+      [req.params.routeId, catId]
     );
     if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
     if (!cat.rows[0].products_unlocked) return res.status(400).json({ error: 'Produtos ainda não foram liberados (foto do ANTES necessária)' });
