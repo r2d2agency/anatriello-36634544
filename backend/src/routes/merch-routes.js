@@ -1423,6 +1423,7 @@ async function ensureExecutionCategoryTables() {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       route_id UUID NOT NULL REFERENCES merch_routes(id) ON DELETE CASCADE,
       category_id UUID REFERENCES merch_categories(id),
+      route_brand_id UUID REFERENCES route_brands(id) ON DELETE CASCADE,
       category_name VARCHAR(255),
       point_type VARCHAR(20),
       point_type_at TIMESTAMPTZ,
@@ -1437,8 +1438,19 @@ async function ensureExecutionCategoryTables() {
       performed_by UUID,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE NULLS NOT DISTINCT (route_id, category_id)
+      UNIQUE NULLS NOT DISTINCT (route_id, category_id, route_brand_id)
     )`);
+
+    // Add route_brand_id if it doesn't exist
+    try {
+      await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID REFERENCES route_brands(id) ON DELETE CASCADE`);
+      // Update unique constraint
+      await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_key`);
+      await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_route_brand_id_key`);
+      await query(`ALTER TABLE merch_execution_categories ADD CONSTRAINT merch_execution_categories_route_unique UNIQUE NULLS NOT DISTINCT (route_id, category_id, route_brand_id)`);
+    } catch (e) {
+      logWarn('failed to update merch_execution_categories schema', e);
+    }
 
     // Ensure category_id is nullable if it was NOT NULL before
     try {
@@ -1718,18 +1730,36 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     } catch (e) { if (e.code !== '42P01') throw e; }
 
     // Auto-create category entries for categories that have products but no entry yet
-    const existingCatIds = new Set(categoryStatuses.map(c => c.category_id));
-    const categoriesInRoute = [...new Set(executions.rows.filter(e => e.category_id).map(e => e.category_id))];
-    const requireCategoryPhotos = route.require_category_photos !== false;
+    // Para rotas multi-marcas, criamos entradas por (category_id, route_brand_id)
+    const existingCatKeys = new Set(categoryStatuses.map(c => `${c.category_id || 'null'}_${c.route_brand_id || 'null'}`));
+    
+    // Categorias presentes nas execuções (produtos)
+    const categoriesByBrand = executions.rows.reduce((acc, exec) => {
+      const key = `${exec.category_id || 'null'}_${exec.route_brand_id || 'null'}`;
+      if (!acc[key]) {
+        acc[key] = {
+          catId: exec.category_id,
+          catName: exec.category_name || 'Sem nome',
+          brandId: exec.route_brand_id
+        };
+      }
+      return acc;
+    }, {});
 
-    for (const catId of categoriesInRoute) {
-      if (!existingCatIds.has(catId)) {
-        const catName = executions.rows.find(e => e.category_id === catId)?.category_name || 'Sem nome';
+    for (const [key, data] of Object.entries(categoriesByBrand)) {
+      if (!existingCatKeys.has(key)) {
+        // Encontrar se esta marca específica exige fotos de categoria
+        let brandRequirePhotos = route.require_category_photos !== false;
+        if (data.brandId) {
+          const rb = routeBrands.find(b => b.id === data.brandId);
+          if (rb) brandRequirePhotos = rb.require_category_photos !== false;
+        }
+
         try {
           const ins = await query(
-            `INSERT INTO merch_execution_categories (route_id, category_id, category_name, performed_by, products_unlocked)
-             VALUES ($1,$2,$3,$4,$5) ON CONFLICT (route_id, category_id) DO NOTHING RETURNING *`,
-            [req.params.id, catId, catName, req.employeeId, !requireCategoryPhotos]
+            `INSERT INTO merch_execution_categories (route_id, category_id, route_brand_id, category_name, performed_by, products_unlocked)
+             VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (route_id, category_id, COALESCE(route_brand_id, '00000000-0000-0000-0000-000000000000'::uuid)) DO NOTHING RETURNING *`,
+            [req.params.id, data.catId, data.brandId, data.catName, req.employeeId, !brandRequirePhotos]
           );
           if (ins.rows[0]) categoryStatuses.push(ins.rows[0]);
         } catch (e) { if (e.code !== '42P01') logError('promotor.auto_create_cat', e); }
@@ -1985,6 +2015,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
       return res.status(400).json({ error: 'Tipo de ponto inválido. Use: natural ou extra' });
     }
 
+    const { route_brand_id } = req.body;
     const catId = req.params.catId === 'null' ? null : req.params.catId;
     const products_unlocked = !!req.body?.products_unlocked;
 
@@ -2002,9 +2033,9 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
 
     const result = await query(
       `INSERT INTO merch_execution_categories (
-         route_id, category_id, category_name, point_type, point_type_at, performed_by, products_unlocked, updated_at
-       ) VALUES ($1,$2,$3,$4,NOW(),$5,$6,NOW())
-       ON CONFLICT (route_id, category_id)
+         route_id, category_id, route_brand_id, category_name, point_type, point_type_at, performed_by, products_unlocked, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,NOW(),$6,$7,NOW())
+       ON CONFLICT (route_id, category_id, COALESCE(route_brand_id, '00000000-0000-0000-0000-000000000000'::uuid))
        DO UPDATE SET
          category_name = EXCLUDED.category_name,
          point_type = EXCLUDED.point_type,
@@ -2013,7 +2044,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
          products_unlocked = CASE WHEN EXCLUDED.products_unlocked = true THEN true ELSE merch_execution_categories.products_unlocked END,
          updated_at = NOW()
        RETURNING *`,
-      [req.params.routeId, catId, categoryInRoute.rows[0].category_name, point_type, req.employeeId, products_unlocked]
+      [req.params.routeId, catId, route_brand_id || null, categoryInRoute.rows[0].category_name, point_type, req.employeeId, products_unlocked]
     );
 
     try {
@@ -2036,7 +2067,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/point-type', promotorAu
 // Promotor: Upload category before photo
 router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, async (req, res) => {
   try {
-    const { photo_url, photos, latitude, longitude } = req.body;
+    const { photo_url, photos, latitude, longitude, route_brand_id } = req.body;
     const photoList = Array.isArray(photos) && photos.length ? photos : (photo_url ? [photo_url] : []);
     if (!photoList.length) return res.status(400).json({ error: 'Foto obrigatória' });
 
@@ -2044,8 +2075,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
 
     // Check point_type was set first
     const cat = await query(
-      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND ${catId ? 'category_id=$2' : 'category_id IS NULL'}`,
-      catId ? [req.params.routeId, catId] : [req.params.routeId]
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $3`,
+      [req.params.routeId, catId, route_brand_id || null]
     );
     if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
     if (!cat.rows[0].point_type) return res.status(400).json({ error: 'Selecione o tipo de ponto antes de tirar a foto' });
@@ -2053,11 +2084,18 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
     // Lookup minimum required from checklist
     let minBefore = 1;
     try {
-      const minRes = await query(
-        `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM merch_routes r
-         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`,
-        [req.params.routeId]
-      );
+      // Prioritize brand-specific checklist if multi-brand
+      let checklistQuery = `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM merch_routes r
+         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`;
+      let checklistParams = [req.params.routeId];
+
+      if (route_brand_id) {
+        checklistQuery = `SELECT bc.min_category_photos_before, bc.category_photo_mode FROM route_brands rb
+           LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id WHERE rb.id=$1`;
+        checklistParams = [route_brand_id];
+      }
+
+      const minRes = await query(checklistQuery, checklistParams);
       if (minRes.rows[0]?.min_category_photos_before !== undefined) {
         minBefore = Math.max(0, parseInt(minRes.rows[0].min_category_photos_before, 10) || 0);
       }
@@ -2066,10 +2104,10 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
       }
     } catch {}
 
-    // Count previously uploaded before photos for this category
+    // Count previously uploaded before photos for this category/brand
     const prevCount = (await query(
-      `SELECT COUNT(*)::int as n FROM route_photos WHERE route_id=$1 AND ${catId ? 'category_id=$2' : 'category_id IS NULL'} AND photo_type='category_before'`,
-      catId ? [req.params.routeId, catId] : [req.params.routeId]
+      `SELECT COUNT(*)::int as n FROM route_photos WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND photo_type='category_before'`,
+      [req.params.routeId, catId]
     )).rows[0]?.n || 0;
     const totalAfterUpload = prevCount + photoList.length;
     const unlocks = totalAfterUpload >= minBefore;
@@ -2082,8 +2120,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
        products_unlocked=CASE WHEN $7::boolean THEN true ELSE products_unlocked END,
        unlocked_at=CASE WHEN $7::boolean AND unlocked_at IS NULL THEN NOW() ELSE unlocked_at END,
        performed_by=$6, updated_at=NOW()
-       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 RETURNING *`,
-      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, unlocks]
+       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $8 RETURNING *`,
+      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, unlocks, route_brand_id || null]
     );
 
     // Persist every photo
@@ -2119,26 +2157,33 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
 // Promotor: Upload category AFTER photo (to complete/close category)
 router.post('/promotor/routes/:routeId/categories/:catId/after-photo', promotorAuth, async (req, res) => {
   try {
-    const { photo_url, photos, latitude, longitude } = req.body;
+    const { photo_url, photos, latitude, longitude, route_brand_id } = req.body;
     const photoList = Array.isArray(photos) && photos.length ? photos : (photo_url ? [photo_url] : []);
     if (!photoList.length) return res.status(400).json({ error: 'Foto obrigatória' });
 
     const catId = req.params.catId === 'null' ? null : req.params.catId;
 
     const cat = await query(
-      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2`,
-      [req.params.routeId, catId]
+      `SELECT * FROM merch_execution_categories WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $3`,
+      [req.params.routeId, catId, route_brand_id || null]
     );
     if (!cat.rows.length) return res.status(404).json({ error: 'Categoria não encontrada' });
     if (!cat.rows[0].products_unlocked) return res.status(400).json({ error: 'Produtos ainda não foram liberados (foto do ANTES necessária)' });
 
     let minAfter = 1;
     try {
-      const minRes = await query(
-        `SELECT bc.min_category_photos_after FROM merch_routes r
-         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`,
-        [req.params.routeId]
-      );
+      // Prioritize brand-specific checklist if multi-brand
+      let checklistQuery = `SELECT bc.min_category_photos_after FROM merch_routes r
+         LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id WHERE r.id=$1`;
+      let checklistParams = [req.params.routeId];
+
+      if (route_brand_id) {
+        checklistQuery = `SELECT bc.min_category_photos_after FROM route_brands rb
+           LEFT JOIN brand_checklists bc ON bc.id = rb.checklist_id WHERE rb.id=$1`;
+        checklistParams = [route_brand_id];
+      }
+
+      const minRes = await query(checklistQuery, checklistParams);
       if (minRes.rows[0]?.min_category_photos_after) minAfter = Math.max(1, parseInt(minRes.rows[0].min_category_photos_after, 10));
     } catch {}
 
@@ -2158,8 +2203,8 @@ router.post('/promotor/routes/:routeId/categories/:catId/after-photo', promotorA
        completed=CASE WHEN $7::boolean THEN true ELSE completed END,
        completed_at=CASE WHEN $7::boolean AND completed_at IS NULL THEN NOW() ELSE completed_at END,
        performed_by=$6, updated_at=NOW()
-       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 RETURNING *`,
-      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, completes]
+       WHERE route_id=$1 AND category_id IS NOT DISTINCT FROM $2 AND route_brand_id IS NOT DISTINCT FROM $8 RETURNING *`,
+      [req.params.routeId, catId, primaryPhoto, latitude, longitude, req.employeeId, completes, route_brand_id || null]
     );
 
     for (const pUrl of photoList) {

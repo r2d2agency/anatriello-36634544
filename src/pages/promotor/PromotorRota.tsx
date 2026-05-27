@@ -44,8 +44,8 @@ const usePromotorPdvCheckout = () => {
 };
 
 // ===== Category Preparation Component =====
-function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, photoMode, onUnlocked }: {
-  category: any; catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; photoMode?: 'before' | 'after' | 'both'; onUnlocked: () => void;
+function CategoryPreparation({ category, catId, routeBrandId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, photoMode, onUnlocked }: {
+  category: any; catId: string; routeBrandId?: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; photoMode?: 'before' | 'after' | 'both'; onUnlocked: () => void;
 }) {
   const setPointType = usePromotorSetPointType();
   const setCategoryPhoto = usePromotorCategoryPhoto();
@@ -68,6 +68,7 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
     setPointType.mutate({ 
       routeId, 
       catId, 
+      route_brand_id: routeBrandId,
       point_type: type,
       // Passamos um flag para o hook se ele precisar tratar o desbloqueio imediato no backend
       products_unlocked: shouldUnlockImmediately 
@@ -92,7 +93,7 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
       ).catch(() => null);
 
       setCategoryPhoto.mutate({
-        routeId, catId, photo_url: photos[0], photos,
+        routeId, catId, route_brand_id: routeBrandId, photo_url: photos[0], photos,
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
       }, {
         onSuccess: () => {
@@ -339,8 +340,8 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
 }
 
 // ===== Category After Photo Gate (required to close/complete category) =====
-function CategoryAfterPhotoGate({ catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, onCompleted }: {
-  catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; onCompleted: () => void;
+function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, onCompleted }: {
+  catId: string; routeBrandId?: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; onCompleted: () => void;
 }) {
   const setCategoryAfterPhoto = usePromotorCategoryAfterPhoto();
   const [photos, setPhotos] = useState<string[]>([]);
@@ -355,7 +356,7 @@ function CategoryAfterPhotoGate({ catId, categoryName, routeId, pdvName, brandNa
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
       ).catch(() => null);
       setCategoryAfterPhoto.mutate({
-        routeId, catId, photo_url: photos[0], photos,
+        routeId, catId, route_brand_id: routeBrandId, photo_url: photos[0], photos,
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
       }, {
         onSuccess: () => { toast.success(`${photos.length} foto(s) DEPOIS registrada(s)! Categoria concluída.`); setPhotos([]); onCompleted(); },
@@ -508,15 +509,12 @@ export default function PromotorRota() {
   const categoryStatusMap = useMemo(() => {
     const map: Record<string, any> = {};
     (route?.category_statuses || []).forEach((cs: any) => {
-      // If multi-brand, only show categories for active brand
-      if (isMultiBrand && activeBrandId && cs.route_brand_id) {
-        const rb = routeBrands.find((b: any) => b.id === cs.route_brand_id);
-        if (rb?.brand_id !== activeBrandId) return;
-      }
-      map[cs.category_id] = cs;
+      // Create keys for both specific (with brand) and general category access
+      const key = cs.route_brand_id ? `${cs.category_id}_${cs.route_brand_id}` : cs.category_id;
+      map[key] = cs;
     });
     return map;
-  }, [route?.category_statuses, isMultiBrand, activeBrandId, routeBrands]);
+  }, [route?.category_statuses]);
 
   const requireStockCount = useMemo(() => (isMultiBrand ? currentBrand?.require_stock_count : route?.require_stock_count) ?? false, [isMultiBrand, currentBrand, route]);
   const requireValidityCheck = useMemo(() => (isMultiBrand ? currentBrand?.require_validity_check : route?.require_validity_check) ?? false, [isMultiBrand, currentBrand, route]);
@@ -676,8 +674,12 @@ export default function PromotorRota() {
   }, [route?.pdv_id, pdvCheckout, pdvCheckoutPhoto, actionForm, navigate]);
 
   const handleOpenProduct = useCallback((exec: any) => {
-    const catStatus = categoryStatusMap[exec.category_id];
-    const requireCategoryPhotos = route?.require_category_photos !== false;
+    const routeBrandId = exec.route_brand_id;
+    const catStatus = categoryStatusMap[`${exec.category_id}_${routeBrandId || 'null'}`] || categoryStatusMap[exec.category_id];
+    
+    // Check checklist settings for this brand
+    const rb = isMultiBrand ? routeBrands.find((b: any) => b.id === routeBrandId) : null;
+    const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
     
     if (requireCategoryPhotos && !catStatus?.products_unlocked) {
       toast.error('Finalize a etapa de preparação da categoria antes de executar produtos.');
@@ -857,12 +859,15 @@ export default function PromotorRota() {
         {isActive && (!isMultiBrand || activeBrandId) && (
           <div className="space-y-4">
             {Object.entries(groupedExecs).map(([category, { catId, execs, isExtraGroup }]) => {
-              const catStatus = categoryStatusMap[catId];
-              // Use checklist settings if available
-              const photoMode = (route as any)?.category_photo_mode || 'both';
-              const requireCategoryPhotos = (route as any)?.require_category_photos !== false;
+              const routeBrandId = execs[0]?.route_brand_id;
+              const catStatus = categoryStatusMap[`${catId}_${routeBrandId || 'null'}`] || categoryStatusMap[catId];
               
-              const extraPhotoKey = `extra_${catId}`;
+              // Use checklist settings if available
+              const rb = isMultiBrand ? routeBrands.find((b: any) => b.brand_id === activeBrandId) : null;
+              const photoMode = (rb || route as any)?.category_photo_mode || 'both';
+              const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
+              
+              const extraPhotoKey = `extra_${catId}_${routeBrandId || 'null'}`;
               const hasExtraPhoto = extraGroupPhotos[extraPhotoKey];
               
               // Unlocked depends on photoMode:
@@ -894,14 +899,15 @@ export default function PromotorRota() {
                     <CategoryPreparation
                       category={catStatus}
                       catId={catId}
+                      routeBrandId={routeBrandId}
                       categoryName={category}
                       routeId={id!}
                       pdvName={route.pdv_name}
                       brandName={currentBrand?.brand_name || route.brand_name}
                       promotorName={route.promotor_name}
                       qualityConfig={photoQualityConfig}
-                      minPhotos={Math.max(1, parseInt((route as any)?.min_category_photos_before, 10) || 1)}
-                      photoMode={(route as any)?.category_photo_mode || 'both'}
+                      photoMode={photoMode}
+                      minPhotos={Math.max(1, parseInt((rb || route as any)?.min_category_photos_before, 10) || 1)}
                       onUnlocked={() => refetch()}
                     />
                   )}
@@ -1019,13 +1025,14 @@ export default function PromotorRota() {
                   {needsAfterPhoto && (
                     <CategoryAfterPhotoGate
                       catId={catId}
+                      routeBrandId={routeBrandId}
                       categoryName={category}
                       routeId={id!}
                       pdvName={route.pdv_name}
                       brandName={currentBrand?.brand_name || route.brand_name}
                       promotorName={route.promotor_name}
                       qualityConfig={photoQualityConfig}
-                      minPhotos={Math.max(1, parseInt((route as any)?.min_category_photos_after, 10) || 1)}
+                      minPhotos={Math.max(1, parseInt((rb || route as any)?.min_category_photos_after, 10) || 1)}
                       onCompleted={() => refetch()}
                     />
                   )}
@@ -1051,11 +1058,14 @@ export default function PromotorRota() {
               const completedExecsThisBrand = filteredExecs.filter((e: any) => e.status === 'completed').length;
               const brandDone = totalExecsThisBrand > 0 && completedExecsThisBrand === totalExecsThisBrand;
               
-              const requireCategoryPhotos = route?.require_category_photos !== false;
+              // No contexto de multi-marcas, precisamos garantir que as fotos de categoria da marca ATUAL foram tiradas
+              const rb = isMultiBrand ? routeBrands.find((b: any) => b.brand_id === activeBrandId) : null;
+              const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
               
               const categoryEntries = Object.entries(groupedExecs);
               const categoriesMissingAfterPhoto = requireCategoryPhotos ? categoryEntries.filter(([, { catId, execs }]) => {
-                const catStatus = categoryStatusMap[catId];
+                const routeBrandId = execs[0]?.route_brand_id;
+                const catStatus = categoryStatusMap[`${catId}_${routeBrandId || 'null'}`] || categoryStatusMap[catId];
                 const catDone = execs.every((e: any) => e.status === 'completed');
                 return catDone && !catStatus?.category_after_photo && !catStatus?.completed;
               }) : [];

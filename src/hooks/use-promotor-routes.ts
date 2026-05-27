@@ -135,7 +135,7 @@ export function usePromotorPostpone() {
 export function usePromotorSetPointType() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ routeId, catId, point_type, ...data }: { routeId: string; catId: string; point_type: string; [key: string]: any }) => {
+    mutationFn: async ({ routeId, catId, point_type, route_brand_id, ...data }: { routeId: string; catId: string; point_type: string; route_brand_id?: string; [key: string]: any }) => {
       const normalized = point_type === 'extra' ? 'EXTRA' : 'NATURAL';
       return promotorApi<any>(
         `/api/merch/promotor/routes/${routeId}/categories/${catId}/point-type`,
@@ -144,6 +144,7 @@ export function usePromotorSetPointType() {
           body: { 
             point_type: point_type.toLowerCase(), 
             pointType: normalized,
+            route_brand_id,
             ...data
           } 
         }
@@ -156,8 +157,8 @@ export function usePromotorSetPointType() {
 export function usePromotorCategoryPhoto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ routeId, catId, ...data }: { routeId: string; catId: string; photo_url: string; photos?: string[]; latitude?: number; longitude?: number }) =>
-      promotorApi<any>(`/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`, { method: 'POST', body: data }),
+    mutationFn: ({ routeId, catId, route_brand_id, ...data }: { routeId: string; catId: string; route_brand_id?: string; photo_url: string; photos?: string[]; latitude?: number; longitude?: number }) =>
+      promotorApi<any>(`/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`, { method: 'POST', body: { ...data, route_brand_id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['promotor-route'] }),
   });
 }
@@ -165,8 +166,8 @@ export function usePromotorCategoryPhoto() {
 export function usePromotorCategoryAfterPhoto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ routeId, catId, ...data }: { routeId: string; catId: string; photo_url: string; photos?: string[]; latitude?: number; longitude?: number }) =>
-      promotorApi<any>(`/api/merch/promotor/routes/${routeId}/categories/${catId}/after-photo`, { method: 'POST', body: data }),
+    mutationFn: ({ routeId, catId, route_brand_id, ...data }: { routeId: string; catId: string; route_brand_id?: string; photo_url: string; photos?: string[]; latitude?: number; longitude?: number }) =>
+      promotorApi<any>(`/api/merch/promotor/routes/${routeId}/categories/${catId}/after-photo`, { method: 'POST', body: { ...data, route_brand_id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['promotor-route'] }),
   });
 }
