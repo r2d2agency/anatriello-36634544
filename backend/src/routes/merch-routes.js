@@ -1457,18 +1457,12 @@ async function ensureExecutionCategoryTables() {
       await query(`ALTER TABLE merch_execution_categories ALTER COLUMN category_id DROP NOT NULL`);
     } catch (e) {}
 
-    // Ensure UNIQUE NULLS NOT DISTINCT constraint exists
-    try {
-      // First drop old constraint if it exists (it was probably named UNIQUE(route_id, category_id) implicitly)
-      await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_key`);
-      await query(`ALTER TABLE merch_execution_categories ADD CONSTRAINT merch_execution_categories_route_id_category_id_key UNIQUE NULLS NOT DISTINCT (route_id, category_id)`);
-    } catch (e) {
-      // If Postgres version is older than 15, NULLS NOT DISTINCT will fail. 
-      // Fallback to regular UNIQUE which is already there, but we try to ensure it.
-      try {
-        await query(`ALTER TABLE merch_execution_categories ADD CONSTRAINT merch_execution_categories_route_id_category_id_key UNIQUE (route_id, category_id)`);
-      } catch (e2) {}
-    }
+    // Remove old/conflicting unique constraints and indexes — they block multi-brand rows
+    // and don't match the ON CONFLICT expression used by the inserts.
+    try { await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_key`); } catch {}
+    try { await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_unique`); } catch {}
+    try { await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_route_brand_id_key`); } catch {}
+    try { await query(`DROP INDEX IF EXISTS idx_exec_categories_route_category`); } catch {}
 
     await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS category_name VARCHAR(255)`);
     await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS point_type VARCHAR(20)`);
@@ -1488,7 +1482,15 @@ async function ensureExecutionCategoryTables() {
     await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS performed_by UUID`);
     await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`);
     await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
-    await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_exec_categories_route_category ON merch_execution_categories(route_id, category_id)`);
+
+    // Unique expression index matching the ON CONFLICT clause used by the upserts below.
+    // Using COALESCE makes NULL route_brand_id values comparable (single-brand routes).
+    try {
+      await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_exec_categories_route_cat_brand
+        ON merch_execution_categories(route_id, category_id, COALESCE(route_brand_id, '00000000-0000-0000-0000-000000000000'::uuid))`);
+    } catch (e) {
+      logWarn('failed to create idx_exec_categories_route_cat_brand', { error: e?.message });
+    }
     await query(`CREATE INDEX IF NOT EXISTS idx_exec_categories_route ON merch_execution_categories(route_id)`);
   } catch (e) {
     logWarn('ensureExecutionCategoryTables.failed', { error: e?.message });
