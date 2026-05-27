@@ -866,6 +866,9 @@ export default function PromotorRota() {
                 ? (isExtraGroup ? !hasExtraPhoto : !catStatus?.products_unlocked) 
                 : false;
                 
+              // Se o modo for "Só Depois" e já tiver selecionado o tipo de ponto, liberamos os produtos mesmo se o backend ainda não marcou products_unlocked
+              const effectivelyLocked = isLocked && !(photoMode === 'after' && catStatus?.point_type);
+                
               const doneCount = execs.filter((e: any) => e.status === 'completed').length;
               const allProductsDone = doneCount === execs.length && execs.length > 0;
               const hasAfterPhoto = !!catStatus?.category_after_photo || !!catStatus?.completed;
