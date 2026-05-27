@@ -884,7 +884,7 @@ export default function PromotorRota() {
 
                 <div key={category}>
                   {/* Category preparation for normal groups */}
-                  {isLocked && !isExtraGroup && (
+                  {effectivelyLocked && !isExtraGroup && (
                     <CategoryPreparation
                       category={catStatus}
                       catId={catId}
