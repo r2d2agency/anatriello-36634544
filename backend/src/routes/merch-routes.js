@@ -2063,7 +2063,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
           await query(
             `INSERT INTO live_photo_books (organization_id, brand_id, pdv_id, route_id, category_id, photo_type, photo_url, promoter_id, captured_at, upload_source)
              VALUES ($1,$2,$3,$4,$5,'before',$6,$7,NOW(),'app')`,
-            [r.organization_id, r.brand_id, r.pdv_id, req.params.routeId, req.params.catId, pUrl, r.promoter_id]
+            [r.organization_id, r.brand_id, r.pdv_id, req.params.routeId, catId, pUrl, r.promoter_id]
           );
         }
       } catch {}
