@@ -135,11 +135,15 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
             {hasPointType ? <CheckCircle2 className="h-3 w-3" /> : <span className="font-bold">1</span>}
             Tipo de Ponto
           </div>
-          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${(hasPhoto || photos.length > 0) ? 'bg-green-500/20 text-green-700' : hasPointType ? 'bg-yellow-500/20 text-yellow-700' : 'bg-muted text-muted-foreground'}`}>
-            {(hasPhoto || photos.length > 0) ? <CheckCircle2 className="h-3 w-3" /> : <span className="font-bold">2</span>}
-            Foto{photoCount > 1 ? `s (${photoCount})` : ''}
-          </div>
+          {photoMode !== 'after' && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${(hasPhoto || photos.length > 0) ? 'bg-green-500/20 text-green-700' : hasPointType ? 'bg-yellow-500/20 text-yellow-700' : 'bg-muted text-muted-foreground'}`}>
+                {(hasPhoto || photos.length > 0) ? <CheckCircle2 className="h-3 w-3" /> : <span className="font-bold">2</span>}
+                Foto{photoCount > 1 ? `s (${photoCount})` : ''}
+              </div>
+            </>
+          )}
           <ChevronRight className="h-3 w-3 text-muted-foreground" />
           <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
             <Lock className="h-3 w-3" />
