@@ -1730,18 +1730,36 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
     } catch (e) { if (e.code !== '42P01') throw e; }
 
     // Auto-create category entries for categories that have products but no entry yet
-    const existingCatIds = new Set(categoryStatuses.map(c => c.category_id));
-    const categoriesInRoute = [...new Set(executions.rows.filter(e => e.category_id).map(e => e.category_id))];
-    const requireCategoryPhotos = route.require_category_photos !== false;
+    // Para rotas multi-marcas, criamos entradas por (category_id, route_brand_id)
+    const existingCatKeys = new Set(categoryStatuses.map(c => `${c.category_id || 'null'}_${c.route_brand_id || 'null'}`));
+    
+    // Categorias presentes nas execuções (produtos)
+    const categoriesByBrand = executions.rows.reduce((acc, exec) => {
+      const key = `${exec.category_id || 'null'}_${exec.route_brand_id || 'null'}`;
+      if (!acc[key]) {
+        acc[key] = {
+          catId: exec.category_id,
+          catName: exec.category_name || 'Sem nome',
+          brandId: exec.route_brand_id
+        };
+      }
+      return acc;
+    }, {});
 
-    for (const catId of categoriesInRoute) {
-      if (!existingCatIds.has(catId)) {
-        const catName = executions.rows.find(e => e.category_id === catId)?.category_name || 'Sem nome';
+    for (const [key, data] of Object.entries(categoriesByBrand)) {
+      if (!existingCatKeys.has(key)) {
+        // Encontrar se esta marca específica exige fotos de categoria
+        let brandRequirePhotos = route.require_category_photos !== false;
+        if (data.brandId) {
+          const rb = routeBrands.find(b => b.id === data.brandId);
+          if (rb) brandRequirePhotos = rb.require_category_photos !== false;
+        }
+
         try {
           const ins = await query(
-            `INSERT INTO merch_execution_categories (route_id, category_id, category_name, performed_by, products_unlocked)
-             VALUES ($1,$2,$3,$4,$5) ON CONFLICT (route_id, category_id) DO NOTHING RETURNING *`,
-            [req.params.id, catId, catName, req.employeeId, !requireCategoryPhotos]
+            `INSERT INTO merch_execution_categories (route_id, category_id, route_brand_id, category_name, performed_by, products_unlocked)
+             VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (route_id, category_id, COALESCE(route_brand_id, '00000000-0000-0000-0000-000000000000'::uuid)) DO NOTHING RETURNING *`,
+            [req.params.id, data.catId, data.brandId, data.catName, req.employeeId, !brandRequirePhotos]
           );
           if (ins.rows[0]) categoryStatuses.push(ins.rows[0]);
         } catch (e) { if (e.code !== '42P01') logError('promotor.auto_create_cat', e); }
