@@ -826,16 +826,17 @@ router.post('/brand-checklists', authenticate, async (req, res) => {
 router.put('/brand-checklists/:id', authenticate, async (req, res) => {
   try {
     await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`).catch(() => {});
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS category_photo_mode VARCHAR(20) DEFAULT 'both'`).catch(() => {});
     await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_before INT DEFAULT 1`).catch(() => {});
     await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_after INT DEFAULT 1`).catch(() => {});
     const { name, description, require_checkin_photo, require_checkout_photo, require_stock_count,
-            require_validity_check, require_extra_point, require_category_photos,
+            require_validity_check, require_extra_point, require_category_photos, category_photo_mode,
             min_category_photos_before, min_category_photos_after,
             stock_count_frequency, validity_check_frequency, active } = req.body;
     const minBefore = (min_category_photos_before === undefined || min_category_photos_before === null)
-      ? null : Math.max(1, parseInt(min_category_photos_before, 10) || 1);
+      ? null : Math.max(0, parseInt(min_category_photos_before, 10) || 0);
     const minAfter = (min_category_photos_after === undefined || min_category_photos_after === null)
-      ? null : Math.max(1, parseInt(min_category_photos_after, 10) || 1);
+      ? null : Math.max(0, parseInt(min_category_photos_after, 10) || 0);
     const result = await query(
       `UPDATE brand_checklists SET 
        name=COALESCE($2,name), 
@@ -851,13 +852,14 @@ router.put('/brand-checklists/:id', authenticate, async (req, res) => {
        require_category_photos=$12,
        min_category_photos_before=COALESCE($13,min_category_photos_before),
        min_category_photos_after=COALESCE($14,min_category_photos_after),
+       category_photo_mode=COALESCE($15,category_photo_mode),
        updated_at=NOW()
        WHERE id=$1 RETURNING *`,
       [req.params.id, name, description, 
        require_checkin_photo ?? true, require_checkout_photo ?? false, 
        require_stock_count ?? false, require_validity_check ?? false,
        require_extra_point ?? false, stock_count_frequency, validity_check_frequency, active,
-       require_category_photos ?? true, minBefore, minAfter]
+       require_category_photos ?? true, minBefore, minAfter, category_photo_mode]
     );
     res.json(result.rows[0]);
   } catch (err) { logError('checklists.update', err); res.status(500).json({ error: 'Erro' }); }
