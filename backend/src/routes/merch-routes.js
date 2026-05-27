@@ -1851,10 +1851,28 @@ router.put('/promotor/executions/:id', promotorAuth, async (req, res) => {
       [req.params.id, checked, qty_store, qty_stock, exposure_point, observation, status, req.employeeId]
     );
 
-    // Update route progress
+    // Update route and brand progress
     if (result.rows.length) {
-      const routeId = result.rows[0].route_id;
+      const exec = result.rows[0];
+      const routeId = exec.route_id;
+      const brandIdInRoute = exec.route_brand_id;
+      
       try {
+        // Update Brand Progress if applicable
+        if (brandIdInRoute) {
+          const brandProgress = await query(
+            `SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE status='completed')::int as done
+             FROM route_product_executions WHERE route_brand_id=$1`, [brandIdInRoute]
+          );
+          const brandPct = brandProgress.rows[0].total > 0 ? (brandProgress.rows[0].done / brandProgress.rows[0].total * 100) : 0;
+          const brandStatus = brandPct >= 100 ? 'completed' : brandPct > 0 ? 'in_progress' : 'pending';
+          await query(
+            'UPDATE route_brands SET progress_pct=$2, status=$3, updated_at=NOW() WHERE id=$1', 
+            [brandIdInRoute, brandPct, brandStatus]
+          );
+        }
+
+        // Update Global Route Progress
         const progress = await query(
           `SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE status='completed')::int as done
            FROM route_product_executions WHERE route_id=$1`, [routeId]
