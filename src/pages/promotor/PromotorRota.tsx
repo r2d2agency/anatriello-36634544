@@ -236,9 +236,11 @@ function CategoryPreparation({ category, catId, categoryName, routeId, pdvName, 
           <span>
             {!hasPointType
               ? 'Antes de iniciar, selecione se é ponto natural ou extra.'
-              : photos.length === 0 && !hasPhoto && photoMode !== 'after'
-                ? 'É necessário tirar a foto da categoria antes de acessar os produtos.'
-                : 'Registre a(s) foto(s) para liberar os produtos.'}
+              : photoMode === 'after'
+                ? 'Tipo de ponto selecionado. Liberando produtos...'
+                : photos.length === 0 && !hasPhoto
+                  ? 'É necessário tirar a foto da categoria antes de acessar os produtos.'
+                  : 'Registre a(s) foto(s) para liberar os produtos.'}
           </span>
         </div>
       </CardContent>
