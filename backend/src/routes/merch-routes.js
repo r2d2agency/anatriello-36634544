@@ -1423,6 +1423,7 @@ async function ensureExecutionCategoryTables() {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       route_id UUID NOT NULL REFERENCES merch_routes(id) ON DELETE CASCADE,
       category_id UUID REFERENCES merch_categories(id),
+      route_brand_id UUID REFERENCES route_brands(id) ON DELETE CASCADE,
       category_name VARCHAR(255),
       point_type VARCHAR(20),
       point_type_at TIMESTAMPTZ,
@@ -1437,8 +1438,19 @@ async function ensureExecutionCategoryTables() {
       performed_by UUID,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE NULLS NOT DISTINCT (route_id, category_id)
+      UNIQUE NULLS NOT DISTINCT (route_id, category_id, route_brand_id)
     )`);
+
+    // Add route_brand_id if it doesn't exist
+    try {
+      await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID REFERENCES route_brands(id) ON DELETE CASCADE`);
+      // Update unique constraint
+      await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_key`);
+      await query(`ALTER TABLE merch_execution_categories DROP CONSTRAINT IF EXISTS merch_execution_categories_route_id_category_id_route_brand_id_key`);
+      await query(`ALTER TABLE merch_execution_categories ADD CONSTRAINT merch_execution_categories_route_unique UNIQUE NULLS NOT DISTINCT (route_id, category_id, route_brand_id)`);
+    } catch (e) {
+      logWarn('failed to update merch_execution_categories schema', e);
+    }
 
     // Ensure category_id is nullable if it was NOT NULL before
     try {
