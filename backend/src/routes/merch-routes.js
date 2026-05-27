@@ -1657,6 +1657,7 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
          COALESCE(bc.require_validity_check, bc2.require_validity_check, false) as require_validity_check,
          COALESCE(bc.require_extra_point, bc2.require_extra_point, false) as require_extra_point,
          COALESCE(bc.require_category_photos, bc2.require_category_photos, true) as require_category_photos,
+         COALESCE(bc.category_photo_mode, bc2.category_photo_mode, 'both') as category_photo_mode,
          COALESCE(bc.min_category_photos_before, bc2.min_category_photos_before, 1) as min_category_photos_before,
          COALESCE(bc.min_category_photos_after, bc2.min_category_photos_after, 1) as min_category_photos_after,
          (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_brand_id = rb.id) as total_products,
