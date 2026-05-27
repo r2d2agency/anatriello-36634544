@@ -674,7 +674,6 @@ export default function PromotorRota() {
   }, [route?.pdv_id, pdvCheckout, pdvCheckoutPhoto, actionForm, navigate]);
 
   const handleOpenProduct = useCallback((exec: any) => {
-    const catStatus = categoryStatusMap[exec.category_id];
     const routeBrandId = exec.route_brand_id;
     const catStatus = categoryStatusMap[`${exec.category_id}_${routeBrandId || 'null'}`] || categoryStatusMap[exec.category_id];
     
