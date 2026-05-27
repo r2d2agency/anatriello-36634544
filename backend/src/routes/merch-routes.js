@@ -2054,7 +2054,7 @@ router.post('/promotor/routes/:routeId/categories/:catId/photo', promotorAuth, a
       await query(
         `INSERT INTO route_photos (route_id, photo_type, category_id, photo_url, latitude, longitude, upload_source, uploaded_by)
          VALUES ($1,'category_before',$2,$3,$4,$5,'app',$6)`,
-        [req.params.routeId, req.params.catId, pUrl, latitude, longitude, req.employeeId]
+        [req.params.routeId, catId, pUrl, latitude, longitude, req.employeeId]
       );
       try {
         const routeInfo = await query('SELECT organization_id, brand_id, pdv_id, promoter_id FROM merch_routes WHERE id=$1', [req.params.routeId]);
