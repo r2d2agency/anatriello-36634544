@@ -215,6 +215,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
               customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
               buttonLabel={photos.length === 0 ? 'Tirar foto da categoria' : 'Tirar foto adicional'}
               qualityConfig={qualityConfig}
+              allowManualUpload={false}
             />
 
             {/* Submit button */}
@@ -321,6 +322,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
             customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
             buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto do ponto extra'}
             qualityConfig={qualityConfig}
+            allowManualUpload={false}
           />
         </div>
 
