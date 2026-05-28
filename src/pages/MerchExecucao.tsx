@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useLiveRoutes, useMerchDamages, useReturnRequests, useMerchRouteDetail, useManualCompleteRoute, useContingencyPhotoUpload } from "@/hooks/use-merch-routes";
-import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight, Calendar, Filter } from "lucide-react";
+import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight, Calendar, Filter, Upload } from "lucide-react";
+import { CameraCapture } from "@/components/promotor/CameraCapture";
 import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
