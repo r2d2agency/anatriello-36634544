@@ -455,7 +455,7 @@ router.get('/report/product', authenticate, async (req, res) => {
         }
 
         const ruptureRows = (await query(`
-          SELECT pr.product_id, COALESCE(SUM(pr.qty_total), 0) as stockouts
+          SELECT pr.product_id, COALESCE(SUM(pr.qty_store + pr.qty_stock), 0) as stockouts
           FROM product_ruptures pr
           JOIN merch_routes r ON r.id = pr.route_id
           WHERE r.organization_id = $1 ${routeFilters} ${ruptureFilter}
