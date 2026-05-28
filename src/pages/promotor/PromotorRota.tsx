@@ -215,6 +215,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
               customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
               buttonLabel={photos.length === 0 ? 'Tirar foto da categoria' : 'Tirar foto adicional'}
               qualityConfig={qualityConfig}
+              allowManualUpload={false}
             />
 
             {/* Submit button */}
@@ -321,6 +322,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
             customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
             buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto do ponto extra'}
             qualityConfig={qualityConfig}
+            allowManualUpload={false}
           />
         </div>
 
@@ -398,6 +400,7 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
           customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
           buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto DEPOIS'}
           qualityConfig={qualityConfig}
+          allowManualUpload={false}
         />
 
         {photos.length > 0 && (
@@ -827,6 +830,7 @@ export default function PromotorRota() {
                   customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
                   buttonLabel="Tirar foto de check-in"
                   qualityConfig={photoQualityConfig}
+                  allowManualUpload={false}
                 />
               )}
             </CardContent>
@@ -1382,6 +1386,7 @@ export default function PromotorRota() {
                       customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
                       buttonLabel="Tirar foto de saída da loja"
                       qualityConfig={photoQualityConfig}
+                      allowManualUpload={false}
                     />
                   )}
                 </div>
