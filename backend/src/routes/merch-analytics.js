@@ -429,7 +429,7 @@ router.get('/report/product', authenticate, async (req, res) => {
         }
 
         const damageRows = (await query(`
-          SELECT pd.product_id, COALESCE(SUM(pd.qty_total), 0) as damages
+          SELECT pd.product_id, COALESCE(SUM(pd.qty_store + pd.qty_stock), 0) as damages
           FROM product_damages pd
           JOIN merch_routes r ON r.id = pd.route_id
           WHERE r.organization_id = $1 ${routeFilters} ${damageFilter}
