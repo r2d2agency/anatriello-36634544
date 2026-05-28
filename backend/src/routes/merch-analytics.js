@@ -729,7 +729,7 @@ router.get('/brand-record/:brandId', async (req, res) => {
       SELECT p.id, p.name, p.city, p.address, p.latitude, p.longitude,
              COUNT(DISTINCT r.id) as visit_count,
              MAX(r.visit_date) as last_visit,
-             (SELECT COUNT(*) FROM merch_brand_products mbp WHERE mbp.brand_id = $2) as product_count
+             (SELECT COUNT(*) FROM merch_products mp WHERE mp.brand_id = $2) as product_count
       FROM pdvs p
       JOIN merch_routes r ON r.pdv_id = p.id
       WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
@@ -745,7 +745,7 @@ router.get('/brand-record/:brandId', async (req, res) => {
              COALESCE(SUM(rpe.stock_qty_store + rpe.stock_qty_stock), 0) as total_stock,
              COALESCE(SUM(rpe.stockout_qty_store + rpe.stockout_qty_stock), 0) as total_ruptures,
              COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock), 0) as total_damages
-      FROM merch_brand_products mp
+      FROM merch_products mp
       LEFT JOIN route_product_executions rpe ON rpe.product_id = mp.id
       LEFT JOIN merch_routes r ON r.id = rpe.route_id
       WHERE mp.brand_id = $2 AND r.organization_id = $1 ${dateFilter}
@@ -755,30 +755,36 @@ router.get('/brand-record/:brandId', async (req, res) => {
 
     // 6. Detailed Ruptures
     const stockouts = (await query(`
-      SELECT pr.id, pr.qty_store, pr.qty_stock, pr.reason, pr.observation, pr.photo_url, pr.created_at as report_date,
+      SELECT rpe.id, rpe.stockout_qty_store as qty_store, rpe.stockout_qty_stock as qty_stock, 
+             rpe.stockout_reason as reason, rpe.stockout_observation as observation,
+             r.visit_date as report_date,
              p.name as pdv_name, mp.name as product_name, mp.sku as product_sku,
              e.full_name as promoter_name
-      FROM product_ruptures pr
-      JOIN merch_routes r ON r.id = pr.route_id
+      FROM route_product_executions rpe
+      JOIN merch_routes r ON r.id = rpe.route_id
       JOIN pdvs p ON p.id = r.pdv_id
-      JOIN merch_brand_products mp ON mp.id = pr.product_id
-      JOIN employees e ON e.id = pr.recorded_by
+      JOIN merch_products mp ON mp.id = rpe.product_id
+      JOIN employees e ON e.id = r.promoter_id
       WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
-      ORDER BY pr.created_at DESC
+      AND (rpe.stockout_qty_store > 0 OR rpe.stockout_qty_stock > 0)
+      ORDER BY r.visit_date DESC
     `, params)).rows;
 
     // 7. Detailed Damages
     const damages = (await query(`
-      SELECT pd.id, pd.qty_store, pd.qty_stock, pd.reason, pd.description, pd.photo_url, pd.created_at as report_date,
+      SELECT rpe.id, rpe.damage_qty_store as qty_store, rpe.damage_qty_stock as qty_stock, 
+             rpe.damage_reason as reason, rpe.damage_observation as description,
+             r.visit_date as report_date,
              p.name as pdv_name, mp.name as product_name, mp.sku as product_sku,
              e.full_name as promoter_name
-      FROM product_damages pd
-      JOIN merch_routes r ON r.id = pd.route_id
+      FROM route_product_executions rpe
+      JOIN merch_routes r ON r.id = rpe.route_id
       JOIN pdvs p ON p.id = r.pdv_id
-      JOIN merch_brand_products mp ON mp.id = pd.product_id
-      JOIN employees e ON e.id = pd.promoter_id
+      JOIN merch_products mp ON mp.id = rpe.product_id
+      JOIN employees e ON e.id = r.promoter_id
       WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
-      ORDER BY pd.created_at DESC
+      AND (rpe.damage_qty_store > 0 OR rpe.damage_qty_stock > 0)
+      ORDER BY r.visit_date DESC
     `, params)).rows;
 
     // 8. Scheduled Future Routes
