@@ -518,11 +518,11 @@ router.get('/report/category', authenticate, async (req, res) => {
         COUNT(DISTINCT p.id) as total_products,
         COUNT(DISTINCT rpe.id) as total_executions,
         COUNT(*) FILTER (WHERE rpe.status='completed') as executed,
-        COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock),0) as damages,
-        COALESCE(SUM(rpe.stockout_qty_store + rpe.stockout_qty_stock),0) as stockouts,
-        COALESCE(SUM(rpe.stock_qty_store + rpe.stock_qty_stock),0) as total_stock,
-        COALESCE(SUM(rpe.expiry_qty_store + rpe.expiry_qty_stock),0) as expiries
-      JOIN route_product_executions rpe
+        (SELECT COALESCE(SUM(qty_store + qty_stock), 0) FROM product_damages pd JOIN merch_routes r2 ON r2.id = pd.route_id JOIN merch_products p2 ON p2.id = pd.product_id WHERE p2.category_id = c.id AND r2.organization_id = $1 ${filters.replace(/r\./g, 'r2.')}) as damages,
+        (SELECT COALESCE(SUM(qty_store + qty_stock), 0) FROM product_ruptures pr JOIN merch_routes r2 ON r2.id = pr.route_id JOIN merch_products p2 ON p2.id = pr.product_id WHERE p2.category_id = c.id AND r2.organization_id = $1 ${filters.replace(/r\./g, 'r2.')}) as stockouts,
+        COALESCE(SUM(rpe.qty_store + rpe.qty_stock),0) as total_stock,
+        (SELECT COUNT(*) FROM product_validity_entries pve JOIN merch_routes r2 ON r2.id = pve.route_id JOIN merch_products p2 ON p2.id = pve.product_id WHERE p2.category_id = c.id AND r2.organization_id = $1 ${filters.replace(/r\./g, 'r2.')}) as expiries
+      FROM route_product_executions rpe
       JOIN merch_routes r ON r.id = rpe.route_id
       JOIN merch_products p ON p.id = rpe.product_id
       LEFT JOIN merch_categories c ON c.id = p.category_id
