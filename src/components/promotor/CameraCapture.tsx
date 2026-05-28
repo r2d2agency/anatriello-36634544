@@ -5,6 +5,7 @@ import { Camera, RotateCcw, Check, X, Loader2, AlertTriangle, Upload } from "luc
 import { useUpload } from "@/hooks/use-upload";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface WatermarkData {
   pdvName?: string;
@@ -210,7 +211,6 @@ export function CameraCapture({
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadFile, isUploading } = useUpload(customTokenGetter);
   const config = { ...DEFAULT_QUALITY_CONFIG, ...qualityConfig };
 
@@ -463,6 +463,8 @@ export function CameraCapture({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-black">
           {/* Live camera view */}
           {!capturedImage && (
             <div className="relative">
@@ -543,6 +545,6 @@ export function CameraCapture({
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
