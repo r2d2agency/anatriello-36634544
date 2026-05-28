@@ -489,84 +489,34 @@ export function BrandRecord({ brandId, brandName, onClose, dateRange }: BrandRec
             </CardContent>
           </Card>
         </TabsContent>
-
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filteredStockouts.map((s: any) => (
-                      <tr key={s.id} className="hover:bg-muted/20">
-                        <td className="p-3 text-xs">{format(new Date(s.report_date), 'dd/MM')}</td>
-                        <td className="p-3 text-xs">{s.pdv_name}</td>
-                        <td className="p-3">
-                          <p className="font-medium text-xs">{s.product_name}</p>
-                          <p className="text-[10px] text-muted-foreground">Promotor: {s.promoter_name}</p>
-                        </td>
-                        <td className="p-3 text-xs text-muted-foreground">{s.reason}</td>
-                        <td className="p-3 text-right font-medium text-xs">
-                          {s.qty_store + s.qty_stock}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="map" className="mt-6">
-          <Card>
-            <CardContent className="p-0 min-h-[500px] flex flex-col md:flex-row bg-muted/20">
-              <div className="flex-1 p-6 flex items-center justify-center relative border-r">
-                <div className="text-center">
-                  <MapIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <p className="text-sm font-medium">Mapa de PDVs da Marca</p>
-                  <p className="text-xs text-muted-foreground mt-2">Visualização geográfica dos pontos de venda atendidos.</p>
-                </div>
-              </div>
-              <div className="w-full md:w-80 bg-background p-4 flex flex-col gap-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pontos de Venda ({data?.pdvs?.length})</h3>
-                <ScrollArea className="flex-1">
-                  <div className="space-y-2">
-                    {data?.pdvs?.map((p: any) => (
-                      <div 
-                        key={p.id} 
-                        className="p-3 rounded-lg border bg-muted/30 hover:border-primary transition-colors cursor-pointer"
-                        onClick={() => setSelectedPDV(p)}
-                      >
-                        <p className="text-xs font-bold truncate">{p.name}</p>
-                        <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-                          <span>Mix: {p.product_count}</span>
-                          <span>{p.visit_count} visits</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
+      
+      <div className="flex justify-end pt-4">
+        <Button variant="outline" size="sm" onClick={onClose}>Fechar Prontuário</Button>
+      </div>
     </div>
   );
 }
 
 function KPIBox({ title, value, total, icon: Icon, color }: any) {
   return (
-    <Card className="p-4 flex flex-col items-center justify-center text-center">
-      <div className={cn("p-2 rounded-full bg-muted mb-2", color)}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <p className="text-xs text-muted-foreground font-medium mb-1">{title}</p>
-      <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-bold">{value}</span>
-        {total !== undefined && <span className="text-xs text-muted-foreground">/ {total}</span>}
-      </div>
+    <Card>
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className={cn("p-2 rounded-lg bg-muted", color.replace('text-', 'bg-').replace('500', '100'))}>
+          <Icon className={cn("h-5 w-5", color)} />
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold">{title}</p>
+          <p className="text-xl font-bold">
+            {value}{total !== undefined && <span className="text-sm font-normal text-muted-foreground">/{total}</span>}
+          </p>
+        </div>
+      </CardContent>
     </Card>
   );
 }
 
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(" ");
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }
+
