@@ -354,20 +354,33 @@ export function BrandRecord({ brandId, brandName, onClose, dateRange }: BrandRec
 
         <TabsContent value="map" className="mt-6">
           <Card>
-            <CardContent className="p-0 h-[500px] flex items-center justify-center bg-muted/20 relative">
-              <div className="text-center p-6">
-                <MapIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-sm font-medium">Mapa de PDVs da Marca</p>
-                <p className="text-xs text-muted-foreground mt-2">Visualização geográfica dos pontos de venda atendidos.</p>
-                <div className="mt-6 grid grid-cols-2 gap-4 max-w-md mx-auto">
-                   {data?.pdvs?.slice(0, 4).map((p: any) => (
-                     <div key={p.id} className="p-3 rounded-lg border bg-background text-left text-xs">
-                        <p className="font-bold truncate">{p.name}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">Mix: {p.product_count} itens</p>
-                        <p className="text-[10px] text-muted-foreground">Última: {p.last_visit ? format(new Date(p.last_visit), 'dd/MM') : '-'}</p>
-                     </div>
-                   ))}
+            <CardContent className="p-0 min-h-[500px] flex flex-col md:flex-row bg-muted/20">
+              <div className="flex-1 p-6 flex items-center justify-center relative border-r">
+                <div className="text-center">
+                  <MapIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="text-sm font-medium">Mapa de PDVs da Marca</p>
+                  <p className="text-xs text-muted-foreground mt-2">Visualização geográfica dos pontos de venda atendidos.</p>
                 </div>
+              </div>
+              <div className="w-full md:w-80 bg-background p-4 flex flex-col gap-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pontos de Venda ({data?.pdvs?.length})</h3>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-2">
+                    {data?.pdvs?.map((p: any) => (
+                      <div 
+                        key={p.id} 
+                        className="p-3 rounded-lg border bg-muted/30 hover:border-primary transition-colors cursor-pointer"
+                        onClick={() => setSelectedPDV(p)}
+                      >
+                        <p className="text-xs font-bold truncate">{p.name}</p>
+                        <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+                          <span>Mix: {p.product_count}</span>
+                          <span>{p.visit_count} visits</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             </CardContent>
           </Card>
