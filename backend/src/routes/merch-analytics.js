@@ -681,4 +681,132 @@ router.get('/ranking/issues', authenticate, async (req, res) => {
   } catch (err) { logError('merch-analytics.ranking', err); res.status(500).json({ error: 'Erro' }); }
 });
 
+// ===== Brand Record (Prontuário) =====
+router.get('/brand-record/:brandId', async (req, res) => {
+  try {
+    const orgId = await getOrgId(req.userId);
+    if (!orgId) return res.status(403).json({ error: 'Sem organização' });
+    const { brandId } = req.params;
+    const { date_from, date_to } = req.query;
+
+    const params = [orgId, brandId];
+    let idx = 3;
+    let dateFilter = '';
+    if (date_from) { dateFilter += ` AND r.visit_date >= $${idx}`; params.push(date_from); idx++; }
+    if (date_to) { dateFilter += ` AND r.visit_date <= $${idx}`; params.push(date_to); idx++; }
+
+    // 1. Brand Info
+    const brand = (await query('SELECT id, name FROM merch_brands WHERE id=$1 AND organization_id=$2', [brandId, orgId])).rows[0];
+    if (!brand) return res.status(404).json({ error: 'Marca não encontrada' });
+
+    // 2. Summary & KPIs
+    const summary = (await query(`
+      SELECT 
+        COUNT(DISTINCT r.id) as total_routes,
+        COUNT(DISTINCT r.pdv_id) as pdvs_served,
+        COUNT(DISTINCT r.promoter_id) as promoters,
+        COUNT(*) FILTER (WHERE r.status = 'completed') as completed_routes
+      FROM merch_routes r WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
+    `, params)).rows[0];
+
+    // 3. Recent/Current Routes
+    const routes = (await query(`
+      SELECT r.id, r.visit_date, r.status, r.scheduled_time,
+             p.name as pdv_name, p.city as pdv_city,
+             e.full_name as promoter_name,
+             (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as total_products,
+             (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as completed_products
+      FROM merch_routes r
+      JOIN pdvs p ON p.id = r.pdv_id
+      JOIN employees e ON e.id = r.promoter_id
+      WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
+      ORDER BY r.visit_date DESC, r.scheduled_time DESC
+      LIMIT 50
+    `, params)).rows;
+
+    // 4. PDVs List with Details
+    const pdvs = (await query(`
+      SELECT p.id, p.name, p.city, p.address, p.latitude, p.longitude,
+             COUNT(DISTINCT r.id) as visit_count,
+             MAX(r.visit_date) as last_visit,
+             (SELECT COUNT(*) FROM merch_brand_products mbp WHERE mbp.brand_id = $2) as product_count
+      FROM pdvs p
+      JOIN merch_routes r ON r.pdv_id = p.id
+      WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
+      GROUP BY p.id, p.name, p.city, p.address, p.latitude, p.longitude
+      ORDER BY p.name ASC
+    `, params)).rows;
+
+    // 5. Audited Products Execution Data
+    const auditedProducts = (await query(`
+      SELECT mp.id, mp.name, mp.sku,
+             COUNT(rpe.id) as executions,
+             COUNT(*) FILTER (WHERE rpe.status = 'completed') as completed,
+             COALESCE(SUM(rpe.stock_qty_store + rpe.stock_qty_stock), 0) as total_stock,
+             COALESCE(SUM(rpe.stockout_qty_store + rpe.stockout_qty_stock), 0) as total_ruptures,
+             COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock), 0) as total_damages
+      FROM merch_brand_products mp
+      LEFT JOIN route_product_executions rpe ON rpe.product_id = mp.id
+      LEFT JOIN merch_routes r ON r.id = rpe.route_id
+      WHERE mp.brand_id = $2 AND r.organization_id = $1 ${dateFilter}
+      GROUP BY mp.id, mp.name, mp.sku
+      ORDER BY mp.name ASC
+    `, params)).rows;
+
+    // 6. Detailed Ruptures
+    const stockouts = (await query(`
+      SELECT pr.id, pr.qty_store, pr.qty_stock, pr.reason, pr.observation, pr.photo_url, pr.created_at as report_date,
+             p.name as pdv_name, mp.name as product_name, mp.sku as product_sku,
+             e.full_name as promoter_name
+      FROM product_ruptures pr
+      JOIN merch_routes r ON r.id = pr.route_id
+      JOIN pdvs p ON p.id = r.pdv_id
+      JOIN merch_brand_products mp ON mp.id = pr.product_id
+      JOIN employees e ON e.id = pr.recorded_by
+      WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
+      ORDER BY pr.created_at DESC
+    `, params)).rows;
+
+    // 7. Detailed Damages
+    const damages = (await query(`
+      SELECT pd.id, pd.qty_store, pd.qty_stock, pd.reason, pd.description, pd.photo_url, pd.created_at as report_date,
+             p.name as pdv_name, mp.name as product_name, mp.sku as product_sku,
+             e.full_name as promoter_name
+      FROM product_damages pd
+      JOIN merch_routes r ON r.id = pd.route_id
+      JOIN pdvs p ON p.id = r.pdv_id
+      JOIN merch_brand_products mp ON mp.id = pd.product_id
+      JOIN employees e ON e.id = pd.promoter_id
+      WHERE r.organization_id = $1 AND r.brand_id = $2 ${dateFilter}
+      ORDER BY pd.created_at DESC
+    `, params)).rows;
+
+    // 8. Scheduled Future Routes
+    const scheduledRoutes = (await query(`
+      SELECT r.id, r.visit_date, r.status, r.scheduled_time,
+             p.name as pdv_name, e.full_name as promoter_name
+      FROM merch_routes r
+      JOIN pdvs p ON p.id = r.pdv_id
+      JOIN employees e ON e.id = r.promoter_id
+      WHERE r.organization_id = $1 AND r.brand_id = $2 AND r.visit_date > CURRENT_DATE
+      ORDER BY r.visit_date ASC
+      LIMIT 20
+    `, [orgId, brandId])).rows;
+
+    res.json({
+      brand,
+      summary,
+      routes,
+      pdvs,
+      auditedProducts,
+      stockouts,
+      damages,
+      scheduledRoutes
+    });
+  } catch (err) { 
+    logError('merch-analytics.brand-record', err); 
+    res.status(500).json({ error: 'Erro ao carregar prontuário da marca' }); 
+  }
+});
+
 export default router;
