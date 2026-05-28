@@ -93,11 +93,11 @@ export function useMerchRankingIssues(filters?: DashboardFilters) {
         return [];
       }
     },
-    },
     retry: false,
     refetchOnWindowFocus: false,
   });
 }
+
 
 
 export function useMerchReportStockouts(filters?: DashboardFilters) {
