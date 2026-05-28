@@ -658,7 +658,7 @@ router.get('/ranking/issues', authenticate, async (req, res) => {
     if (rows.length > 0 && await tableExists('product_ruptures')) {
       try {
         const ruptureRows = (await query(`
-          SELECT r.pdv_id, COALESCE(SUM(pr.qty_total), 0) as stockouts
+          SELECT r.pdv_id, COALESCE(SUM(pr.qty_store + pr.qty_stock), 0) as stockouts
           FROM product_ruptures pr
           JOIN merch_routes r ON r.id = pr.route_id
           WHERE r.organization_id = $1 ${filters}
