@@ -143,19 +143,16 @@ router.get('/dashboard', async (req, res) => {
     try {
       const dRes = (await query(`
         SELECT 
-          COALESCE(SUM(rpe.damage_qty_store + rpe.damage_qty_stock), 0) as damages,
-          COALESCE(SUM(rpe.stockout_qty_store + rpe.stockout_qty_stock), 0) as stockouts,
-          COUNT(*) FILTER (WHERE rpe.stock_qty_store > 0 OR rpe.stock_qty_stock > 0) as stock_counts,
-          COUNT(*) FILTER (WHERE rpe.expiry_qty_store > 0 OR rpe.expiry_qty_stock > 0) as expiry_counts
-        FROM route_product_executions rpe
-        JOIN merch_routes r ON r.id = rpe.route_id
-        WHERE r.organization_id = $1 ${extraFilter}
+          (SELECT COALESCE(SUM(qty_store + qty_stock), 0) FROM product_damages pd JOIN merch_routes r2 ON r2.id = pd.route_id WHERE r2.organization_id = $1 ${extraFilter.replace(/r\./g, 'r2.')}) as damages,
+          (SELECT COALESCE(SUM(qty_store + qty_stock), 0) FROM product_ruptures pr JOIN merch_routes r2 ON r2.id = pr.route_id WHERE r2.organization_id = $1 ${extraFilter.replace(/r\./g, 'r2.')}) as stockouts,
+          (SELECT COUNT(*) FROM route_product_executions rpe JOIN merch_routes r2 ON r2.id = rpe.route_id WHERE r2.organization_id = $1 ${extraFilter.replace(/r\./g, 'r2.')} AND (rpe.qty_store > 0 OR rpe.qty_stock > 0)) as stock_counts,
+          (SELECT COUNT(*) FROM product_validity_entries pve JOIN merch_routes r2 ON r2.id = pve.route_id WHERE r2.organization_id = $1 ${extraFilter.replace(/r\./g, 'r2.')}) as expiry_counts
       `, params)).rows[0];
       damages = parseInt(dRes.damages) || 0;
       stockouts = parseInt(dRes.stockouts) || 0;
       stockCounts = parseInt(dRes.stock_counts) || 0;
       expiryCounts = parseInt(dRes.expiry_counts) || 0;
-    } catch {}
+    } catch (err) { logError('dashboard.stats_fail', err); }
 
     // Price research
     let priceCompleted = 0, pricePending = 0;
