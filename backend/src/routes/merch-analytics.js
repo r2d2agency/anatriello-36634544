@@ -396,7 +396,7 @@ router.get('/report/product', authenticate, async (req, res) => {
         COALESCE(SUM(rpe.qty_stock),0) as stock_stock
       FROM route_product_executions rpe
       JOIN merch_routes r ON r.id = rpe.route_id
-      JOIN products p ON p.id = rpe.product_id
+      JOIN merch_products p ON p.id = rpe.product_id
       WHERE r.organization_id = $1 ${routeFilters} ${productFilter}
       GROUP BY p.id, p.name, p.sku, p.image_url
       ORDER BY routes DESC, p.name ASC
