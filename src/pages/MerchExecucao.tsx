@@ -12,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useLiveRoutes, useMerchDamages, useReturnRequests, useMerchRouteDetail, useManualCompleteRoute, useContingencyPhotoUpload } from "@/hooks/use-merch-routes";
-import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight, Calendar, Filter } from "lucide-react";
+import { MapPin, Clock, User, Camera, AlertTriangle, CheckCircle2, Activity, Package, Eye, Store, ChevronRight, Calendar, Filter, Upload } from "lucide-react";
+import { CameraCapture } from "@/components/promotor/CameraCapture";
 import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -653,28 +654,34 @@ export default function MerchExecucao() {
           </DialogContent>
         </Dialog>
 
-        {/* Upload Dialog (Simplified) */}
+        {/* Upload Dialog (Using CameraCapture logic) */}
         <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Subir Foto Manualmente</DialogTitle>
               <DialogDescription>
-                Selecione uma foto para anexar a esta rota como contingência.
+                Selecione uma foto para anexar a esta rota como contingência. A foto será validada e terá marca d'água aplicada.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <Input type="file" accept="image/*" onChange={handleFileUpload} />
-              {uploadFile && (
-                <div className="text-xs text-muted-foreground">
-                  Arquivo selecionado: {uploadFile.name}
-                </div>
+            <div className="py-4">
+              {viewRoute && (
+                <CameraCapture
+                  onCapture={(url) => {
+                    toast.success("Foto enviada com sucesso!");
+                    setShowUploadDialog(false);
+                  }}
+                  watermark={{
+                    pdvName: viewRoute.pdv_name,
+                    brandName: viewRoute.is_multi_brand ? 'Multi-marca' : viewRoute.brand_name,
+                    promotorName: viewRoute.promoter_name,
+                    photoType: 'Contingência (Manual)'
+                  }}
+                  buttonLabel="Selecionar arquivo e validar"
+                />
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowUploadDialog(false)}>Cancelar</Button>
-              <Button onClick={submitPhoto} disabled={!uploadFile || uploading}>
-                {uploading ? "Enviando..." : "Subir Foto"}
-              </Button>
+              <Button variant="outline" onClick={() => setShowUploadDialog(false)}>Fechar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
