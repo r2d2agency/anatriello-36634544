@@ -554,7 +554,7 @@ router.get('/report/stockouts', async (req, res) => {
       JOIN pdvs p ON p.id = r.pdv_id
       JOIN employees e ON e.id = r.promoter_id
       JOIN merch_brands b ON b.id = r.brand_id
-      JOIN products pr ON pr.id = rpe.product_id
+      JOIN merch_products pr ON pr.id = rpe.product_id
       WHERE r.organization_id = $1 ${filters}
       AND (rpe.stockout_qty_store > 0 OR rpe.stockout_qty_stock > 0)
       ORDER BY r.visit_date DESC, p.name ASC
