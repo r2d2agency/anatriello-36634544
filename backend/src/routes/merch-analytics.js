@@ -525,8 +525,10 @@ router.get('/report/category', authenticate, async (req, res) => {
     `, params)).rows;
     res.json(rows);
   } catch (err) { logError('merch-analytics.report.category', err); res.status(500).json({ error: 'Erro' }); }
+});
 
 // ===== Report: Stockouts / Ruptures Details =====
+
 router.get('/report/stockouts', async (req, res) => {
   try {
     const orgId = await getOrgId(req.userId);
