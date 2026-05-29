@@ -62,12 +62,17 @@ export default function MerchMixPDV() {
     if (selectedToAdd.length === 0) return;
     try {
       if (selectionType === 'network' && selectedNetworkId) {
-        await addToMixBulk.mutateAsync({ 
+        const result = await addToMixBulk.mutateAsync({ 
           network_id: selectedNetworkId, 
           brand_id: selectedBrandId, 
           product_ids: selectedToAdd 
         });
-        toast.success(`${selectedToAdd.length} produto(s) adicionado(s) à rede ${selectedNetwork?.name}`);
+        
+        if (result?.pdvs_count) {
+          toast.success(`${selectedToAdd.length} produto(s) vinculados a ${result.pdvs_count} PDVs da rede ${selectedNetwork?.name}`);
+        } else {
+          toast.success(`${selectedToAdd.length} produto(s) adicionado(s) à rede ${selectedNetwork?.name}`);
+        }
       } else {
         await addToMix.mutateAsync({ pdv_id: selectedPdvId, brand_id: selectedBrandId, product_ids: selectedToAdd });
         toast.success(`${selectedToAdd.length} produto(s) adicionado(s)`);
@@ -75,6 +80,7 @@ export default function MerchMixPDV() {
       setSelectedToAdd([]);
     } catch (e: any) { toast.error(e.message); }
   };
+
 
   const handleRemoveFromMix = async () => {
     if (selectedToRemove.length === 0) return;
