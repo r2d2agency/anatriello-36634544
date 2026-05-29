@@ -1163,6 +1163,57 @@ router.delete('/mix', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/mix/bulk', async (req, res) => {
+  try {
+    await ensureMerchandisingInfra();
+    const { network_id, pdv_ids, brand_id, product_ids, mandatory, priority } = req.body;
+    const orgId = req.orgId;
+    
+    let targetPdvIds = pdv_ids || [];
+    
+    if (network_id) {
+      const netPdvs = await query(
+        'SELECT pdv_id FROM merch_rede_pdvs WHERE rede_id = $1 AND organization_id = $2',
+        [network_id, orgId]
+      );
+      targetPdvIds = [...new Set([...targetPdvIds, ...netPdvs.rows.map(r => r.pdv_id)])];
+    }
+    
+    if (targetPdvIds.length === 0) {
+      return res.status(400).json({ error: 'Nenhum PDV selecionado para o mix bulk' });
+    }
+    
+    let totalLinked = 0;
+    
+    for (const pdvId of targetPdvIds) {
+      // Garante vínculo PDV-Marca
+      await query(
+        `INSERT INTO merch_pdv_brands (organization_id, pdv_id, brand_id) 
+         VALUES ($1,$2,$3) 
+         ON CONFLICT (pdv_id, brand_id) DO UPDATE SET active=true`,
+        [orgId, pdvId, brand_id]
+      );
+      
+      for (const pid of product_ids) {
+        await query(
+          `INSERT INTO merch_pdv_brand_products (organization_id, pdv_id, brand_id, product_id, mandatory, priority)
+           VALUES ($1,$2,$3,$4,$5,$6) 
+           ON CONFLICT (pdv_id, brand_id, product_id) 
+           DO UPDATE SET active=true, updated_at=NOW()`,
+          [orgId, pdvId, brand_id, pid, mandatory || false, priority || 'media']
+        );
+        totalLinked++;
+      }
+    }
+    
+    res.json({ ok: true, total: totalLinked, pdvs_count: targetPdvIds.length });
+  } catch (e) { 
+    logError('bulk mix', e);
+    res.status(500).json({ error: e.message }); 
+  }
+});
+
+
 // ==================== REPORTS ====================
 router.get('/reports/brand/:brandId', async (req, res) => {
   try {

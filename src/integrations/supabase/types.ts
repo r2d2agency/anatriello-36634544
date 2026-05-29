@@ -53,6 +53,166 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_tag_links: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_tag_links_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      department_members: {
+        Row: {
+          created_at: string | null
+          current_chats: number | null
+          department_id: string
+          id: string
+          is_available: boolean | null
+          role: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_chats?: number | null
+          department_id: string
+          id?: string
+          is_available?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_chats?: number | null
+          department_id?: string
+          id?: string
+          is_available?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_members_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      departments: {
+        Row: {
+          auto_assign: boolean | null
+          business_days: number[] | null
+          business_hours_enabled: boolean | null
+          business_hours_end: string | null
+          business_hours_start: string | null
+          color: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          max_concurrent_chats: number | null
+          name: string
+          offline_message: string | null
+          organization_id: string
+          queue_message: string | null
+          updated_at: string | null
+          welcome_message: string | null
+        }
+        Insert: {
+          auto_assign?: boolean | null
+          business_days?: number[] | null
+          business_hours_enabled?: boolean | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_concurrent_chats?: number | null
+          name: string
+          offline_message?: string | null
+          organization_id: string
+          queue_message?: string | null
+          updated_at?: string | null
+          welcome_message?: string | null
+        }
+        Update: {
+          auto_assign?: boolean | null
+          business_days?: number[] | null
+          business_hours_enabled?: boolean | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_concurrent_chats?: number | null
+          name?: string
+          offline_message?: string | null
+          organization_id?: string
+          queue_message?: string | null
+          updated_at?: string | null
+          welcome_message?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
