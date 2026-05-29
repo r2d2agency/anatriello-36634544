@@ -135,7 +135,13 @@ export default function RHPDVs() {
     }
   };
 
-  const filtered = (pdvs || []).filter((p: any) => !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.client_name || '').toLowerCase().includes(search.toLowerCase()));
+  const filtered = (pdvs || []).filter((p: any) => 
+    !search || 
+    p.name.toLowerCase().includes(search.toLowerCase()) || 
+    (p.client_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.zip_code || '').replace(/\D/g, '').includes(search.replace(/\D/g, '')) ||
+    (p.address || '').toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleBulkDelete = async () => {
     if (!selectedIds.size) return;
