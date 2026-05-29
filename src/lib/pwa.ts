@@ -1,20 +1,7 @@
 let deferredPrompt: any = null;
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((registration) => registration.unregister());
-  }).catch(() => {});
-}
+// Service worker registration is handled by vite-plugin-pwa in production
 
-if ('caches' in window) {
-  caches.keys().then((names) => {
-    names.forEach((name) => {
-      if (name.toLowerCase().includes('workbox') || name.toLowerCase().includes('precache')) {
-        void caches.delete(name);
-      }
-    });
-  }).catch(() => {});
-}
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
@@ -28,14 +15,24 @@ window.addEventListener('appinstalled', () => {
 });
 
 export function isPWAInstalled(): boolean {
-  return false;
+  return window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
 }
 
 export function canInstallPWA(): boolean {
-  return false;
+  return !!deferredPrompt;
 }
 
 export async function installPWA(): Promise<boolean> {
+  if (!deferredPrompt) return false;
+  
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  
+  if (outcome === 'accepted') {
+    deferredPrompt = null;
+    return true;
+  }
+  
   return false;
 }
 
