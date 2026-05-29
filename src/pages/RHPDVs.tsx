@@ -35,6 +35,7 @@ export default function RHPDVs() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_PDV);
   const [search, setSearch] = useState("");
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data: pdvs, isLoading } = usePDVs();
   const { data: employees } = useEmployees();
