@@ -327,15 +327,36 @@ export default function PromotorHome() {
     setPunchLoading(true);
     try {
       const pdvId = dailyAssignment?.pdv_id || availablePdvs[0]?.id;
-      await punch.mutateAsync({
-        punch_type: getNextPunchType(),
+      const punchType = getNextPunchType();
+      const body = {
+        punch_type: punchType,
         latitude: currentPos.lat,
         longitude: currentPos.lng,
         accuracy_meters: currentPos.accuracy,
         pdv_id: pdvId,
         facial_verified: facialVerified || undefined,
-      });
-      toast({ title: 'Ponto registrado!', description: PUNCH_LABELS[getNextPunchType()] });
+        offline_timestamp: !isOnline ? new Date().toISOString() : undefined,
+      };
+
+      if (!isOnline) {
+        await queueApiCall({
+          url: '/api/rh/ponto/punch',
+          method: 'POST',
+          body,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}`
+          }
+        });
+
+        toast({ 
+          title: 'Ponto salvo offline!', 
+          description: `Bateu: ${PUNCH_LABELS[punchType]}. Será sincronizado ao voltar a internet.` 
+        });
+        return;
+      }
+
+      await punch.mutateAsync(body);
+      toast({ title: 'Ponto registrado!', description: PUNCH_LABELS[punchType] });
     } catch (err: any) {
       if (err.message?.includes('horário de trabalho') || err.message?.includes('OUTSIDE_SCHEDULE')) {
         setOvertimeDialog(true);
