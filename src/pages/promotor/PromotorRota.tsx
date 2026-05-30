@@ -467,6 +467,7 @@ export default function PromotorRota() {
   const checkin = usePromotorCheckin();
   const checkout = usePromotorCheckout();
   const updateExec = usePromotorUpdateExecution();
+  const { isOnline, isSyncing, queueApiCall } = useOfflineSync();
   const reportDamage = usePromotorReportDamage();
   const reportRupture = usePromotorReportRupture();
   const addValidity = usePromotorAddValidity();
