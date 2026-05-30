@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { useParams, useNavigate } from "react-router-dom";
 import { PromotorLayout } from "./PromotorLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,6 +52,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
   const setCategoryPhoto = usePromotorCategoryPhoto();
   const [photos, setPhotos] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const { isOnline, queueApiCall } = useOfflineSync();
 
   // category may be null/undefined if no merch_execution_categories entry exists yet
   const hasPointType = !!category?.point_type;
@@ -64,13 +66,27 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
     
     // Se o modo for "after" (Somente Depois), já desbloqueamos os produtos imediatamente após escolher o tipo de ponto
     const shouldUnlockImmediately = photoMode === 'after';
-    
+
+    if (!isOnline) {
+      queueApiCall({
+        url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/point-type`,
+        method: 'POST',
+        body: { 
+          route_brand_id: routeBrandId,
+          point_type: type,
+          products_unlocked: shouldUnlockImmediately 
+        },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+      });
+      toast.info(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} salvo offline`);
+      onUnlocked();
+      return;
+    }
     setPointType.mutate({ 
       routeId, 
       catId, 
       route_brand_id: routeBrandId,
       point_type: type,
-      // Passamos um flag para o hook se ele precisar tratar o desbloqueio imediato no backend
       products_unlocked: shouldUnlockImmediately 
     }, {
       onSuccess: () => { 
@@ -92,9 +108,30 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
       ).catch(() => null);
 
+      const body = {
+        route_brand_id: routeBrandId, 
+        photo_url: photos[0], 
+        photos,
+        latitude: pos?.coords.latitude, 
+        longitude: pos?.coords.longitude,
+      };
+
+      if (!isOnline) {
+        queueApiCall({
+          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/photo`,
+          method: 'POST',
+          body,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+          dependsOnUploadId: photos[0].startsWith('blob:') ? photos[0] : undefined
+        });
+        toast.info(`${photos.length} foto(s) salvas offline! Produtos liberados.`);
+        setPhotos([]);
+        onUnlocked();
+        return;
+      }
+
       setCategoryPhoto.mutate({
-        routeId, catId, route_brand_id: routeBrandId, photo_url: photos[0], photos,
-        latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
+        routeId, catId, ...body
       }, {
         onSuccess: () => {
           toast.success(`${photos.length} foto(s) registrada(s)! Produtos liberados.`);
@@ -430,6 +467,7 @@ export default function PromotorRota() {
   const checkin = usePromotorCheckin();
   const checkout = usePromotorCheckout();
   const updateExec = usePromotorUpdateExecution();
+  const { isOnline, isSyncing, queueApiCall } = useOfflineSync();
   const reportDamage = usePromotorReportDamage();
   const reportRupture = usePromotorReportRupture();
   const addValidity = usePromotorAddValidity();
@@ -595,15 +633,31 @@ export default function PromotorRota() {
         accuracy: pos.coords.accuracy 
       });
 
-      checkin.mutate({
+      const body = {
         id,
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         device: navigator.userAgent || 'Unknown Device',
         photo_url: checkinPhotoUrl || undefined,
         facial_verified: isFacialActiveCheckin || undefined,
-        all_routes_at_pdv: true, // Unificar check-in para todas as rotas do PDV
-      }, {
+        all_routes_at_pdv: true,
+      };
+
+      if (!isOnline) {
+        queueApiCall({
+          url: `/api/merch/promotor/routes/${id}/checkin`,
+          method: 'POST',
+          body,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+          dependsOnUploadId: checkinPhotoUrl.startsWith('blob:') ? checkinPhotoUrl : undefined
+        });
+        toast.info('Check-in salvo offline!');
+        setCheckinPhotoUrl('');
+        refetch();
+        return;
+      }
+
+      checkin.mutate(body, {
         onSuccess: () => {
           logger.info('[handleCheckin] Check-in realizado com sucesso', { routeId: id });
           toast.success('Check-in realizado!');
@@ -1247,13 +1301,32 @@ export default function PromotorRota() {
               <Button variant="outline" size="sm" onClick={() => setSelectedExec(null)}>Fechar</Button>
               <Button size="sm" onClick={() => {
                 if (!selectedExec) return;
-                updateExec.mutate({
+                const body = {
                   id: selectedExec.id,
                   qty_store: actionForm.qty_store ?? selectedExec.qty_store ?? 0,
                   qty_stock: actionForm.qty_stock ?? selectedExec.qty_stock ?? 0,
                   observation: actionForm.product_observation ?? selectedExec.observation,
                   status: 'completed', checked: true,
-                }, {
+                };
+
+                if (!isOnline) {
+                  queueApiCall({
+                    url: `/api/merch/promotor/executions/${selectedExec.id}`,
+                    method: 'PUT',
+                    body: {
+                      qty_store: actionForm.qty_store ?? selectedExec.qty_store ?? 0,
+                      qty_stock: actionForm.qty_stock ?? selectedExec.qty_stock ?? 0,
+                      observation: actionForm.product_observation ?? selectedExec.observation,
+                      status: 'completed', checked: true,
+                    },
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+                  });
+                  toast.info('Produto salvo offline!');
+                  setSelectedExec(null);
+                  return;
+                }
+
+                updateExec.mutate(body, {
                   onSuccess: () => { toast.success('Produto executado!'); setSelectedExec(null); },
                   onError: (err: any) => toast.error(err.message),
                 });

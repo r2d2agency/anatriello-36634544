@@ -1,7 +1,10 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useBranding } from "@/hooks/use-branding";
-import { Home, FileText, Clock, Upload, Settings, LogOut, Bell, X, Users } from "lucide-react";
+import { Home, FileText, Clock, Upload, Settings, LogOut, Bell, X, Users, RefreshCw, WifiOff } from "lucide-react";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/offline-db";
 import { cn } from "@/lib/utils";
 import { usePromotorNotifications, usePromotorMarkRead, useLocationTracking } from "@/hooks/use-promotor";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +40,11 @@ export function PromotorLayout({ children }: PromotorLayoutProps) {
   const location = useLocation();
   const { branding } = useBranding();
   const [showNotifications, setShowNotifications] = useState(false);
+  const { isOnline, isSyncing, sync } = useOfflineSync();
+  
+  const pendingUploads = useLiveQuery(() => db.pending_uploads.count()) || 0;
+  const pendingCalls = useLiveQuery(() => db.pending_api_calls.count()) || 0;
+  const totalPending = pendingUploads + pendingCalls;
 
   const { data: notifications = [] } = usePromotorNotifications();
   const markRead = usePromotorMarkRead();
@@ -103,17 +111,40 @@ export function PromotorLayout({ children }: PromotorLayoutProps) {
                 {branding.company_name || 'Ayratech'}
               </h2>
             </div>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-lg hover:bg-muted transition-colors"
-            >
-              <Bell className="h-5 w-5 text-foreground" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+            <div className="flex items-center gap-1">
+              {totalPending > 0 && (
+                <button
+                  onClick={() => isOnline && sync()}
+                  disabled={isSyncing || !isOnline}
+                  className={cn(
+                    "relative p-2 rounded-lg transition-colors flex items-center gap-1",
+                    isSyncing ? "text-primary animate-pulse" : "text-yellow-600"
+                  )}
+                  title={isOnline ? "Sincronizar agora" : "Aguardando conexão para sincronizar"}
+                >
+                  <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
+                  <span className="text-[10px] font-bold">{totalPending}</span>
+                </button>
               )}
-            </button>
+
+              {!isOnline && (
+                <div className="p-2 text-destructive" title="Offline">
+                  <WifiOff className="h-5 w-5" />
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <Bell className="h-5 w-5 text-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Notifications panel */}

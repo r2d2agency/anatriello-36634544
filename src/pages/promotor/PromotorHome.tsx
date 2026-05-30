@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { usePromotorHome, usePromotorPunch, usePromotorOvertimeRequest } from "@/hooks/use-promotor";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { CameraCapture } from "@/components/promotor/CameraCapture";
 import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDialog";
 import { PromotorLayout } from "./PromotorLayout";
@@ -43,7 +44,7 @@ export default function PromotorHome() {
   const overtimeReq = usePromotorOvertimeRequest();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { isOnline, isSyncing, queueApiCall } = useOfflineSync();
   const [gpsStatus, setGpsStatus] = useState<'checking' | 'active' | 'denied' | 'off'>('checking');
   const [currentPos, setCurrentPos] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [punchLoading, setPunchLoading] = useState(false);
@@ -145,6 +146,31 @@ export default function PromotorHome() {
       
       logger.info('[handlePdvCheckin] Chamando API', { url, pdvId, routeId: activeRouteForPdv.id });
 
+      const body = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        photo_url: pdvCheckinPhoto,
+        all_routes_at_pdv: true
+      };
+
+      if (!isOnline) {
+        await queueApiCall({
+          url: `/api/merch/promotor/routes/${activeRouteForPdv.id}/checkin`,
+          method: 'POST',
+          body,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}`
+          },
+          dependsOnUploadId: pdvCheckinPhoto.startsWith('blob:') ? pdvCheckinPhoto : undefined
+        });
+
+        toast({ title: 'Check-in salvo offline!', description: 'Será sincronizado automaticamente.' });
+        setShowPdvCheckin(false);
+        setPdvCheckinPhoto('');
+        setTimeout(() => navigate(`/promotor/rota/${activeRouteForPdv.id}`), 100);
+        return;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -153,12 +179,7 @@ export default function PromotorHome() {
               ? { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` } 
               : {})
         },
-        body: JSON.stringify({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          photo_url: pdvCheckinPhoto,
-          all_routes_at_pdv: true // Unificar check-in para todas as rotas do PDV
-        }),
+        body: JSON.stringify(body),
       });
 
       let result;
@@ -213,17 +234,34 @@ export default function PromotorHome() {
         headers['Authorization'] = `Bearer ${token}`;
       }
       const url = `${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/merch/promotor/pdv-checkout`;
+      const body = {
+        pdv_id: pdvId,
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        photo_url: pdvCheckoutPhoto || undefined,
+        notes: pdvCheckoutNotes || undefined,
+        status_override: !pdvCheckoutPhoto ? 'awaiting_photo' : 'completed'
+      };
+
+      if (!isOnline) {
+        await queueApiCall({
+          url: '/api/merch/promotor/pdv-checkout',
+          method: 'POST',
+          body,
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          dependsOnUploadId: pdvCheckoutPhoto.startsWith('blob:') ? pdvCheckoutPhoto : undefined
+        });
+
+        toast({ title: 'Checkout salvo offline!', description: 'Será sincronizado automaticamente.' });
+        setShowPdvCheckout(false);
+        setPdvCheckoutPhoto('');
+        setPdvCheckoutNotes('');
+        return;
+      }
+
       const response = await fetch(url, {
         method: 'POST', headers,
-        body: JSON.stringify({
-          pdv_id: pdvId,
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          photo_url: pdvCheckoutPhoto || undefined,
-          notes: pdvCheckoutNotes || undefined,
-          // If no photo was taken, mark as awaiting_photo
-          status_override: !pdvCheckoutPhoto ? 'awaiting_photo' : 'completed'
-        }),
+        body: JSON.stringify(body),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result?.error || 'Erro');
@@ -238,6 +276,8 @@ export default function PromotorHome() {
     }
   }, [pdvCheckoutPhoto, pdvCheckoutNotes, toast]);
 
+  // Offline handling is now centralized in useOfflineSync hook
+  /*
   useEffect(() => {
     const onOn = () => setIsOnline(true);
     const onOff = () => setIsOnline(false);
@@ -245,6 +285,7 @@ export default function PromotorHome() {
     window.addEventListener('offline', onOff);
     return () => { window.removeEventListener('online', onOn); window.removeEventListener('offline', onOff); };
   }, []);
+  */
 
   useEffect(() => {
     if (!navigator.geolocation) { setGpsStatus('off'); return; }
