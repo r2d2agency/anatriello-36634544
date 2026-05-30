@@ -632,15 +632,31 @@ export default function PromotorRota() {
         accuracy: pos.coords.accuracy 
       });
 
-      checkin.mutate({
+      const body = {
         id,
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         device: navigator.userAgent || 'Unknown Device',
         photo_url: checkinPhotoUrl || undefined,
         facial_verified: isFacialActiveCheckin || undefined,
-        all_routes_at_pdv: true, // Unificar check-in para todas as rotas do PDV
-      }, {
+        all_routes_at_pdv: true,
+      };
+
+      if (!isOnline) {
+        queueApiCall({
+          url: `/api/merch/promotor/routes/${id}/checkin`,
+          method: 'POST',
+          body,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+          dependsOnUploadId: checkinPhotoUrl.startsWith('blob:') ? checkinPhotoUrl : undefined
+        });
+        toast.info('Check-in salvo offline!');
+        setCheckinPhotoUrl('');
+        refetch();
+        return;
+      }
+
+      checkin.mutate(body, {
         onSuccess: () => {
           logger.info('[handleCheckin] Check-in realizado com sucesso', { routeId: id });
           toast.success('Check-in realizado!');
@@ -1284,13 +1300,27 @@ export default function PromotorRota() {
               <Button variant="outline" size="sm" onClick={() => setSelectedExec(null)}>Fechar</Button>
               <Button size="sm" onClick={() => {
                 if (!selectedExec) return;
-                updateExec.mutate({
+                const body = {
                   id: selectedExec.id,
                   qty_store: actionForm.qty_store ?? selectedExec.qty_store ?? 0,
                   qty_stock: actionForm.qty_stock ?? selectedExec.qty_stock ?? 0,
                   observation: actionForm.product_observation ?? selectedExec.observation,
                   status: 'completed', checked: true,
-                }, {
+                };
+
+                if (!isOnline) {
+                  queueApiCall({
+                    url: `/api/merch/promotor/execution-categories/updates`,
+                    method: 'POST',
+                    body: { updates: [body] },
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+                  });
+                  toast.info('Produto salvo offline!');
+                  setSelectedExec(null);
+                  return;
+                }
+
+                updateExec.mutate(body, {
                   onSuccess: () => { toast.success('Produto executado!'); setSelectedExec(null); },
                   onError: (err: any) => toast.error(err.message),
                 });
