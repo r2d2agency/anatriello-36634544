@@ -295,6 +295,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
   const setCategoryPhoto = usePromotorCategoryPhoto();
   const [photos, setPhotos] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const { isOnline, queueApiCall } = useOfflineSync();
 
   const handleUploadPhoto = async () => {
     if (photos.length === 0) return toast.error('É necessário tirar pelo menos 1 foto do ponto extra.');
@@ -303,15 +304,43 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
       ).catch(() => null);
-      setCategoryPhoto.mutate({
-        routeId, catId, photo_url: photos[0],
+
+      const body = {
+        routeId, catId, photo_url: photos[0], photos,
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
-      }, {
-        onSuccess: () => { toast.success('Foto do ponto extra registrada! Produtos liberados.'); setPhotos([]); onPhotoTaken(); },
-        onError: (err: any) => { toast.error(err.message); setIsSending(false); },
+      };
+
+      if (!isOnline) {
+        await queueApiCall({
+          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/photo`,
+          method: 'POST',
+          body,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+          dependsOnUploadId: photos[0].startsWith('blob:') ? photos[0] : undefined
+        });
+        toast.info('Foto do ponto extra salva offline! Produtos liberados.');
+        setPhotos([]);
+        setIsSending(false);
+        onPhotoTaken();
+        return;
+      }
+
+      setCategoryPhoto.mutate(body, {
+        onSuccess: () => { 
+          toast.success('Foto do ponto extra registrada! Produtos liberados.'); 
+          setPhotos([]); 
+          onPhotoTaken(); 
+        },
+        onError: (err: any) => { 
+          toast.error(err.message); 
+          setIsSending(false); 
+        },
       });
-    } catch { setIsSending(false); }
+    } catch { 
+      setIsSending(false); 
+    }
   };
+
 
   return (
     <Card className="border-orange-400/40 bg-orange-50/50">
