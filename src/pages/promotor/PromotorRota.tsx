@@ -386,15 +386,53 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
   const setCategoryAfterPhoto = usePromotorCategoryAfterPhoto();
   const [photos, setPhotos] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const { isOnline, queueApiCall } = useOfflineSync();
   const min = Math.max(1, minPhotos || 1);
 
   const handleUpload = async () => {
     if (photos.length < min) return toast.error(`É necessário enviar pelo menos ${min} foto(s) DEPOIS.`);
     setIsSending(true);
-    const { isOnline, queueApiCall } = useOfflineSync(); // Error: can't use hook here, but I can pass it or use a closure if needed. Actually, this is a component, so I should call the hook at the top.
-    
-    // Wait, I need to call the hook at the top level of CategoryAfterPhotoGate
-    // I'll adjust the whole component function slightly.
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      ).catch(() => null);
+
+      const body = {
+        routeId, catId, route_brand_id: routeBrandId, photo_url: photos[0], photos,
+        latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
+      };
+
+      if (!isOnline) {
+        await queueApiCall({
+          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/after-photo`,
+          method: 'POST',
+          body,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+          dependsOnUploadId: photos[0].startsWith('blob:') ? photos[0] : undefined
+        });
+        toast.info('Foto DEPOIS salva offline! Categoria concluída localmente.');
+        setPhotos([]);
+        setIsSending(false);
+        onCompleted();
+        return;
+      }
+
+      setCategoryAfterPhoto.mutate(body, {
+        onSuccess: () => { 
+          toast.success(`${photos.length} foto(s) DEPOIS registrada(s)! Categoria concluída.`); 
+          setPhotos([]); 
+          onCompleted(); 
+        },
+        onError: (err: any) => { 
+          toast.error(err.message); 
+          setIsSending(false); 
+        },
+      });
+    } catch { 
+      setIsSending(false); 
+    }
+  };
+
 
 
   return (
