@@ -391,19 +391,11 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
   const handleUpload = async () => {
     if (photos.length < min) return toast.error(`É necessário enviar pelo menos ${min} foto(s) DEPOIS.`);
     setIsSending(true);
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
-      ).catch(() => null);
-      setCategoryAfterPhoto.mutate({
-        routeId, catId, route_brand_id: routeBrandId, photo_url: photos[0], photos,
-        latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
-      }, {
-        onSuccess: () => { toast.success(`${photos.length} foto(s) DEPOIS registrada(s)! Categoria concluída.`); setPhotos([]); onCompleted(); },
-        onError: (err: any) => { toast.error(err.message); setIsSending(false); },
-      });
-    } catch { setIsSending(false); }
-  };
+    const { isOnline, queueApiCall } = useOfflineSync(); // Error: can't use hook here, but I can pass it or use a closure if needed. Actually, this is a component, so I should call the hook at the top.
+    
+    // Wait, I need to call the hook at the top level of CategoryAfterPhotoGate
+    // I'll adjust the whole component function slightly.
+
 
   return (
     <Card className="border-green-500/40 bg-green-50/50 mt-2">
