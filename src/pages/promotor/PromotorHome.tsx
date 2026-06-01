@@ -15,12 +15,14 @@ import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDial
 import { PromotorLayout } from "./PromotorLayout";
 import {
   Clock, FileText, Bell, MapPin, Wifi, WifiOff, Navigation, AlertTriangle, CheckCircle2,
-  Loader2, ShieldAlert, Timer, ChevronRight, PlayCircle, Package, Store, ScanFace
+  Loader2, ShieldAlert, Timer, ChevronRight, PlayCircle, Package, Store, ScanFace,
+  Download, Check
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/lib/logger";
+import { api } from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-500/20 text-blue-700',
