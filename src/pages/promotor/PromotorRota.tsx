@@ -105,7 +105,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
       ).catch(() => null);
 
       const body = {
@@ -118,7 +118,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
 
       if (!isOnline) {
         queueApiCall({
-          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/photo`,
+          url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
           method: 'POST',
           body,
           headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
@@ -302,7 +302,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
       ).catch(() => null);
 
       const body = {
@@ -312,7 +312,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
 
       if (!isOnline) {
         await queueApiCall({
-          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/photo`,
+          url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
           method: 'POST',
           body,
           headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
@@ -423,7 +423,7 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
       ).catch(() => null);
 
       const body = {
@@ -433,7 +433,7 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
 
       if (!isOnline) {
         await queueApiCall({
-          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/after-photo`,
+          url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/after-photo`,
           method: 'POST',
           body,
           headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
@@ -683,20 +683,20 @@ export default function PromotorRota() {
         if (err.code === 1) throw new Error('Permissão de GPS negada. Por favor, autorize o acesso à localização.');
         if (err.code === 2) throw new Error('Posição indisponível. Verifique se o GPS está ativado.');
         if (err.code === 3) throw new Error('Tempo limite do GPS esgotado. Tente novamente em um local mais aberto.');
-        throw new Error('Erro ao obter localização: ' + (err.message || 'GPS indisponível.'));
+        return null; // Don't block if GPS fails (especially offline)
       });
 
       logger.info('[handleCheckin] Localização obtida para check-in', { 
         routeId: id, 
-        lat: pos.coords.latitude, 
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy 
+        lat: pos?.coords.latitude, 
+        lng: pos?.coords.longitude,
+        accuracy: pos?.coords.accuracy 
       });
 
       const body = {
         id,
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
+        latitude: pos?.coords.latitude,
+        longitude: pos?.coords.longitude,
         device: navigator.userAgent || 'Unknown Device',
         photo_url: checkinPhotoUrl || undefined,
         facial_verified: isFacialActiveCheckin || undefined,
@@ -711,9 +711,9 @@ export default function PromotorRota() {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
           dependsOnUploadId: checkinPhotoUrl.startsWith('blob:') ? checkinPhotoUrl : undefined
         });
-        toast.info('Check-in salvo offline!');
+        toast.info('Check-in salvo offline! Você já pode iniciar os trabalhos.');
         setCheckinPhotoUrl('');
-        refetch();
+        // Optimistically update route status locally if needed
         return;
       }
 
@@ -736,7 +736,7 @@ export default function PromotorRota() {
       logger.error('[handleCheckin] Erro fatal no check-in', { message: err.message, routeId: id }, err);
       toast.error(err.message || 'Não foi possível realizar o check-in');
     }
-  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name]);
+  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name, isOnline, queueApiCall, refetch]);
 
   const handleCompleteRoute = useCallback(async () => {
     if (!id) return;
@@ -1482,14 +1482,56 @@ export default function PromotorRota() {
                 const execId = selectedExec.id;
                 const onDone = () => { toast.success('Registrado com sucesso'); setActiveAction(null); };
                 const onErr = (err: any) => toast.error(err.message);
+                
+                const body: any = { executionId: execId };
+                let url = '';
+                
                 if (activeAction === 'validity') {
-                  addValidity.mutate({ executionId: execId, expiry_date: actionForm.expiry_date, qty_store: actionForm.val_qty_store || 0, qty_stock: actionForm.val_qty_stock || 0 }, { onSuccess: onDone, onError: onErr });
+                  url = `/api/merch/promotor/executions/${execId}/validity`;
+                  body.expiry_date = actionForm.expiry_date;
+                  body.qty_store = actionForm.val_qty_store || 0;
+                  body.qty_stock = actionForm.val_qty_stock || 0;
                 } else if (activeAction === 'rupture') {
-                  reportRupture.mutate({ executionId: execId, qty_store: actionForm.occ_qty_store || 0, qty_stock: actionForm.occ_qty_stock || 0, reason: actionForm.reason, observation: actionForm.observation }, { onSuccess: onDone, onError: onErr });
+                  url = `/api/merch/promotor/executions/${execId}/rupture`;
+                  body.qty_store = actionForm.occ_qty_store || 0;
+                  body.qty_stock = actionForm.occ_qty_stock || 0;
+                  body.reason = actionForm.reason;
+                  body.observation = actionForm.observation;
                 } else if (activeAction === 'damage') {
-                  reportDamage.mutate({ executionId: execId, qty_store: actionForm.occ_qty_store || 0, qty_stock: actionForm.occ_qty_stock || 0, reason: actionForm.reason, observation: actionForm.observation, description: actionForm.observation, location: actionForm.location }, { onSuccess: onDone, onError: onErr });
+                  url = `/api/merch/promotor/executions/${execId}/damage`;
+                  body.qty_store = actionForm.occ_qty_store || 0;
+                  body.qty_stock = actionForm.occ_qty_stock || 0;
+                  body.reason = actionForm.reason;
+                  body.observation = actionForm.observation;
+                  body.description = actionForm.observation;
+                  body.location = actionForm.location;
                 } else if (activeAction === 'discard') {
-                  reportDiscard.mutate({ executionId: execId, qty_store: actionForm.occ_qty_store || 0, qty_stock: actionForm.occ_qty_stock || 0, reason: actionForm.reason, observation: actionForm.observation }, { onSuccess: onDone, onError: onErr });
+                  url = `/api/merch/promotor/executions/${execId}/discard`;
+                  body.qty_store = actionForm.occ_qty_store || 0;
+                  body.qty_stock = actionForm.occ_qty_stock || 0;
+                  body.reason = actionForm.reason;
+                  body.observation = actionForm.observation;
+                }
+
+                if (!isOnline) {
+                  queueApiCall({
+                    url,
+                    method: 'POST',
+                    body,
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+                  });
+                  onDone();
+                  return;
+                }
+
+                if (activeAction === 'validity') {
+                  addValidity.mutate(body, { onSuccess: onDone, onError: onErr });
+                } else if (activeAction === 'rupture') {
+                  reportRupture.mutate(body, { onSuccess: onDone, onError: onErr });
+                } else if (activeAction === 'damage') {
+                  reportDamage.mutate(body, { onSuccess: onDone, onError: onErr });
+                } else if (activeAction === 'discard') {
+                  reportDiscard.mutate(body, { onSuccess: onDone, onError: onErr });
                 }
               }}>Salvar</Button>
             </DialogFooter>
