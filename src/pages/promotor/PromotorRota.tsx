@@ -298,32 +298,19 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
       };
 
-      if (!isOnline) {
-        await queueApiCall({
-          url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
-          method: 'POST',
-          body,
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
-          dependsOnUploadId: photos[0].startsWith('blob:') ? photos[0] : undefined
-        });
-        toast.info('Foto do ponto extra salva offline! Produtos liberados.');
-        setPhotos([]);
-        setIsSending(false);
-        onPhotoTaken();
-        return;
-      }
-
-      setCategoryPhoto.mutate(body, {
-        onSuccess: () => { 
-          toast.success('Foto do ponto extra registrada! Produtos liberados.'); 
-          setPhotos([]); 
-          onPhotoTaken(); 
-        },
-        onError: (err: any) => { 
-          toast.error(err.message); 
-          setIsSending(false); 
-        },
+      // Always use background queue for photo-related actions for performance
+      await queueApiCall({
+        url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
+        method: 'POST',
+        body,
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+        dependsOnUploadId: photos[0].startsWith('blob:') ? photos[0] : undefined
       });
+      
+      toast.success('Foto do ponto extra registrada! Produtos liberados.');
+      setPhotos([]);
+      setIsSending(false);
+      onPhotoTaken();
     } catch { 
       setIsSending(false); 
     }
