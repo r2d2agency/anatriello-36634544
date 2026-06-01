@@ -666,35 +666,21 @@ export default function PromotorRota() {
         all_routes_at_pdv: true,
       };
 
-      if (!isOnline) {
-        queueApiCall({
-          url: `/api/merch/promotor/routes/${id}/checkin`,
-          method: 'POST',
-          body,
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
-          dependsOnUploadId: checkinPhotoUrl.startsWith('blob:') ? checkinPhotoUrl : undefined
-        });
-        toast.info('Check-in salvo offline! Você já pode iniciar os trabalhos.');
-        setCheckinPhotoUrl('');
-        // Optimistically update route status locally if needed
-        return;
-      }
-
-      checkin.mutate(body, {
-        onSuccess: () => {
-          logger.info('[handleCheckin] Check-in realizado com sucesso', { routeId: id });
-          toast.success('Check-in realizado!');
-          refetch(); // Força atualização dos dados da rota
-        },
-        onError: (err: any) => {
-          logger.error('[handleCheckin] Erro na API de check-in', { 
-            error: err.message, 
-            status: err.status,
-            routeId: id 
-          });
-          toast.error('Erro no servidor ao fazer check-in: ' + (err.message || 'Erro desconhecido'));
-        },
+      // Always use background queue for check-in for performance
+      await queueApiCall({
+        url: `/api/merch/promotor/routes/${id}/checkin`,
+        method: 'POST',
+        body,
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+        dependsOnUploadId: checkinPhotoUrl.startsWith('blob:') ? checkinPhotoUrl : undefined
       });
+      
+      toast.success('Check-in realizado! Sincronizando em segundo plano.');
+      setCheckinPhotoUrl('');
+      // We still want to refetch the route data to show updated status, 
+      // but we do it immediately without waiting for the checkin call to finish.
+      // The backend check-in usually takes care of the status.
+      setTimeout(() => refetch(), 1000); 
     } catch (err: any) {
       logger.error('[handleCheckin] Erro fatal no check-in', { message: err.message, routeId: id }, err);
       toast.error(err.message || 'Não foi possível realizar o check-in');
