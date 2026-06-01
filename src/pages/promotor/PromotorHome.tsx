@@ -61,6 +61,9 @@ export default function PromotorHome() {
   const [pdvCheckinLoading, setPdvCheckinLoading] = useState(false);
   const [actionPdv, setActionPdv] = useState<{ pdv_id: string; pdv_name: string } | null>(null);
   const [showFaceVerify, setShowFaceVerify] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
+  const [preloadProgress, setPreloadProgress] = useState(0);
+  const queryClient = useQueryClient();
 
   // Fetch facial config for this promotor
   const promotorToken = localStorage.getItem('promotor_token');
