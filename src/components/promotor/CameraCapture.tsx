@@ -338,33 +338,31 @@ export function CameraCapture({
       const wmData: WatermarkData = { ...watermark, latitude: lat, longitude: lng };
       applyWatermark(canvasRef.current, wmData);
 
-      // Compress
-      const blob = compressImage(canvasRef.current, config.compression_quality, config.max_file_size_kb);
+      // Compress (now async and faster)
+      const blob = await compressImage(canvasRef.current, config.compression_quality, config.max_file_size_kb);
       if (!blob) {
         toast.error("Erro ao comprimir imagem");
         setIsProcessing(false);
         return;
       }
 
-      // Upload or Queue
+      // Create file and always use queue for performance, even when online
+      // This allows the user to continue immediately while sync happens in background
       const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const token = (customTokenGetter ? customTokenGetter() : null) || localStorage.getItem('promotor_token') || localStorage.getItem('auth_token');
+      
+      const localUrl = await queueUpload(file, token);
+      onCapture(localUrl);
       
       if (!isOnline) {
-        const token = (customTokenGetter ? customTokenGetter() : null) || localStorage.getItem('promotor_token') || localStorage.getItem('auth_token');
-        const localUrl = await queueUpload(file, token);
-        onCapture(localUrl);
-        toast.info("Foto salva localmente e otimizada! Será enviada quando houver internet.");
-        handleClose();
+        toast.info("Foto salva localmente! Será enviada quando houver internet.");
       } else {
-        const url = await uploadFile(file);
-        if (url) {
-          onCapture(url);
-          toast.success("Foto aprovada e enviada!");
-          handleClose();
-        }
+        toast.success("Foto registrada e sendo enviada em segundo plano!");
       }
+      
+      handleClose();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao enviar foto");
+      toast.error(err.message || "Erro ao processar foto");
     } finally {
       setIsProcessing(false);
     }
