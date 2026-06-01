@@ -423,7 +423,7 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
       ).catch(() => null);
 
       const body = {
@@ -433,7 +433,7 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
 
       if (!isOnline) {
         await queueApiCall({
-          url: `/api/merch/promotor/routes/${routeId}/execution-categories/${catId}/after-photo`,
+          url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/after-photo`,
           method: 'POST',
           body,
           headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
