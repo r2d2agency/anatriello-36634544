@@ -749,22 +749,16 @@ export default function PromotorRota() {
         notes: actionForm.pdv_notes,
       };
 
-      if (!isOnline) {
-        await queueApiCall({
-          url: '/api/merch/promotor/pdv-checkout',
-          method: 'POST',
-          body,
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
-          dependsOnUploadId: pdvCheckoutPhoto.startsWith('blob:') ? pdvCheckoutPhoto : undefined
-        });
-        toast.info('Checkout do PDV salvo offline!');
-        setShowPdvCheckout(false);
-        navigate('/promotor/home');
-        return;
-      }
-
-      await pdvCheckout.checkout(body);
-      toast.success('Checkout do PDV realizado!');
+      // Always use background queue for PDV checkout for performance
+      await queueApiCall({
+        url: '/api/merch/promotor/pdv-checkout',
+        method: 'POST',
+        body,
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+        dependsOnUploadId: pdvCheckoutPhoto.startsWith('blob:') ? pdvCheckoutPhoto : undefined
+      });
+      
+      toast.success('Checkout do PDV realizado! Sincronizando em segundo plano.');
       setShowPdvCheckout(false);
       navigate('/promotor/home');
     } catch (err: any) {
