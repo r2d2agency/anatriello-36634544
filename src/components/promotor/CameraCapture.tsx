@@ -175,28 +175,35 @@ function applyWatermark(
   ctx.fillText(ts, w - tsWidth - padding, padding);
 }
 
-function compressImage(
+async function compressImage(
   canvas: HTMLCanvasElement,
   quality: number,
   maxSizeKb: number
-): Blob | null {
-  let q = quality;
-  let blob: Blob | null = null;
+): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    let q = quality;
+    
+    const attempt = (currentQuality: number, attemptsLeft: number) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(null);
+            return;
+          }
+          
+          if (blob.size / 1024 <= maxSizeKb || attemptsLeft <= 0) {
+            resolve(blob);
+          } else {
+            attempt(currentQuality - 0.1, attemptsLeft - 1);
+          }
+        },
+        "image/jpeg",
+        currentQuality
+      );
+    };
 
-  // Try progressive compression
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const dataUrl = canvas.toDataURL("image/jpeg", q);
-    const binary = atob(dataUrl.split(",")[1]);
-    const array = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-    blob = new Blob([array], { type: "image/jpeg" });
-
-    if (blob.size / 1024 <= maxSizeKb) break;
-    q -= 0.1;
-    if (q < 0.1) break;
-  }
-
-  return blob;
+    attempt(q, 5);
+  });
 }
 
 export function CameraCapture({
