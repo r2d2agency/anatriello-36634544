@@ -324,8 +324,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
         url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
         method: 'POST',
         body,
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
-        dependsOnUploadId: photos[0].startsWith('blob:') ? photos[0] : undefined
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
       toast.success('Foto do ponto extra registrada! Produtos liberados.');
