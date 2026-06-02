@@ -123,6 +123,8 @@ export function useOfflineSync() {
   const queueUpload = useCallback(async (file: File, token: string | null): Promise<string> => {
     const localId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
+    // Convert file to base64 for persistent storage if it's small, 
+    // or keep as Blob/File if Dexie handles it (it does in IndexedDB)
     await db.pending_uploads.add({
       file: file,
       fileName: file.name,
@@ -137,7 +139,9 @@ export function useOfflineSync() {
       setTimeout(() => sync(), 100);
     }
 
-    return URL.createObjectURL(file);
+    // IMPORTANT: Return the localId as the reference, NOT a transient blob URL
+    // This allows the UI to know it's a pending file
+    return `local-file://${localId}`;
   }, [isOnline, sync]);
 
   const queueApiCall = useCallback(async (config: Omit<PendingApiCall, 'status' | 'timestamp'>) => {
