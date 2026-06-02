@@ -13,6 +13,7 @@ import { usePromotorDocuments, usePromotorConfirmDocument, usePromotorViewDocume
 import { useUpload } from "@/hooks/use-upload";
 import { PromotorLayout } from "./PromotorLayout";
 import { FileText, Eye, Check, Clock, Loader2, Upload, Camera, Image, Download, Send, CheckCircle2 } from "lucide-react";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import { format } from "date-fns";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
