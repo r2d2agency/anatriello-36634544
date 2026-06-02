@@ -188,5 +188,5 @@ export function useOfflineSync() {
     }
   }, [isOnline, sync]);
 
-  return { isOnline, isSyncing, queueUpload, queueApiCall, sync };
+  return { isOnline, isSyncing, queueUpload, queueApiCall, sync, getLocalFileUrl };
 }
