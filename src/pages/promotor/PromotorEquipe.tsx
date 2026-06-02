@@ -17,6 +17,7 @@ import {
 } from "@/hooks/use-promotor";
 import { useUpload } from "@/hooks/use-upload";
 import { PromotorLayout } from "./PromotorLayout";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import {
   Users, MapPin, Bell, Send, FileText, Clock, ChevronRight,
   Loader2, Check, X, Search, Calendar, Navigation, Upload, ShieldAlert
@@ -177,7 +178,7 @@ export default function PromotorEquipe() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {p.photo_url ? (
-                      <img src={p.photo_url} alt="" className="w-10 h-10 rounded-full object-cover border" />
+                      <LocalImage src={p.photo_url} alt="" className="w-10 h-10 rounded-full object-cover border" />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                         {p.full_name?.charAt(0)}
@@ -215,7 +216,7 @@ export default function PromotorEquipe() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               {selectedPromoter?.photo_url ? (
-                <img src={selectedPromoter.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                <LocalImage src={selectedPromoter.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                   {selectedPromoter?.full_name?.charAt(0)}

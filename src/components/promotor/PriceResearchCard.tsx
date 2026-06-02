@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useRouteResearch, useExecuteResearch } from "@/hooks/use-price-research";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import {
   DollarSign, ChevronRight, CheckCircle2, Clock, AlertTriangle, Save, Package, Image as ImageIcon,
 } from "lucide-react";
@@ -162,7 +163,7 @@ export function PriceResearchCard({ routeId, brandId, brandName, pdvId, promoter
                   {/* Product header with photo */}
                   <div className="flex items-center gap-3 mb-3">
                     {item.photo_url ? (
-                      <img src={item.photo_url} alt={item.product_name} className="h-12 w-12 rounded object-cover border" />
+                      <LocalImage src={item.photo_url} alt={item.product_name} className="h-12 w-12 rounded object-cover border" />
                     ) : (
                       <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
                         <Package className="h-5 w-5 text-muted-foreground" />
@@ -194,7 +195,7 @@ export function PriceResearchCard({ routeId, brandId, brandName, pdvId, promoter
                           <div key={comp.id || cIdx} className="space-y-1">
                             <div className="flex items-center gap-2">
                               {comp.photo_url ? (
-                                <img src={comp.photo_url} alt={comp.competitor_product_name} className="h-8 w-8 rounded object-cover border" />
+                                <LocalImage src={comp.photo_url} alt={comp.competitor_product_name} className="h-8 w-8 rounded object-cover border" />
                               ) : (
                                 <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
                                   <ImageIcon className="h-3 w-3 text-muted-foreground" />

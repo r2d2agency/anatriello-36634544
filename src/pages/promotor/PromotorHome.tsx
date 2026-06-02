@@ -12,6 +12,7 @@ import { usePromotorHome, usePromotorPunch, usePromotorOvertimeRequest } from "@
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { CameraCapture } from "@/components/promotor/CameraCapture";
 import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDialog";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import { PromotorLayout } from "./PromotorLayout";
 import {
   Clock, FileText, Bell, MapPin, Wifi, WifiOff, Navigation, AlertTriangle, CheckCircle2,
@@ -938,7 +939,7 @@ export default function PromotorHome() {
               <Label className="text-xs">Foto da Fachada (obrigatória)</Label>
               {pdvCheckinPhoto ? (
                 <div className="space-y-2">
-                  <img src={pdvCheckinPhoto} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
+                  <LocalImage src={pdvCheckinPhoto} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
                   <Button variant="outline" size="sm" onClick={() => setPdvCheckinPhoto('')}>Tirar outra foto</Button>
                 </div>
               ) : (
@@ -983,7 +984,7 @@ export default function PromotorHome() {
               <Label className="text-xs">Foto de saída (opcional)</Label>
               {pdvCheckoutPhoto ? (
                 <div className="space-y-2">
-                  <img src={pdvCheckoutPhoto} alt="Checkout" className="w-full rounded-lg border max-h-48 object-cover" />
+                  <LocalImage src={pdvCheckoutPhoto} alt="Checkout" className="w-full rounded-lg border max-h-48 object-cover" />
                   <Button variant="outline" size="sm" onClick={() => setPdvCheckoutPhoto('')}>Tirar outra foto</Button>
                 </div>
               ) : (
