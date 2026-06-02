@@ -163,7 +163,7 @@ export function PriceResearchCard({ routeId, brandId, brandName, pdvId, promoter
                   {/* Product header with photo */}
                   <div className="flex items-center gap-3 mb-3">
                     {item.photo_url ? (
-                      <img src={item.photo_url} alt={item.product_name} className="h-12 w-12 rounded object-cover border" />
+                      <LocalImage src={item.photo_url} alt={item.product_name} className="h-12 w-12 rounded object-cover border" />
                     ) : (
                       <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
                         <Package className="h-5 w-5 text-muted-foreground" />
