@@ -412,7 +412,18 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
   const setCategoryAfterPhoto = usePromotorCategoryAfterPhoto();
   const [photos, setPhotos] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
-  const { isOnline, queueApiCall } = useOfflineSync();
+   const { isOnline, queueApiCall, getLocalFileUrl } = useOfflineSync();
+   const [resolvedPhotoUrls, setResolvedPhotoUrls] = useState<Record<string, string>>({});
+
+   useEffect(() => {
+     photos.forEach(async (p) => {
+       if (p.startsWith('local-file://') && !resolvedPhotoUrls[p]) {
+         const localId = p.replace('local-file://', '');
+         const url = await getLocalFileUrl(localId);
+         if (url) setResolvedPhotoUrls(prev => ({ ...prev, [p]: url }));
+       }
+     });
+   }, [photos, getLocalFileUrl, resolvedPhotoUrls]);
   const min = Math.max(1, minPhotos || 1);
 
   const handleUpload = async () => {
