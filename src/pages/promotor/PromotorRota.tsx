@@ -616,6 +616,16 @@ export default function PromotorRota() {
     return groups;
   }, [filteredExecs]);
 
+  const productsWithExtraPoint = useMemo(() => {
+    const set = new Set<string>();
+    route?.executions?.forEach((e: any) => {
+      if (e.exposure_point === 'extra') {
+        set.add(`${e.category_id}_${e.product_id}`);
+      }
+    });
+    return set;
+  }, [route?.executions]);
+
   const handleCheckin = useCallback(async () => {
     if (!id) return;
     if (route?.require_checkin_photo && !checkinPhotoUrl) {
@@ -967,8 +977,9 @@ export default function PromotorRota() {
               // Unlocked depends on photoMode:
               // if 'after', products_unlocked comes from point-type selection
               // if 'before' or 'both', products_unlocked comes from before-photo upload
+              const anyExecDone = execs.some((e: any) => e.status !== 'pending');
               const isLocked = requireCategoryPhotos 
-                ? (isExtraGroup ? !hasExtraPhoto : !catStatus?.products_unlocked) 
+                ? (isExtraGroup ? (!hasExtraPhoto && !anyExecDone) : !catStatus?.products_unlocked) 
                 : false;
                 
               // Se o modo for "Só Depois" e já tiver selecionado o tipo de ponto, liberamos os produtos mesmo se o backend ainda não marcou products_unlocked
@@ -1177,7 +1188,12 @@ export default function PromotorRota() {
                 <>
                   <Button className="w-full h-12" onClick={() => {
                     if (!allProductsDoneGlobal) {
-                      toast.error(`Ainda faltam ${totalExecsGlobal - completedExecsGlobal} produto(s) no total para concluir a rota.`);
+                      const pendingExtra = allExecutions.filter((e: any) => e.status !== 'completed' && e.exposure_point === 'extra').length;
+                      if (pendingExtra > 0) {
+                        toast.error(`Existem ${pendingExtra} produto(s) de PONTO EXTRA pendentes de execução.`);
+                      } else {
+                        toast.error(`Ainda faltam ${totalExecsGlobal - completedExecsGlobal} produto(s) no total para concluir a rota.`);
+                      }
                       return;
                     }
                     if (!allBrandsCompleted) {
@@ -1589,8 +1605,8 @@ export default function PromotorRota() {
               </p>
             </DialogHeader>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {showExtraPointDialog && groupedExecs[showExtraPointDialog.categoryName]?.execs
-                .filter((e: any) => e.exposure_point !== 'extra')
+              {showExtraPointDialog && (groupedExecs[showExtraPointDialog.categoryName]?.execs || [])
+                .filter((e: any) => e.exposure_point !== 'extra' && !productsWithExtraPoint.has(`${e.category_id}_${e.product_id}`))
                 .map((exec: any) => (
                   <label key={exec.id} className="flex items-center gap-3 p-2 rounded-lg border cursor-pointer hover:bg-accent/50">
                     <Checkbox
@@ -1619,7 +1635,7 @@ export default function PromotorRota() {
                     product_ids: selectedExtraProducts,
                   }, {
                     onSuccess: (data: any) => {
-                      toast.success(`${data.count} produto(s) duplicado(s) para ponto extra!`);
+                      toast.success(`${data.count} produto(s) registrados para ponto extra!`);
                       setShowExtraPointDialog(null);
                       setSelectedExtraProducts([]);
                     },
