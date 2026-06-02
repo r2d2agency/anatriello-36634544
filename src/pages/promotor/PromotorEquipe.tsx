@@ -216,7 +216,7 @@ export default function PromotorEquipe() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               {selectedPromoter?.photo_url ? (
-                <img src={selectedPromoter.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                <LocalImage src={selectedPromoter.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                   {selectedPromoter?.full_name?.charAt(0)}
