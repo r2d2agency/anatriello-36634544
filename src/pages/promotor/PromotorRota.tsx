@@ -1188,7 +1188,12 @@ export default function PromotorRota() {
                 <>
                   <Button className="w-full h-12" onClick={() => {
                     if (!allProductsDoneGlobal) {
-                      toast.error(`Ainda faltam ${totalExecsGlobal - completedExecsGlobal} produto(s) no total para concluir a rota.`);
+                      const pendingExtra = allExecutions.filter((e: any) => e.status !== 'completed' && e.exposure_point === 'extra').length;
+                      if (pendingExtra > 0) {
+                        toast.error(`Existem ${pendingExtra} produto(s) de PONTO EXTRA pendentes de execução.`);
+                      } else {
+                        toast.error(`Ainda faltam ${totalExecsGlobal - completedExecsGlobal} produto(s) no total para concluir a rota.`);
+                      }
                       return;
                     }
                     if (!allBrandsCompleted) {
