@@ -17,6 +17,7 @@ import {
 } from "@/hooks/use-promotor";
 import { useUpload } from "@/hooks/use-upload";
 import { PromotorLayout } from "./PromotorLayout";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import {
   Users, MapPin, Bell, Send, FileText, Clock, ChevronRight,
   Loader2, Check, X, Search, Calendar, Navigation, Upload, ShieldAlert
