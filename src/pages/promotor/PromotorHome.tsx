@@ -12,6 +12,7 @@ import { usePromotorHome, usePromotorPunch, usePromotorOvertimeRequest } from "@
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { CameraCapture } from "@/components/promotor/CameraCapture";
 import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDialog";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import { PromotorLayout } from "./PromotorLayout";
 import {
   Clock, FileText, Bell, MapPin, Wifi, WifiOff, Navigation, AlertTriangle, CheckCircle2,
