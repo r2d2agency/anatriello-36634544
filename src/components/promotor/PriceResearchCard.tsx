@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useRouteResearch, useExecuteResearch } from "@/hooks/use-price-research";
+import { LocalImage } from "@/components/promotor/LocalImage";
 import {
   DollarSign, ChevronRight, CheckCircle2, Clock, AlertTriangle, Save, Package, Image as ImageIcon,
 } from "lucide-react";
