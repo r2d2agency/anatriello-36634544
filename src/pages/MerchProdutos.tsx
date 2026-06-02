@@ -266,7 +266,7 @@ export default function MerchProdutos() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      {p.image_url ? <img src={p.image_url} className="h-8 w-8 rounded object-cover" /> : <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center"><Package className="h-4 w-4 text-primary" /></div>}
+                      {resolveMediaUrl(p.image_url) ? <img src={resolveMediaUrl(p.image_url)!} className="h-8 w-8 rounded object-cover" /> : <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center"><Package className="h-4 w-4 text-primary" /></div>}
                       <div><p className="font-medium">{p.name}</p>{p.barcode && <p className="text-xs text-muted-foreground">{p.barcode}</p>}</div>
                     </div>
                   </TableCell>
