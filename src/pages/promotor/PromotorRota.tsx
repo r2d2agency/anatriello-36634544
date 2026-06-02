@@ -123,7 +123,8 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
         method: 'POST',
         body: { ...body, routeId, catId },
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+        dependsOnUploadId: photos[0]?.startsWith('local-file://') ? photos[0].replace('local-file://', '') : undefined
       });
       
       toast.success(`${photos.length} foto(s) registrada(s)! Produtos liberados.`);
@@ -684,7 +685,8 @@ export default function PromotorRota() {
         url: `/api/merch/promotor/routes/${id}/checkin`,
         method: 'POST',
         body,
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+        dependsOnUploadId: checkinPhotoUrl?.startsWith('local-file://') ? checkinPhotoUrl.replace('local-file://', '') : undefined
       });
       
       toast.success('Check-in realizado! Sincronizando em segundo plano.');
