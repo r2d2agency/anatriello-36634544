@@ -525,9 +525,16 @@ export default function MerchExecucao() {
                     {viewRoute.checkin_photo && (
                       <div className="space-y-1">
                         <div className="text-[10px] font-semibold text-muted-foreground uppercase">Foto Check-in</div>
-                        <div className="aspect-video rounded-md overflow-hidden bg-muted border">
-                          <img src={resolveMediaUrl(viewRoute.checkin_photo) || ''} alt="Check-in" className="w-full h-full object-cover cursor-pointer" 
-                            onClick={() => window.open(resolveMediaUrl(viewRoute.checkin_photo) || '', '_blank')} />
+                        <div className="aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center">
+                          {resolveMediaUrl(viewRoute.checkin_photo) ? (
+                            <img src={resolveMediaUrl(viewRoute.checkin_photo)!} alt="Check-in" className="w-full h-full object-cover cursor-pointer" 
+                              onClick={() => window.open(resolveMediaUrl(viewRoute.checkin_photo)!, '_blank')} />
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                              <Camera className="h-6 w-6" />
+                              <span className="text-[8px]">Aguardando sincronismo</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

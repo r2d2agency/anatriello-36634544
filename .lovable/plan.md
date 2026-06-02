@@ -1,17 +1,21 @@
-The user wants to simplify the product checklist process when stock counting is not required. I will modify the backend to ensure all checklist flags are correctly returned and update the promoter app to allow quick completion of items.
+A análise dos erros reportados ("Not allowed to load local resource") indica que o sistema está tentando carregar URLs do tipo "blob:" que foram criadas em uma sessão ou origem diferente (no aplicativo do promotor) dentro do painel administrativo. Isso ocorre porque o navegador bloqueia o acesso a esses recursos locais por segurança.
 
-### Backend Changes
-- Update `GET /promotor/routes/:id` to:
-    - Load `route_brands` for multi-brand routes.
-    - Include all checklist requirement flags (`require_stock_count`, `require_validity_check`, etc.) from the checklist associated with each brand in `route_brands`.
-    - Ensure the single-brand checklist flags are also correctly returned.
+Para resolver isso de forma definitiva, implementarei as seguintes mudanças:
 
-### Frontend Changes
-- Update `PromotorRota.tsx` to:
-    - Add a "Quick Check" button (green checkmark) directly on the product list items if `require_stock_count` and `require_validity_check` are both false. This allows completing an item with one tap.
-    - Modify the `Product Detail Modal` to hide the "Contagem" (Counting) section and "Ocorrência" (Occurrence) buttons if they are not required by the active checklist.
-    - Ensure the "Quick Check" button correctly updates the execution status to 'completed'.
+### 1. Robustez na Resolução de URLs de Mídia
+Atualizarei a função `resolveMediaUrl` em `src/lib/media.ts` para garantir que URLs `blob:` sejam sempre ignoradas no painel administrativo, evitando que cheguem aos atributos `src` das imagens.
 
-### Implementation Details
-- The logic will determine the current requirement flags based on whether the route is multi-brand (taking flags from the active brand's checklist) or single-brand (taking flags from the route's checklist).
-- The "Quick Check" button will call the existing `updateExec` mutation with `status: 'completed', checked: true`.
+### 2. Correção no Editor de Book de Fotos
+O componente `BookEditorDialog.tsx` possui uma falha onde ele tenta usar a URL original caso a resolução falhe. Vou alterar para que ele use um placeholder ou ignore a foto se ela for um "blob" inválido.
+
+### 3. Proteção nos Painéis Administrativos
+Revisarei os componentes de visualização de execução (`MerchExecucao.tsx`), relatórios (`MerchRelatorios.tsx`) e produtos (`MerchProdutos.tsx`) para garantir que todas as imagens passem pela função de resolução e tratem URLs inválidas exibindo ícones de placeholder em vez de causar erros no console.
+
+### 4. Sincronismo do Promotor
+Garantirei que o aplicativo do promotor (`PromotorRota.tsx`) use referências locais seguras (`local-file://`) ao enfileirar ações que envolvam fotos, garantindo que o sincronismo substitua essas referências pelas URLs finais do servidor antes de enviá-las para o banco de dados.
+
+### Detalhes Técnicos:
+- **src/lib/media.ts**: Reforçar a detecção de `blob:` e `local-file://`.
+- **src/components/merch/BookEditorDialog.tsx**: Corrigir a inicialização do estado `bookPhotos` para não aceitar blobs.
+- **src/pages/MerchExecucao.tsx**: Adicionar verificações extras antes de renderizar tags `<img />`.
+- **src/pages/promotor/PromotorRota.tsx**: Validar o envio de fotos para o sincronismo offline.
