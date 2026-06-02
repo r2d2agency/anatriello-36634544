@@ -724,8 +724,7 @@ export default function PromotorRota() {
         url: `/api/merch/promotor/routes/${id}/checkin`,
         method: 'POST',
         body,
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
-        dependsOnUploadId: checkinPhotoUrl.startsWith('blob:') ? checkinPhotoUrl : undefined
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
       toast.success('Check-in realizado! Sincronizando em segundo plano.');
