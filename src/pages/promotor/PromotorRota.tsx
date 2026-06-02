@@ -491,7 +491,7 @@ export default function PromotorRota() {
   const checkin = usePromotorCheckin();
   const checkout = usePromotorCheckout();
   const updateExec = usePromotorUpdateExecution();
-  const { isOnline, isSyncing, queueApiCall, getLocalFileUrl } = useOfflineSync();
+  const { isOnline, isSyncing, queueApiCall } = useOfflineSync();
   const reportDamage = usePromotorReportDamage();
   const reportRupture = usePromotorReportRupture();
   const addValidity = usePromotorAddValidity();
@@ -508,18 +508,7 @@ export default function PromotorRota() {
   const [showPdvCheckout, setShowPdvCheckout] = useState(false);
   const [pdvCheckoutPhoto, setPdvCheckoutPhoto] = useState('');
   const [checkinPhotoUrl, setCheckinPhotoUrl] = useState('');
-  const [resolvedCheckinPhotoUrl, setResolvedCheckinPhotoUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (checkinPhotoUrl?.startsWith('local-file://')) {
-      const localId = checkinPhotoUrl.replace('local-file://', '');
-      getLocalFileUrl(localId).then(url => {
-        if (url) setResolvedCheckinPhotoUrl(url);
-      });
-    } else {
-      setResolvedCheckinPhotoUrl(checkinPhotoUrl);
-    }
-  }, [checkinPhotoUrl, getLocalFileUrl]);
 
   // Load photo quality config
   useEffect(() => {
