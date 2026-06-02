@@ -255,7 +255,7 @@ export default function PromotorDocumentos() {
                 {selectedFile && (
                   <div className="rounded-lg border border-border p-3 bg-muted/30">
                     {previewUrl ? (
-                      <img src={previewUrl} alt="Preview" className="w-full max-h-48 object-contain rounded" />
+                      <LocalImage src={previewUrl} alt="Preview" className="w-full max-h-48 object-contain rounded" />
                     ) : (
                       <div className="flex items-center gap-2">
                         <FileText className="h-5 w-5 text-muted-foreground" />
