@@ -920,9 +920,10 @@ export default function PromotorRota() {
                 <Camera className="h-4 w-4 text-primary" />
                 Foto obrigatória para check-in
               </div>
-              {resolvedCheckinPhotoUrl ? (
+              {checkinPhotoUrl ? (
                 <div className="space-y-2">
-                  <img src={resolvedCheckinPhotoUrl} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
+                  <LocalImage src={checkinPhotoUrl} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
+
                   <Button variant="outline" size="sm" onClick={() => setCheckinPhotoUrl('')}>Tirar outra foto</Button>
                 </div>
               ) : (
