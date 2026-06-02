@@ -195,7 +195,7 @@ export function PriceResearchCard({ routeId, brandId, brandName, pdvId, promoter
                           <div key={comp.id || cIdx} className="space-y-1">
                             <div className="flex items-center gap-2">
                               {comp.photo_url ? (
-                                <img src={comp.photo_url} alt={comp.competitor_product_name} className="h-8 w-8 rounded object-cover border" />
+                                <LocalImage src={comp.photo_url} alt={comp.competitor_product_name} className="h-8 w-8 rounded object-cover border" />
                               ) : (
                                 <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
                                   <ImageIcon className="h-3 w-3 text-muted-foreground" />
