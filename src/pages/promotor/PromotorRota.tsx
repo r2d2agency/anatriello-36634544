@@ -1600,8 +1600,8 @@ export default function PromotorRota() {
               </p>
             </DialogHeader>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {showExtraPointDialog && groupedExecs[showExtraPointDialog.categoryName]?.execs
-                .filter((e: any) => e.exposure_point !== 'extra')
+              {showExtraPointDialog && (groupedExecs[showExtraPointDialog.categoryName]?.execs || [])
+                .filter((e: any) => e.exposure_point !== 'extra' && !productsWithExtraPoint.has(`${e.category_id}_${e.product_id}`))
                 .map((exec: any) => (
                   <label key={exec.id} className="flex items-center gap-3 p-2 rounded-lg border cursor-pointer hover:bg-accent/50">
                     <Checkbox
