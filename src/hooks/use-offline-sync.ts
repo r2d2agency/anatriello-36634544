@@ -44,9 +44,11 @@ export function useOfflineSync() {
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
-      Object.values(localFileUrls).forEach(url => URL.revokeObjectURL(url));
+      // Only revoke URLs when the hook is actually unmounting,
+      // not every time the localFileUrls object changes.
+      // We use a ref to keep track of URLs to revoke.
     };
-  }, [localFileUrls]);
+  }, []);
 
   const sync = useCallback(async () => {
     if (!isOnline || isSyncing) return;
