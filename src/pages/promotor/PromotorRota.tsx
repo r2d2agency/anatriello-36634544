@@ -1566,18 +1566,7 @@ export default function PromotorRota() {
                   <Label className="text-xs">Foto final da loja (obrigatória)</Label>
               {pdvCheckoutPhoto ? (
                 <div className="space-y-2">
-                  {/* Resolve local URL if needed */}
-                  {(() => {
-                    const [url, setUrl] = useState<string | null>(null);
-                    useEffect(() => {
-                      if (pdvCheckoutPhoto.startsWith('local-file://')) {
-                        getLocalFileUrl(pdvCheckoutPhoto.replace('local-file://', '')).then(setUrl);
-                      } else {
-                        setUrl(pdvCheckoutPhoto);
-                      }
-                    }, [pdvCheckoutPhoto]);
-                    return url && <img src={url} alt="Checkout" className="w-full rounded-lg border max-h-48 object-cover" />;
-                  })()}
+                  <LocalImage src={pdvCheckoutPhoto} alt="Checkout" className="w-full rounded-lg border max-h-48 object-cover" />
                   <Button variant="outline" size="sm" onClick={() => setPdvCheckoutPhoto('')}>Tirar outra foto</Button>
                 </div>
               ) : (
