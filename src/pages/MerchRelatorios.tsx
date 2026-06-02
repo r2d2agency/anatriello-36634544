@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { resolveMediaUrl } from "@/lib/media";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
