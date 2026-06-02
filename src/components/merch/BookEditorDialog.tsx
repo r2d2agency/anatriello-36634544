@@ -109,7 +109,7 @@ export function BookEditorDialog({ open, onOpenChange, photos: initialPhotos, br
   const [notes, setNotes] = useState('');
   const [photosPerPage, setPhotosPerPage] = useState(2);
   const [bookPhotos, setBookPhotos] = useState<BookPhoto[]>(() => 
-    initialPhotos.map(p => ({ ...p, caption: '', photo_url: resolveMediaUrl(p.photo_url) || p.photo_url }))
+    initialPhotos.map(p => ({ ...p, caption: '', photo_url: resolveMediaUrl(p.photo_url) || '' }))
   );
   const [generating, setGenerating] = useState(false);
   const [sharing, setSharing] = useState(false);

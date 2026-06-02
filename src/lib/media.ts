@@ -10,10 +10,10 @@ export function resolveMediaUrl(url?: string | null): string | null {
   const u = String(url).trim();
   if (!u) return null;
 
-  // If it's a blob URL, it's a session-specific transient URL that shouldn't be 
-  // resolved or used outside the session it was created. 
+  // If it's a blob URL or a local-file reference, it's a session-specific transient URL 
+  // that shouldn't be resolved or used outside the session it was created. 
   // Returning null prevents "Not allowed to load local resource" errors.
-  if (/^blob:/i.test(u)) return null;
+  if (/^blob:/i.test(u) || /^local-file:/i.test(u)) return null;
   
   if (/^(https?:|data:)/i.test(u)) return u;
   if (u.startsWith("//")) return `https:${u}`;

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { resolveMediaUrl } from "@/lib/media";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -489,7 +490,7 @@ function ProdutoTab({ filters }: { filters: any }) {
                 <TableRow key={r.product_id}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {r.photo_url ? <img src={r.photo_url} alt="" className="h-8 w-8 rounded object-cover" /> : <Package className="h-5 w-5 text-muted-foreground" />}
+                      {resolveMediaUrl(r.photo_url) ? <img src={resolveMediaUrl(r.photo_url)!} alt="" className="h-8 w-8 rounded object-cover" /> : <Package className="h-5 w-5 text-muted-foreground" />}
                       <div>
                         <p className="font-medium text-sm">{r.product_name}</p>
                         {r.sku && <p className="text-xs text-muted-foreground">SKU: {r.sku}</p>}
