@@ -183,7 +183,7 @@ export default function PromotorHome() {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}`
           },
-          dependsOnUploadId: pdvCheckinPhoto.startsWith('blob:') ? pdvCheckinPhoto : undefined
+          dependsOnUploadId: pdvCheckinPhoto.startsWith('local-file://') ? pdvCheckinPhoto.replace('local-file://', '') : undefined
         });
 
         toast({ title: 'Check-in salvo offline!', description: 'Será sincronizado automaticamente.' });
@@ -271,7 +271,7 @@ export default function PromotorHome() {
           method: 'POST',
           body,
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          dependsOnUploadId: pdvCheckoutPhoto.startsWith('blob:') ? pdvCheckoutPhoto : undefined
+          dependsOnUploadId: pdvCheckoutPhoto.startsWith('local-file://') ? pdvCheckoutPhoto.replace('local-file://', '') : undefined
         });
 
         toast({ title: 'Checkout salvo offline!', description: 'Será sincronizado automaticamente.' });
