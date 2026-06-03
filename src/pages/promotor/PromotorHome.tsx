@@ -371,10 +371,11 @@ export default function PromotorHome() {
           }
         });
 
-        toast({ 
+        /* toast({ 
           title: 'Ponto salvo offline!', 
           description: `Bateu: ${PUNCH_LABELS[punchType]}. Será sincronizado ao voltar a internet.` 
-        });
+        }); */
+
         return;
       }
 
