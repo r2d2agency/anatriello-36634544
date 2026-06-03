@@ -331,10 +331,19 @@ export default function MerchExecucao() {
                     <div className="flex items-center gap-2">
                       {photoUrl && (
                         <div 
-                          className="h-8 w-8 rounded overflow-hidden border bg-muted cursor-pointer"
+                          className="h-10 w-10 rounded overflow-hidden border bg-muted cursor-pointer shadow-sm"
                           onClick={() => window.open(photoUrl, '_blank')}
                         >
-                          <img src={photoUrl} alt="Avaria" className="h-full w-full object-cover" />
+                          <img 
+                            src={photoUrl} 
+                            alt="Avaria" 
+                            className="h-full w-full object-cover" 
+                            onError={(e) => {
+                              // If image fails to load (e.g. invalid blob from session), hide the container
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
                       <Badge className="text-[10px]">{DAMAGE_STATUS[d.status] || d.status}</Badge>
