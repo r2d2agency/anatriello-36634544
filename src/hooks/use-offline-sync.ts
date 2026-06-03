@@ -198,11 +198,8 @@ export function useOfflineSync() {
     
     if (isOnline) {
       setTimeout(() => sync(), 100);
-    } else {
-      toast.info('Você está offline. A ação será sincronizada quando houver conexão.', {
-        description: 'Sua atividade foi salva localmente.',
-      });
     }
+
   }, [isOnline, sync]);
 
   // Auto-sync when coming online
