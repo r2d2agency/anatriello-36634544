@@ -80,7 +80,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         },
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
-      toast.info(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} salvo offline`);
+      // Removed offline toast per user request
       onUnlocked();
       return;
     }
