@@ -186,7 +186,7 @@ export default function PromotorHome() {
           dependsOnUploadId: pdvCheckinPhoto.startsWith('local-file://') ? pdvCheckinPhoto.replace('local-file://', '') : undefined
         });
 
-        toast({ title: 'Check-in salvo offline!', description: 'Será sincronizado automaticamente.' });
+        // toast({ title: 'Check-in salvo offline!', description: 'Será sincronizado automaticamente.' });
         setShowPdvCheckin(false);
         setPdvCheckinPhoto('');
         setTimeout(() => navigate(`/promotor/rota/${activeRouteForPdv.id}`), 100);
@@ -274,7 +274,7 @@ export default function PromotorHome() {
           dependsOnUploadId: pdvCheckoutPhoto.startsWith('local-file://') ? pdvCheckoutPhoto.replace('local-file://', '') : undefined
         });
 
-        toast({ title: 'Checkout salvo offline!', description: 'Será sincronizado automaticamente.' });
+        // toast({ title: 'Checkout salvo offline!', description: 'Será sincronizado automaticamente.' });
         setShowPdvCheckout(false);
         setPdvCheckoutPhoto('');
         setPdvCheckoutNotes('');
@@ -371,10 +371,11 @@ export default function PromotorHome() {
           }
         });
 
-        toast({ 
+        /* toast({ 
           title: 'Ponto salvo offline!', 
           description: `Bateu: ${PUNCH_LABELS[punchType]}. Será sincronizado ao voltar a internet.` 
-        });
+        }); */
+
         return;
       }
 

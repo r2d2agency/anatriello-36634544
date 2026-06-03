@@ -80,7 +80,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         },
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
-      toast.info(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} salvo offline`);
+      // Removed offline toast per user request
       onUnlocked();
       return;
     }
@@ -92,7 +92,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
       products_unlocked: shouldUnlockImmediately 
     }, {
       onSuccess: () => { 
-        toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); 
+        // toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); 
         onUnlocked(); 
       },
       onError: (err: any) => {
@@ -127,7 +127,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         dependsOnUploadId: photos[0]?.startsWith('local-file://') ? photos[0].replace('local-file://', '') : undefined
       });
       
-      toast.success(`${photos.length} foto(s) registrada(s)! Produtos liberados.`);
+      // toast.success(`${photos.length} foto(s) registrada(s)! Produtos liberados.`); // Removed toast per user request
       setPhotos([]);
       setIsSending(false);
       onUnlocked();
@@ -309,7 +309,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
-      toast.success('Foto do ponto extra registrada! Produtos liberados.');
+      // toast.success('Foto do ponto extra registrada! Produtos liberados.'); // Removed per user request
       setPhotos([]);
       setIsSending(false);
       onPhotoTaken();
@@ -719,7 +719,7 @@ export default function PromotorRota() {
         body: { notes: actionForm.notes },
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
-      toast.info('Rota finalizada offline! Sincronizando quando houver conexão.');
+      // toast.info('Rota finalizada offline! Sincronizando quando houver conexão.');
       setShowCompleteRoute(false);
       navigate('/promotor/home');
       return;
@@ -1378,7 +1378,7 @@ export default function PromotorRota() {
                     },
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
                   });
-                  toast.info('Produto salvo offline!');
+                  // toast.info('Produto salvo offline!');
                   setSelectedExec(null);
                   return;
                 }
