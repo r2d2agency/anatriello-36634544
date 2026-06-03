@@ -274,7 +274,7 @@ export default function PromotorHome() {
           dependsOnUploadId: pdvCheckoutPhoto.startsWith('local-file://') ? pdvCheckoutPhoto.replace('local-file://', '') : undefined
         });
 
-        toast({ title: 'Checkout salvo offline!', description: 'Será sincronizado automaticamente.' });
+        // toast({ title: 'Checkout salvo offline!', description: 'Será sincronizado automaticamente.' });
         setShowPdvCheckout(false);
         setPdvCheckoutPhoto('');
         setPdvCheckoutNotes('');
