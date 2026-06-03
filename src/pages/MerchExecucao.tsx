@@ -606,8 +606,21 @@ export default function MerchExecucao() {
                         return (
                         <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden bg-muted border group">
                           {url ? (
-                            <img src={url} alt="Execução" className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-110" 
-                              onClick={() => window.open(url, '_blank')} />
+                            <img 
+                              src={url} 
+                              alt="Execução" 
+                              className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-110" 
+                              onClick={() => window.open(url, '_blank')} 
+                              onError={(e) => {
+                                // If photo fails to load, hide the group
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.closest('.relative');
+                                if (parent) {
+                                  (parent as HTMLElement).style.display = 'none';
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                               <Camera className="h-6 w-6" />
