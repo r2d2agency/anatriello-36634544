@@ -309,7 +309,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
-      toast.success('Foto do ponto extra registrada! Produtos liberados.');
+      // toast.success('Foto do ponto extra registrada! Produtos liberados.'); // Removed per user request
       setPhotos([]);
       setIsSending(false);
       onPhotoTaken();
