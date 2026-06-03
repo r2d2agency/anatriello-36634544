@@ -331,10 +331,19 @@ export default function MerchExecucao() {
                     <div className="flex items-center gap-2">
                       {photoUrl && (
                         <div 
-                          className="h-8 w-8 rounded overflow-hidden border bg-muted cursor-pointer"
+                          className="h-10 w-10 rounded overflow-hidden border bg-muted cursor-pointer shadow-sm"
                           onClick={() => window.open(photoUrl, '_blank')}
                         >
-                          <img src={photoUrl} alt="Avaria" className="h-full w-full object-cover" />
+                          <img 
+                            src={photoUrl} 
+                            alt="Avaria" 
+                            className="h-full w-full object-cover" 
+                            onError={(e) => {
+                              // If image fails to load (e.g. invalid blob from session), hide the container
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
                       <Badge className="text-[10px]">{DAMAGE_STATUS[d.status] || d.status}</Badge>
@@ -525,10 +534,24 @@ export default function MerchExecucao() {
                     {viewRoute.checkin_photo && (
                       <div className="space-y-1">
                         <div className="text-[10px] font-semibold text-muted-foreground uppercase">Foto Check-in</div>
-                        <div className="aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center">
+                        <div className="aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center relative">
                           {resolveMediaUrl(viewRoute.checkin_photo) ? (
-                            <img src={resolveMediaUrl(viewRoute.checkin_photo)!} alt="Check-in" className="w-full h-full object-cover cursor-pointer" 
-                              onClick={() => window.open(resolveMediaUrl(viewRoute.checkin_photo)!, '_blank')} />
+                            <img 
+                              src={resolveMediaUrl(viewRoute.checkin_photo)!} 
+                              alt="Check-in" 
+                              className="w-full h-full object-cover cursor-pointer" 
+                              onClick={() => window.open(resolveMediaUrl(viewRoute.checkin_photo)!, '_blank')} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const parent = (e.target as HTMLImageElement).parentElement;
+                                if (parent) {
+                                  const placeholder = document.createElement('div');
+                                  placeholder.className = 'flex flex-col items-center gap-1 text-muted-foreground p-4';
+                                  placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><span class="text-[8px] text-center">Imagem expirada ou aguardando sincronismo</span>';
+                                  parent.appendChild(placeholder);
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="flex flex-col items-center gap-1 text-muted-foreground">
                               <Camera className="h-6 w-6" />
@@ -541,10 +564,24 @@ export default function MerchExecucao() {
                     {viewRoute.checkout_photo && (
                       <div className="space-y-1">
                         <div className="text-[10px] font-semibold text-muted-foreground uppercase">Foto Check-out</div>
-                        <div className="aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center">
+                        <div className="aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center relative">
                           {resolveMediaUrl(viewRoute.checkout_photo) ? (
-                            <img src={resolveMediaUrl(viewRoute.checkout_photo)!} alt="Check-out" className="w-full h-full object-cover cursor-pointer" 
-                              onClick={() => window.open(resolveMediaUrl(viewRoute.checkout_photo)!, '_blank')} />
+                            <img 
+                              src={resolveMediaUrl(viewRoute.checkout_photo)!} 
+                              alt="Check-out" 
+                              className="w-full h-full object-cover cursor-pointer" 
+                              onClick={() => window.open(resolveMediaUrl(viewRoute.checkout_photo)!, '_blank')} 
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                const parent = (e.target as HTMLImageElement).parentElement;
+                                if (parent) {
+                                  const placeholder = document.createElement('div');
+                                  placeholder.className = 'flex flex-col items-center gap-1 text-muted-foreground p-4';
+                                  placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><span class="text-[8px] text-center">Imagem expirada ou aguardando sincronismo</span>';
+                                  parent.appendChild(placeholder);
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="flex flex-col items-center gap-1 text-muted-foreground">
                               <Camera className="h-6 w-6" />
@@ -569,8 +606,21 @@ export default function MerchExecucao() {
                         return (
                         <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden bg-muted border group">
                           {url ? (
-                            <img src={url} alt="Execução" className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-110" 
-                              onClick={() => window.open(url, '_blank')} />
+                            <img 
+                              src={url} 
+                              alt="Execução" 
+                              className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-110" 
+                              onClick={() => window.open(url, '_blank')} 
+                              onError={(e) => {
+                                // If photo fails to load, hide the group
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.closest('.relative');
+                                if (parent) {
+                                  (parent as HTMLElement).style.display = 'none';
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                               <Camera className="h-6 w-6" />

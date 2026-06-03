@@ -632,6 +632,16 @@ export default function PromotorRota() {
 
   const handleCheckin = useCallback(async () => {
     if (!id) return;
+    
+    // Check if route is already in progress or completed
+    if (route?.status === 'in_progress' || route?.status === 'completed') {
+      logger.warn('[handleCheckin] Rota já em andamento ou concluída, ignorando check-in duplicado', { 
+        status: route?.status, 
+        routeId: id 
+      });
+      return;
+    }
+
     if (route?.require_checkin_photo && !checkinPhotoUrl) {
       toast.error('Esta rota exige foto obrigatória no check-in');
       return;
@@ -699,7 +709,7 @@ export default function PromotorRota() {
       logger.error('[handleCheckin] Erro fatal no check-in', { message: err.message, routeId: id }, err);
       toast.error(err.message || 'Não foi possível realizar o check-in');
     }
-  }, [id, checkin, route?.require_checkin_photo, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name, isOnline, queueApiCall, refetch]);
+  }, [id, checkin, route?.require_checkin_photo, route?.status, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name, isOnline, queueApiCall, refetch]);
 
   const handleCompleteRoute = useCallback(async () => {
     if (!id) return;
