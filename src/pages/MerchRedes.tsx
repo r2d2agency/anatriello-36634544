@@ -11,9 +11,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNetworks, useCreateNetwork, useUpdateNetwork, useDeleteNetwork, useNetworkPdvs, useUpdateNetworkPdvs } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
-import { Plus, Search, Pencil, Trash2, LayoutGrid, Store, ChevronRight, ShieldCheck } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, LayoutGrid, Store, ChevronRight, ShieldCheck, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { RedeDocValidationConfig } from "@/components/merchandising/RedeDocValidationConfig";
+import { UnitDocValidationConfig } from "@/components/access-control/UnitDocValidationConfig";
 
 export default function MerchRedes() {
   const [search, setSearch] = useState('');
