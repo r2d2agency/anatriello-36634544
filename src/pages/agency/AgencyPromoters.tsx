@@ -31,6 +31,7 @@ const defaultForm = {
   rg: '', gender: '', photo_url: '', document_url: '',
   address: '', city: '', state: '',
   emergency_contact: '', emergency_phone: '', notes: '',
+  promoter_type: 'fixo', mei_cnpj: '', hourly_rate: '',
 };
 
 export default function AgencyPromoters() {
