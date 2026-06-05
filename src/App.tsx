@@ -306,6 +306,9 @@ const App = () => (
             <Route path="/promotor/configuracoes" element={<PromotorConfig />} />
             <Route path="/promotor/trocar-senha" element={<PromotorTrocarSenha />} />
             <Route path="/promotor/equipe" element={<PromotorEquipe />} />
+            {/* Ayratech Access (Access Only App) */}
+            <Route path="/acesso/promotor/login" element={<AccessLogin />} />
+            <Route path="/acesso/promotor/home" element={<AccessOnlyHome />} />
             <Route path="/api-docs" element={<ApiDocumentation />} />
             <Route path="/f/:slug" element={<PublicFormPage />} />
             <Route path="/assinar/:token" element={<AssinarDocumento />} />
