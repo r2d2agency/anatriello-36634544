@@ -376,7 +376,7 @@ export async function triggerValidation({ agency_promoter_id, rede_id, supermark
   const promoter = await loadPromoter(agency_promoter_id);
   if (!promoter) throw new Error('Promotor não encontrado');
 
-  const requirements = await loadValidationRequirements(rede_id, supermarket_unit_id);
+  const requirements = await loadValidationRequirements(rede_id, supermarket_unit_id, promoter.promoter_type || 'fixo');
   if (!requirements.enabled) throw new Error('Validação automática desativada para esta rede/PDV');
 
   const allDocs = await loadPromoterDocuments(agency_promoter_id);
