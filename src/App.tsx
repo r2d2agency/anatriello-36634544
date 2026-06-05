@@ -220,6 +220,7 @@ const App = () => (
             <Route path="/organizacoes" element={<ProtectedRoute><Organizacoes /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
             <Route path="/admin/ayratech-ai" element={<ProtectedRoute><AyratechAIConfig /></ProtectedRoute>} />
+            <Route path="/admin/access-control/dashboard" element={<ProtectedRoute><AccessControlDashboard /></ProtectedRoute>} />
             <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
             <Route path="/chatbots" element={<ProtectedRoute><Chatbots /></ProtectedRoute>} />
             <Route path="/fluxos" element={<ProtectedRoute><Fluxos /></ProtectedRoute>} />
