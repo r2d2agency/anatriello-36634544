@@ -191,6 +191,13 @@ export default function MerchRedes() {
           {selectedNetwork && <RedeDocValidationConfig redeId={selectedNetwork.id} redeName={selectedNetwork.name} />}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!pdvAiUnit} onOpenChange={(v) => !v && setPdvAiUnit(null)}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Validação IA — PDV {pdvAiUnit?.name}</DialogTitle></DialogHeader>
+          {pdvAiUnit && <UnitDocValidationConfig unitId={pdvAiUnit.id} />}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
