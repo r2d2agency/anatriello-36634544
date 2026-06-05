@@ -25,6 +25,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/lib/logger";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { SyncStatusIndicator } from "@/components/promotor/SyncStatusIndicator";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-500/20 text-blue-700',
