@@ -810,6 +810,9 @@ export default function PromotorRota() {
   return (
     <PromotorLayout>
       <div className="max-w-lg mx-auto p-4 space-y-4">
+        <div className="flex justify-end">
+          <SyncStatusIndicator />
+        </div>
         {/* Route header card */}
         <Card>
           <CardContent className="p-4">
