@@ -31,6 +31,8 @@ export default function SupermarketVisitRequests() {
   const [selected, setSelected] = useState<string[]>([]);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [selectedValidationId, setSelectedValidationId] = useState<string | undefined>();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['sm-visit-requests', tab === 'all' ? undefined : tab],
