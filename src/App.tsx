@@ -109,6 +109,7 @@ import NotFound from "./pages/NotFound";
 import SupermarketLandingPage from "./pages/SupermarketLandingPage";
 import TotemAccess from "./pages/TotemAccess";
 import AccessControlAdmin from "./pages/AccessControlAdmin";
+import AyratechAIConfig from "./pages/admin/AyratechAIConfig";
 import { AgencyAuthProvider } from "./contexts/AgencyAuthContext";
 import AgencyLogin from "./pages/agency/AgencyLogin";
 import AgencyLayout from "./pages/agency/AgencyLayout";
