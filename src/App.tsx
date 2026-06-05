@@ -288,6 +288,7 @@ const App = () => (
               <Route path="promotores" element={<AgencyPromoters />} />
               <Route path="marcas" element={<AgencyBrands />} />
               <Route path="visitas" element={<AgencyVisitRequests />} />
+              <Route path="afastamentos" element={<AgencyLeaves />} />
               <Route path="regras" element={<AgencyAccessRules />} />
             </Route>
             {/* Supermarket Portal */}
