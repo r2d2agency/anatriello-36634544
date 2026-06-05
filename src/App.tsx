@@ -109,6 +109,7 @@ import NotFound from "./pages/NotFound";
 import SupermarketLandingPage from "./pages/SupermarketLandingPage";
 import TotemAccess from "./pages/TotemAccess";
 import AccessControlAdmin from "./pages/AccessControlAdmin";
+import AyratechAIConfig from "./pages/admin/AyratechAIConfig";
 import { AgencyAuthProvider } from "./contexts/AgencyAuthContext";
 import AgencyLogin from "./pages/agency/AgencyLogin";
 import AgencyLayout from "./pages/agency/AgencyLayout";
@@ -216,6 +217,7 @@ const App = () => (
             <Route path="/cobranca" element={<ProtectedRoute><Cobranca /></ProtectedRoute>} />
             <Route path="/organizacoes" element={<ProtectedRoute><Organizacoes /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+            <Route path="/admin/ayratech-ai" element={<ProtectedRoute><AyratechAIConfig /></ProtectedRoute>} />
             <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
             <Route path="/chatbots" element={<ProtectedRoute><Chatbots /></ProtectedRoute>} />
             <Route path="/fluxos" element={<ProtectedRoute><Fluxos /></ProtectedRoute>} />

@@ -1,30 +1,104 @@
-I will implement a new QR Code scanning access method for the supermarket portal. This allows promoters/agencies to scan a store-specific QR code using their own app to request or validate entry, which will then be approved by the supermarket network.
 
-### User Interface Changes
+# Validação automática de documentos do promotor com IA
 
-- **Supermarket Landing Page**: Add information about the new "QR Code Terminal-less Access" method.
-- **Totem Access Page**: 
-    - Update to display a prominent QR Code that identifies the specific PDV when in "QR-only" or "Mixed" mode.
-    - Implement a "QR Scanning" interface for promoters who want to scan the store's code.
-- **Supermarket Settings**: 
-    - Add a toggle for "QR Code Access (App-based)" alongside the existing CPF/Totem settings.
-    - Add a section to download/print the store's unique access QR Code.
-- **Promotor Home**:
-    - Add a prominent "Scan Store QR Code" button.
-    - Implement a QR scanner component that reads the store's code and sends an access request.
-    - Display the real-time status of the access request (pending, approved, denied).
+## Objetivo
+Quando o promotor envia documentos (CNH, contrato, comprovante de endereço, CTPS, selfie), uma IA cruza os dados, compara com o cadastro da agência e com os PDVs/marcas vinculados, e pré/auto-aprova o acesso. Cada PDV/Rede configura quais documentos exigir e se exige biometria facial.
 
-### Technical Details
+## 1. Configuração global do provedor de IA (Superadmin)
 
-- **Database**: Add a column `qr_access_enabled` to the `supermarket_units` or `totem_configs` table.
-- **API Endpoints**:
-    - `POST /api/access-control/qr-scan`: Processes a scan from the promotor app, identifying the PDV and the promotor, and creating a pending visit request if one doesn't exist for the day.
-    - `GET /api/access-control/visit-status`: Allows the promotor app to poll or subscribe to the status of their entry request.
-- **Promotor App**: Integrate a QR scanner library (like `html5-qrcode` or similar already used in the project if any).
+Nova tela `AyratechAIConfig` em `/admin/ayratech-ai` para o superadmin (`tnicodemos@gmail.com`):
+- Provedor: OpenAI / Gemini / OpenRouter
+- Modelo (com presets: `gpt-4o`, `gpt-4o-mini`, `gemini-2.5-pro`, etc.)
+- API Key (mascarada, criptografada)
+- Botão "Testar conexão" (chama backend que faz uma chamada mínima)
 
-### Next Steps
+Armazenamento: tabela `system_settings` já existente, chave `doc_validation_ai` (JSONB com provider, model, api_key). Apenas superadmin pode ler/gravar.
 
-1.  Add the `qr_access_enabled` field to the supermarket configuration.
-2.  Update the `SupermarketSettings` page to allow toggling this feature and viewing the QR Code.
-3.  Implement the QR Scanner in `PromotorHome` or a new dedicated page.
-4.  Update the backend logic to handle QR-based visit requests.
+Backend: `backend/src/routes/ayratech-ai.js` com:
+- `GET /api/ayratech-ai/config` — retorna config (chave mascarada)
+- `PUT /api/ayratech-ai/config` — atualiza
+- `POST /api/ayratech-ai/test` — testa chamada
+
+## 2. Configuração de exigências por Rede/PDV
+
+Adicionar em `merch_redes`:
+- `doc_validation_enabled BOOLEAN DEFAULT false`
+- `required_documents JSONB DEFAULT '[]'` — array com `cnh`, `contrato_trabalho`, `comprovante_endereco`, `ctps`, `cadastro_agencia`
+- `facial_required BOOLEAN DEFAULT false`
+- `auto_approve_on_match BOOLEAN DEFAULT true` (auto-aprovar se 100% OK)
+
+PDV (`merch_rede_pdvs`) herda da rede com possibilidade de override (mesmas colunas opcionais, `NULL` = herda).
+
+UI: aba "Validação Automática" em `MerchRedes.tsx` (e detalhe do PDV) com checkboxes dos documentos exigidos, toggle de facial e toggle de auto-aprovação.
+
+## 3. Coleta de documentos do promotor
+
+Reaproveitar tabela `promotor_documents` existente. Adicionar campo `category` padronizado (já existe). Adicionar nova tabela:
+
+`promoter_document_validations`:
+- `id`, `promoter_id`, `rede_id`, `pdv_id` (nullable)
+- `status` — `pending`, `analyzing`, `approved`, `pre_approved`, `divergent`, `rejected`, `failed`
+- `score` — 0-100
+- `divergences JSONB` — lista de campos com problema (ex: `[{field: "cpf", source_a: "cnh", source_b: "contrato", value_a, value_b}]`)
+- `ai_raw_response TEXT`
+- `documents_analyzed JSONB` — lista dos doc_ids analisados
+- `validated_at`, `created_at`, `updated_at`
+- `reviewed_by`, `reviewed_at`, `override_status`
+
+## 4. Edge function / rota backend de validação
+
+`POST /api/promoter-validations/run` body: `{ promoter_id, rede_id, pdv_id? }`
+1. Carrega config global de IA do `system_settings`
+2. Carrega requisitos da rede/PDV
+3. Carrega documentos do promotor por categoria (URLs)
+4. Carrega cadastro do promotor (`promoters` / `agency_promoters`) e cadastro da agência
+5. Monta prompt multimodal: envia imagens/PDFs + dados textuais e pede JSON estruturado contendo:
+   - Dados extraídos de cada documento (nome, CPF, RG, datas)
+   - Comparação cruzada
+   - Lista de divergências
+   - Score 0-100
+   - Recomendação (`approve`, `review`, `reject`)
+6. Se facial_required: chama validação facial já existente (selfie vs foto CNH) e mescla resultado
+7. Valida PDVs/marcas: confere se as marcas/redes listadas no contrato batem com a lista informada pela agência
+8. Salva em `promoter_document_validations`
+9. Se `auto_approve_on_match` e `score >= 95` e sem divergências críticas: atualiza `agency_visit_requests` para `approved` automaticamente
+10. Notifica agência (push + registro) se houver divergência
+
+## 5. UI de revisão (Rede e Agência)
+
+- Em `AgencyVisitRequests` adicionar coluna "Validação IA" mostrando badge (Aprovado/Pré-aprovado/Divergente) + botão "Ver análise"
+- Modal `ValidationDetailDialog` mostrando:
+  - Score visual
+  - Documentos analisados com previews
+  - Tabela de divergências (campo, valor A vs valor B, fonte)
+  - Recomendação da IA
+  - Ações: Aprovar / Recusar / Reanalisar
+- Em painel da Rede: lista de promotores aguardando análise + ações em massa
+
+## 6. Gatilhos automáticos
+
+- Quando promotor envia novo documento numa categoria exigida → enfileirar validação (debounce 30s)
+- Quando agência cria solicitação de acesso ao PDV → roda validação
+- Endpoint manual "Reanalisar" no detalhe
+
+## Detalhes técnicos
+
+- Backend novo: `backend/src/routes/ayratech-ai.js`, `backend/src/routes/promoter-validations.js`
+- Backend lib reusada: `backend/src/lib/ai-caller.js` (já suporta OpenAI/Gemini/OpenRouter com tool-calling)
+- Frontend novo:
+  - `src/pages/admin/AyratechAIConfig.tsx`
+  - `src/components/merchandising/RedeDocValidationConfig.tsx`
+  - `src/components/access-control/ValidationDetailDialog.tsx`
+  - `src/components/access-control/ValidationBadge.tsx`
+  - Hook `src/hooks/use-promoter-validations.ts`
+  - Hook `src/hooks/use-ayratech-ai.ts`
+- Migração ensureTables no backend (padrão Just-in-Time já adotado no projeto)
+- Timezone `America/Sao_Paulo` em todos os campos de data
+- API key armazenada criptografada (AES com `ENCRYPTION_KEY` já existente) na `system_settings`
+- Acesso à tela de config restrito a `tnicodemos@gmail.com` (master admin)
+
+## Entregáveis
+1. Migração + ensureTables das novas tabelas/colunas
+2. Backend: rotas de config global + rotas de validação + worker de validação
+3. Frontend: tela superadmin + config por rede + modal de revisão + badges nas listagens
+4. Gatilho automático no envio de documento e na criação de solicitação de acesso
