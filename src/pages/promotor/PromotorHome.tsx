@@ -17,7 +17,7 @@ import { PromotorLayout } from "./PromotorLayout";
 import {
   Clock, FileText, Bell, MapPin, Wifi, WifiOff, Navigation, AlertTriangle, CheckCircle2,
   Loader2, ShieldAlert, Timer, ChevronRight, PlayCircle, Package, Store, ScanFace,
-  Download, Check, QrCode
+  Download, Check, QrCode, Camera
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
