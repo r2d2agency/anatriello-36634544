@@ -42,6 +42,21 @@ export default function SupermarketVisitRequests() {
     ),
   });
 
+  const { data: validations = [] } = usePromoterValidations();
+  const latestByPromoter = new Map<string, any>();
+  for (const v of validations) {
+    const key = v.agency_promoter_id;
+    const cur = latestByPromoter.get(key);
+    if (!cur || new Date(v.created_at) > new Date(cur.created_at)) latestByPromoter.set(key, v);
+  }
+  const openValidation = (promoterId?: string) => {
+    if (!promoterId) return;
+    const v = latestByPromoter.get(promoterId);
+    if (!v) { toast({ title: 'Sem análise', description: 'Nenhuma validação IA disponível para este promotor.' }); return; }
+    setSelectedValidationId(v.id);
+    setValidationDialogOpen(true);
+  };
+
   const reviewMutation = useMutation({
     mutationFn: (data: { ids: string[]; action: string; rejection_reason?: string }) =>
       api('/api/access-control/supermarket/visit-requests/review', { method: 'POST', body: data, headers }),
