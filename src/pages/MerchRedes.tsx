@@ -11,13 +11,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNetworks, useCreateNetwork, useUpdateNetwork, useDeleteNetwork, useNetworkPdvs, useUpdateNetworkPdvs } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
-import { Plus, Search, Pencil, Trash2, LayoutGrid, Store, ChevronRight } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, LayoutGrid, Store, ChevronRight, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { RedeDocValidationConfig } from "@/components/merchandising/RedeDocValidationConfig";
 
 export default function MerchRedes() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pdvDialogOpen, setPdvDialogOpen] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<any>(null);
@@ -109,6 +111,9 @@ export default function MerchRedes() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
+                        <Button variant="ghost" size="icon" title="Validação IA" onClick={() => { setSelectedNetwork(n); setAiDialogOpen(true); }}>
+                          <ShieldCheck className="h-4 w-4 text-primary" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(n)}><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(n.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
@@ -171,6 +176,12 @@ export default function MerchRedes() {
           <DialogFooter>
             <Button onClick={() => setPdvDialogOpen(false)}>Concluir</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Validação IA — {selectedNetwork?.name}</DialogTitle></DialogHeader>
+          {selectedNetwork && <RedeDocValidationConfig redeId={selectedNetwork.id} redeName={selectedNetwork.name} />}
         </DialogContent>
       </Dialog>
     </MainLayout>

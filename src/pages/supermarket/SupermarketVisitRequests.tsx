@@ -10,9 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarDays, Check, X, Loader2, CheckCheck } from 'lucide-react';
+import { CalendarDays, Check, X, Loader2, CheckCheck, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { usePromoterValidations } from '@/hooks/use-promoter-validations';
+import { ValidationBadge, ValidationDetailDialog } from '@/components/access-control/ValidationDetailDialog';
 
 const WEEKDAY_LABELS = ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -29,6 +31,8 @@ export default function SupermarketVisitRequests() {
   const [selected, setSelected] = useState<string[]>([]);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [selectedValidationId, setSelectedValidationId] = useState<string | undefined>();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['sm-visit-requests', tab === 'all' ? undefined : tab],
@@ -37,6 +41,21 @@ export default function SupermarketVisitRequests() {
       { headers }
     ),
   });
+
+  const { data: validations = [] } = usePromoterValidations();
+  const latestByPromoter = new Map<string, any>();
+  for (const v of validations) {
+    const key = v.agency_promoter_id;
+    const cur = latestByPromoter.get(key);
+    if (!cur || new Date(v.created_at) > new Date(cur.created_at)) latestByPromoter.set(key, v);
+  }
+  const openValidation = (promoterId?: string) => {
+    if (!promoterId) return;
+    const v = latestByPromoter.get(promoterId);
+    if (!v) { toast({ title: 'Sem análise', description: 'Nenhuma validação IA disponível para este promotor.' }); return; }
+    setSelectedValidationId(v.id);
+    setValidationDialogOpen(true);
+  };
 
   const reviewMutation = useMutation({
     mutationFn: (data: { ids: string[]; action: string; rejection_reason?: string }) =>
@@ -136,6 +155,7 @@ export default function SupermarketVisitRequests() {
                         <TableHead>Dias</TableHead>
                         <TableHead>Horário</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Validação IA</TableHead>
                         {tab === 'pending' && <TableHead className="w-[120px]">Ações</TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -168,6 +188,18 @@ export default function SupermarketVisitRequests() {
                                 {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Recusado' : 'Pendente'}
                               </Badge>
                               {r.rejection_reason && <p className="text-xs text-destructive mt-1">{r.rejection_reason}</p>}
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const v = r.promoter_id ? latestByPromoter.get(r.promoter_id) : null;
+                                if (!v) return <span className="text-xs text-muted-foreground">—</span>;
+                                return (
+                                  <button onClick={() => openValidation(r.promoter_id)} className="flex items-center gap-1 hover:opacity-80">
+                                    <ValidationBadge status={v.status} />
+                                    <span className="text-xs text-muted-foreground">{Number(v.score).toFixed(0)}</span>
+                                  </button>
+                                );
+                              })()}
                             </TableCell>
                             {tab === 'pending' && (
                               <TableCell>
@@ -219,6 +251,12 @@ export default function SupermarketVisitRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ValidationDetailDialog
+        validationId={selectedValidationId}
+        open={validationDialogOpen}
+        onOpenChange={setValidationDialogOpen}
+      />
     </div>
   );
 }
