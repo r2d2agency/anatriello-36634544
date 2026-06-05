@@ -339,8 +339,8 @@ export function CameraCapture({
       const wmData: WatermarkData = { ...watermark, latitude: lat, longitude: lng };
       applyWatermark(canvasRef.current, wmData);
 
-      // Compress (now async and faster)
-      const blob = await compressImage(canvasRef.current, config.compression_quality, config.max_file_size_kb);
+      // Compress (now using WebP for faster background uploads)
+      const blob = await compressToWebP(canvasRef.current, config.compression_quality, config.max_file_size_kb);
       if (!blob) {
         toast.error("Erro ao comprimir imagem");
         setIsProcessing(false);
@@ -349,7 +349,7 @@ export function CameraCapture({
 
       // Create file and always use queue for performance, even when online
       // This allows the user to continue immediately while sync happens in background
-      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const file = new File([blob], `photo_${Date.now()}.webp`, { type: "image/webp" });
       const token = (customTokenGetter ? customTokenGetter() : null) || localStorage.getItem('promotor_token') || localStorage.getItem('auth_token');
       
       const localUrl = await queueUpload(file, token);
