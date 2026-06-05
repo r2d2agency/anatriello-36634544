@@ -112,26 +112,14 @@ export function PromotorLayout({ children }: PromotorLayoutProps) {
               </h2>
             </div>
             <div className="flex items-center gap-1">
-              {totalPending > 0 && (
-                <button
-                  onClick={() => isOnline && sync()}
-                  disabled={isSyncing || !isOnline}
-                  className={cn(
-                    "relative p-2 rounded-lg transition-colors flex items-center gap-1",
-                    isSyncing ? "text-primary animate-pulse" : "text-yellow-600"
-                  )}
-                  title={isOnline ? "Sincronizar agora" : "Aguardando conexão para sincronizar"}
-                >
-                  <RefreshCw className={cn("h-5 w-5", isSyncing && "animate-spin")} />
-                  <span className="text-[10px] font-bold">{totalPending}</span>
-                </button>
-              )}
-
-              {!isOnline && (
-                <div className="p-2 text-destructive" title="Offline">
-                  <WifiOff className="h-5 w-5" />
-                </div>
-              )}
+              <div className="flex items-center">
+                <SyncStatusIndicator className="mr-1 hidden xs:flex shadow-none border-none bg-transparent" />
+                {!isOnline && (
+                  <div className="p-2 text-destructive" title="Offline">
+                    <WifiOff className="h-5 w-5" />
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
