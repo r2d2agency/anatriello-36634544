@@ -25,6 +25,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/lib/logger";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { SyncStatusIndicator } from "@/components/promotor/SyncStatusIndicator";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-500/20 text-blue-700',
@@ -506,12 +507,18 @@ export default function PromotorHome() {
     <PromotorLayout>
       <div className="space-y-4 p-4 max-w-lg mx-auto">
         {/* Status bar */}
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            {isOnline ? <Badge variant="outline" className="text-green-600 border-green-300"><Wifi className="h-3 w-3 mr-1" />Online</Badge>
-              : <Badge variant="destructive"><WifiOff className="h-3 w-3 mr-1" />Offline</Badge>}
-            {gpsStatus === 'active' ? <Badge variant="outline" className="text-green-600 border-green-300"><Navigation className="h-3 w-3 mr-1" />GPS</Badge>
-              : <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />GPS {gpsStatus === 'denied' ? 'Negado' : 'Desligado'}</Badge>}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <SyncStatusIndicator />
+            {gpsStatus === 'active' ? (
+              <Badge variant="outline" className="text-green-600 border-green-300 py-1 px-2 h-7">
+                <Navigation className="h-3 w-3 mr-1" />GPS
+              </Badge>
+            ) : (
+              <Badge variant="destructive" className="py-1 px-2 h-7">
+                <AlertTriangle className="h-3 w-3 mr-1" />GPS {gpsStatus === 'denied' ? 'Negado' : 'Desligado'}
+              </Badge>
+            )}
           </div>
           <span className="text-muted-foreground">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</span>
         </div>

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logger } from "@/lib/logger";
+import { SyncStatusIndicator } from "@/components/promotor/SyncStatusIndicator";
 
 const EXEC_STATUS_ICON: Record<string, any> = {
   pending: <Circle className="h-4 w-4 text-muted-foreground" />,
@@ -809,6 +810,9 @@ export default function PromotorRota() {
   return (
     <PromotorLayout>
       <div className="max-w-lg mx-auto p-4 space-y-4">
+        <div className="flex justify-end">
+          <SyncStatusIndicator />
+        </div>
         {/* Route header card */}
         <Card>
           <CardContent className="p-4">
