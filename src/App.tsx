@@ -103,6 +103,8 @@ import PromotorEnviar from "./pages/promotor/PromotorEnviar";
 import PromotorConfig from "./pages/promotor/PromotorConfig";
 import PromotorTrocarSenha from "./pages/promotor/PromotorTrocarSenha";
 import PromotorEquipe from "./pages/promotor/PromotorEquipe";
+import AccessLogin from "./pages/promotor/AccessLogin";
+import AccessOnlyHome from "./pages/promotor/AccessOnlyHome";
 import NotFound from "./pages/NotFound";
 import SupermarketLandingPage from "./pages/SupermarketLandingPage";
 import TotemAccess from "./pages/TotemAccess";
@@ -166,9 +168,11 @@ function SmartRedirect() {
     || (navigator as any).standalone === true;
   const isPromotorDomain = hostname.startsWith('promotor.');
   const isSupermarketDomain = hostname.startsWith('supermercado.') || hostname.startsWith('acesso.');
+  const isAccessPromotorDomain = hostname.startsWith('parceiro.') || hostname.startsWith('acesso-promotor.');
   
   // Subdomain specific redirects
   if (isPromotorDomain) return <Navigate to="/promotor/login" replace />;
+  if (isAccessPromotorDomain) return <Navigate to="/acesso/promotor/login" replace />;
   if (isSupermarketDomain) return <Navigate to="/acesso-supermercado" replace />;
   
   if (isLoading) {
@@ -304,6 +308,9 @@ const App = () => (
             <Route path="/promotor/configuracoes" element={<PromotorConfig />} />
             <Route path="/promotor/trocar-senha" element={<PromotorTrocarSenha />} />
             <Route path="/promotor/equipe" element={<PromotorEquipe />} />
+            {/* Ayratech Access (Access Only App) */}
+            <Route path="/acesso/promotor/login" element={<AccessLogin />} />
+            <Route path="/acesso/promotor/home" element={<AccessOnlyHome />} />
             <Route path="/api-docs" element={<ApiDocumentation />} />
             <Route path="/f/:slug" element={<PublicFormPage />} />
             <Route path="/assinar/:token" element={<AssinarDocumento />} />
