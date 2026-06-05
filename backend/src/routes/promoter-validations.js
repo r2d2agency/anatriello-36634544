@@ -181,11 +181,41 @@ REGRAS:
 - Retorne SOMENTE o JSON, sem texto antes ou depois.`;
 }
 
-async function callOpenAIVision(cfg, prompt, imageUrls) {
+// Fetch a doc URL once and classify by mime
+async function fetchDoc(url) {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    const mime = (resp.headers.get('content-type') || '').toLowerCase();
+    const isPdf = mime.includes('pdf') || /\.pdf(\?|$)/i.test(url);
+    return { buf, mime: mime || (isPdf ? 'application/pdf' : 'image/jpeg'), isPdf };
+  } catch { return null; }
+}
+
+async function pdfToText(buf) {
+  try {
+    const data = await pdfParse(buf, { max: 5 });
+    return (data.text || '').slice(0, 6000);
+  } catch { return ''; }
+}
+
+async function callOpenAIVision(cfg, prompt, documents) {
   const content = [{ type: 'text', text: prompt }];
-  for (const url of imageUrls.slice(0, 8)) {
-    content.push({ type: 'image_url', image_url: { url } });
+  const pdfTexts = [];
+  for (const d of documents.slice(0, 8)) {
+    const doc = await fetchDoc(d.file_url);
+    if (!doc) continue;
+    if (doc.isPdf) {
+      const text = await pdfToText(doc.buf);
+      if (text) pdfTexts.push(`\n--- TEXTO DO PDF [${d.category}] ${d.title || ''} ---\n${text}`);
+    } else {
+      const b64 = doc.buf.toString('base64');
+      content.push({ type: 'image_url', image_url: { url: `data:${doc.mime};base64,${b64}` } });
+    }
   }
+  if (pdfTexts.length) content[0].text += '\n\n' + pdfTexts.join('\n');
+
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
@@ -202,17 +232,12 @@ async function callOpenAIVision(cfg, prompt, imageUrls) {
   return data.choices?.[0]?.message?.content || '{}';
 }
 
-async function callGeminiVision(cfg, prompt, imageUrls) {
+async function callGeminiVision(cfg, prompt, documents) {
   const parts = [{ text: prompt }];
-  for (const url of imageUrls.slice(0, 8)) {
-    try {
-      const imgResp = await fetch(url);
-      if (!imgResp.ok) continue;
-      const buf = await imgResp.arrayBuffer();
-      const b64 = Buffer.from(buf).toString('base64');
-      const mime = imgResp.headers.get('content-type') || 'image/jpeg';
-      parts.push({ inline_data: { mime_type: mime, data: b64 } });
-    } catch {}
+  for (const d of documents.slice(0, 8)) {
+    const doc = await fetchDoc(d.file_url);
+    if (!doc) continue;
+    parts.push({ inline_data: { mime_type: doc.isPdf ? 'application/pdf' : doc.mime, data: doc.buf.toString('base64') } });
   }
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${cfg.apiKey}`,
@@ -230,12 +255,12 @@ async function callGeminiVision(cfg, prompt, imageUrls) {
   return data.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '{}';
 }
 
-async function runAIValidation(cfg, prompt, imageUrls) {
+async function runAIValidation(cfg, prompt, documents) {
   if (cfg.provider === 'openai' || cfg.provider === 'openrouter') {
-    return callOpenAIVision(cfg, prompt, imageUrls);
+    return callOpenAIVision(cfg, prompt, documents);
   }
   if (cfg.provider === 'gemini') {
-    return callGeminiVision(cfg, prompt, imageUrls);
+    return callGeminiVision(cfg, prompt, documents);
   }
   throw new Error('Provedor não suportado');
 }
