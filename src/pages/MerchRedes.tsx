@@ -162,14 +162,19 @@ export default function MerchRedes() {
             <ScrollArea className="h-[400px] border rounded-md p-2">
               <div className="space-y-1">
                 {filteredPdvs.map((p: any) => (
-                  <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => togglePdv(p.id)}>
-                    <div className="flex items-center gap-3">
+                  <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted rounded-md">
+                    <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => togglePdv(p.id)}>
                       <Checkbox checked={currentNetworkPdvIds.has(p.id)} />
                       <div>
                         <p className="text-sm font-medium">{p.name}</p>
                         <p className="text-xs text-muted-foreground">{p.city} - {p.state}</p>
                       </div>
                     </div>
+                    {currentNetworkPdvIds.has(p.id) && (
+                      <Button variant="ghost" size="icon" title="Validação IA do PDV" onClick={(e) => { e.stopPropagation(); setPdvAiUnit(p); }}>
+                        <Settings2 className="h-4 w-4 text-primary" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
