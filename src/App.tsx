@@ -103,6 +103,8 @@ import PromotorEnviar from "./pages/promotor/PromotorEnviar";
 import PromotorConfig from "./pages/promotor/PromotorConfig";
 import PromotorTrocarSenha from "./pages/promotor/PromotorTrocarSenha";
 import PromotorEquipe from "./pages/promotor/PromotorEquipe";
+import AccessLogin from "./pages/promotor/AccessLogin";
+import AccessOnlyHome from "./pages/promotor/AccessOnlyHome";
 import NotFound from "./pages/NotFound";
 import SupermarketLandingPage from "./pages/SupermarketLandingPage";
 import TotemAccess from "./pages/TotemAccess";
