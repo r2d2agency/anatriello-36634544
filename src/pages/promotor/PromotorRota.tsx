@@ -426,7 +426,7 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
-      toast.success('Categoria concluída! Sincronizando em segundo plano.');
+      // Removed toast per user request
       setPhotos([]);
       setIsSending(false);
       onCompleted();
@@ -1071,7 +1071,7 @@ export default function PromotorRota() {
                                   });
                                 }
                               }
-                              toast.success('Todos os produtos marcados como concluídos!');
+                              // Removed toast per user request
                               refetch();
                             } catch (err: any) {
                               toast.error('Erro ao concluir produtos: ' + err.message);
@@ -1101,7 +1101,7 @@ export default function PromotorRota() {
                                   qty_store: 0,
                                   qty_stock: 0
                                 }, {
-                                  onSuccess: () => toast.success(exec.status === 'completed' ? 'Produto desmarcado' : 'Produto concluído!'),
+                                  onSuccess: () => { /* toast removed */ },
                                   onError: (err: any) => toast.error(err.message)
                                 });
                               } else {
@@ -1383,7 +1383,7 @@ export default function PromotorRota() {
                 }
 
                 updateExec.mutate(body, {
-                  onSuccess: () => { toast.success('Produto executado!'); setSelectedExec(null); },
+                  onSuccess: () => { setSelectedExec(null); },
                   onError: (err: any) => toast.error(err.message),
                 });
               }} disabled={updateExec.isPending}>
@@ -1627,7 +1627,7 @@ export default function PromotorRota() {
                     product_ids: selectedExtraProducts,
                   }, {
                     onSuccess: (data: any) => {
-                      toast.success(`${data.count} produto(s) registrados para ponto extra!`);
+                      // Removed toast per user request
                       setShowExtraPointDialog(null);
                       setSelectedExtraProducts([]);
                     },
