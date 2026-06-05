@@ -155,6 +155,7 @@ export default function SupermarketVisitRequests() {
                         <TableHead>Dias</TableHead>
                         <TableHead>Horário</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Validação IA</TableHead>
                         {tab === 'pending' && <TableHead className="w-[120px]">Ações</TableHead>}
                       </TableRow>
                     </TableHeader>
