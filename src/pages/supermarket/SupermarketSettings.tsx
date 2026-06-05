@@ -27,6 +27,7 @@ const DEFAULTS = {
   totem_header_text: 'Controle de Acesso',
   totem_slogan: '',
   totem_pdv_name: '',
+  qr_access_enabled: false,
 };
 
 export default function SupermarketSettings() {
