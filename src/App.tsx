@@ -118,6 +118,8 @@ import AgencyPromoters from "./pages/agency/AgencyPromoters";
 import AgencyBrands from "./pages/agency/AgencyBrands";
 import AgencyAccessRules from "./pages/agency/AgencyAccessRules";
 import AgencyVisitRequests from "./pages/agency/AgencyVisitRequests";
+import AgencyLeaves from "./pages/agency/AgencyLeaves";
+import AccessControlDashboard from "./pages/admin/AccessControlDashboard";
 import { SupermarketAuthProvider } from "./contexts/SupermarketAuthContext";
 import SupermarketLogin from "./pages/supermarket/SupermarketLogin";
 import SupermarketLayout from "./pages/supermarket/SupermarketLayout";
