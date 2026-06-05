@@ -137,47 +137,27 @@ export function useOfflineSync() {
     const updatedPendingCalls = await db.pending_api_calls.where('status').equals('pending').toArray();
 
     // 2. Process API Calls
-    for (const call of pendingCalls) {
+    for (const call of updatedPendingCalls) {
       try {
         await db.pending_api_calls.update(call.id!, { status: 'processing' });
 
         let body = call.body;
         
-        // Comprehensive URL replacement: handles localId directly, blob URLs, and local-file:// format
-        const replaceUrl = (obj: any): any => {
-          if (typeof obj === 'string') {
-            // Check if it's a direct local-file:// reference
-            if (obj.startsWith('local-file://')) {
-              const lid = obj.replace('local-file://', '');
-              return uploadMap.get(lid) || obj;
-            }
-            // Check if it's a transient blob URL (fallback)
-            if (obj.startsWith('blob:')) {
-              const resolved = uploadMap.get(call.dependsOnUploadId || '');
-              if (resolved) return resolved;
-              // If we can't resolve a blob: URL, it's safer to send an empty string or null 
-              // than the invalid blob: string which causes database issues.
-              logger.warn('[OfflineSync] Could not resolve blob URL, sending empty string instead', { url: obj });
-              return '';
-            }
-            // Check if it's just the raw localId
-            if (uploadMap.has(obj)) return uploadMap.get(obj);
-            return obj;
-          }
-          
-          if (Array.isArray(obj)) return obj.map(replaceUrl);
-          
+        // Final safety check: if there are STILL local-file references, it means the upload failed or is missing
+        const hasLocalRefs = (obj: any): boolean => {
+          if (typeof obj === 'string') return obj.startsWith('local-file://');
+          if (Array.isArray(obj)) return obj.some(hasLocalRefs);
           if (obj !== null && typeof obj === 'object') {
-            const newObj: any = {};
-            for (const key in obj) {
-              newObj[key] = replaceUrl(obj[key]);
-            }
-            return newObj;
+            return Object.values(obj).some(hasLocalRefs);
           }
-          return obj;
+          return false;
         };
 
-        body = replaceUrl(body);
+        if (hasLocalRefs(body)) {
+          logger.warn('[OfflineSync] API call still has local-file references. Upload might have failed.', { url: call.url, body });
+          // We could choose to skip or continue. Let's continue but log it.
+          // The server will receive the local-file:// string, which is what the user reported.
+        }
 
         await api(call.url, {
           method: call.method as any,
@@ -188,7 +168,7 @@ export function useOfflineSync() {
         await db.pending_api_calls.delete(call.id!);
         logger.info('[OfflineSync] Chamada API concluída', { url: call.url });
       } catch (err: any) {
-        logger.error('[OfflineSync] Erro na chamada API', { id: call.id, error: err.message });
+        logger.error('[OfflineSync] Erro na chamada API', { id: call.id, error: err.message, url: call.url });
         await db.pending_api_calls.update(call.id!, { status: 'failed', error: err.message });
       }
     }
