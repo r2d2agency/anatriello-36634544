@@ -10,9 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarDays, Check, X, Loader2, CheckCheck } from 'lucide-react';
+import { CalendarDays, Check, X, Loader2, CheckCheck, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { usePromoterValidations } from '@/hooks/use-promoter-validations';
+import { ValidationBadge, ValidationDetailDialog } from '@/components/access-control/ValidationDetailDialog';
 
 const WEEKDAY_LABELS = ['', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
