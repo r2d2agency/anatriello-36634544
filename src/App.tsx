@@ -168,9 +168,11 @@ function SmartRedirect() {
     || (navigator as any).standalone === true;
   const isPromotorDomain = hostname.startsWith('promotor.');
   const isSupermarketDomain = hostname.startsWith('supermercado.') || hostname.startsWith('acesso.');
+  const isAccessPromotorDomain = hostname.startsWith('parceiro.') || hostname.startsWith('acesso-promotor.');
   
   // Subdomain specific redirects
   if (isPromotorDomain) return <Navigate to="/promotor/login" replace />;
+  if (isAccessPromotorDomain) return <Navigate to="/acesso/promotor/login" replace />;
   if (isSupermarketDomain) return <Navigate to="/acesso-supermercado" replace />;
   
   if (isLoading) {
