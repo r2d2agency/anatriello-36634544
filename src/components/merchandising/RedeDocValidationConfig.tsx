@@ -43,6 +43,11 @@ export function RedeDocValidationConfig({ redeId, redeName }: Props) {
   const [autoApprove, setAutoApprove] = useState(true);
   const [minScore, setMinScore] = useState(95);
   const [activeTab, setActiveTab] = useState<PromoterType>('fixo');
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('ai');
+  const [notifyEnabled, setNotifyEnabled] = useState(false);
+  const [notifyWhatsapp, setNotifyWhatsapp] = useState<string[]>([]);
+  const [notifyEmails, setNotifyEmails] = useState<string[]>([]);
+  const [notifyEvents, setNotifyEvents] = useState<string[]>(['approved', 'rejected', 'divergent']);
 
   useEffect(() => {
     if (data) {
@@ -56,6 +61,11 @@ export function RedeDocValidationConfig({ redeId, redeName }: Props) {
       setFacialRequired(!!d.facial_required);
       setAutoApprove(d.auto_approve_on_match !== false);
       setMinScore(Number(d.auto_approve_min_score ?? 95));
+      setApprovalMode((d.approval_mode as ApprovalMode) || 'ai');
+      setNotifyEnabled(!!d.notify_enabled);
+      setNotifyWhatsapp(Array.isArray(d.notify_whatsapp) ? d.notify_whatsapp : []);
+      setNotifyEmails(Array.isArray(d.notify_emails) ? d.notify_emails : []);
+      if (Array.isArray(d.notify_events)) setNotifyEvents(d.notify_events);
     }
   }, [data]);
 
