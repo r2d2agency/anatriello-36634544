@@ -513,21 +513,42 @@ router.get('/:id', async (req, res) => {
 });
 
 // Core: start a validation and return its id. Used by HTTP route and by auto-triggers.
-export async function triggerValidation({ agency_promoter_id, rede_id, supermarket_unit_id }) {
+export async function triggerValidation({ agency_promoter_id, rede_id, supermarket_unit_id, actor = {} }) {
   await ensureTables();
   if (!agency_promoter_id) throw new Error('agency_promoter_id obrigatório');
-
-  const cfg = await loadDocValidationConfig();
-  if (!cfg?.apiKey || !cfg.enabled) throw new Error('IA Ayratech não configurada');
 
   const promoter = await loadPromoter(agency_promoter_id);
   if (!promoter) throw new Error('Promotor não encontrado');
 
   const requirements = await loadValidationRequirements(rede_id, supermarket_unit_id, promoter.promoter_type || 'fixo');
-  if (!requirements.enabled) throw new Error('Validação automática desativada para esta rede/PDV');
+  if (!requirements.enabled) throw new Error('Validação desativada para esta rede/PDV');
 
   const allDocs = await loadPromoterDocuments(agency_promoter_id);
   const relevantDocs = allDocs.filter(d => requirements.requiredDocs.length === 0 || requirements.requiredDocs.includes(d.category));
+
+  // Manual mode: skip AI, just open a pending request for human review
+  if (requirements.approvalMode === 'manual') {
+    const insertR = await query(
+      `INSERT INTO promoter_document_validations
+        (agency_promoter_id, organization_id, rede_id, supermarket_unit_id, status, documents_analyzed)
+       VALUES ($1,$2,$3,$4,'pending',$5) RETURNING id`,
+      [
+        agency_promoter_id, promoter.organization_id, rede_id || null, supermarket_unit_id || null,
+        JSON.stringify(relevantDocs.map(d => ({ id: d.id, category: d.category, title: d.title }))),
+      ]
+    );
+    const validationId = insertR.rows[0].id;
+    await logAudit({
+      validationId, promoterId: agency_promoter_id, redeId: rede_id, unitId: supermarket_unit_id,
+      eventType: 'created', actorType: actor.type || 'system', actorId: actor.id, actorName: actor.name,
+      toStatus: 'pending', metadata: { approval_mode: 'manual' },
+    });
+    return { id: validationId, status: 'pending', approval_mode: 'manual' };
+  }
+
+  // AI / hybrid mode: run AI
+  const cfg = await loadDocValidationConfig();
+  if (!cfg?.apiKey || !cfg.enabled) throw new Error('IA Ayratech não configurada');
 
   const insertR = await query(
     `INSERT INTO promoter_document_validations
@@ -535,31 +556,40 @@ export async function triggerValidation({ agency_promoter_id, rede_id, supermark
        ai_provider, ai_model, documents_analyzed)
      VALUES ($1, $2, $3, $4, 'analyzing', $5, $6, $7) RETURNING id`,
     [
-      agency_promoter_id,
-      promoter.organization_id,
-      rede_id || null,
-      supermarket_unit_id || null,
-      cfg.provider,
-      cfg.model,
+      agency_promoter_id, promoter.organization_id, rede_id || null, supermarket_unit_id || null,
+      cfg.provider, cfg.model,
       JSON.stringify(relevantDocs.map(d => ({ id: d.id, category: d.category, title: d.title }))),
     ]
   );
   const validationId = insertR.rows[0].id;
 
-  processValidation(validationId, cfg, promoter, relevantDocs, requirements).catch(err => {
+  await logAudit({
+    validationId, promoterId: agency_promoter_id, redeId: rede_id, unitId: supermarket_unit_id,
+    eventType: 'created', actorType: actor.type || 'system', actorId: actor.id, actorName: actor.name,
+    toStatus: 'analyzing', metadata: { approval_mode: requirements.approvalMode, ai_provider: cfg.provider, ai_model: cfg.model },
+  });
+
+  processValidation(validationId, cfg, promoter, relevantDocs, requirements, { rede_id, supermarket_unit_id }).catch(err => {
     console.error('[promoter-validations] processValidation error', err);
     query(
       `UPDATE promoter_document_validations SET status='failed', error_message=$1, updated_at=NOW() WHERE id=$2`,
       [String(err.message || err).slice(0, 500), validationId]
     ).catch(() => {});
+    logAudit({
+      validationId, promoterId: agency_promoter_id, redeId: rede_id, unitId: supermarket_unit_id,
+      eventType: 'failed', actorType: 'system', toStatus: 'failed', reason: String(err.message || err).slice(0, 300),
+    });
   });
-  return { id: validationId, status: 'analyzing' };
+  return { id: validationId, status: 'analyzing', approval_mode: requirements.approvalMode };
 }
 
 // Trigger validation (HTTP)
 router.post('/run', async (req, res) => {
   try {
-    const result = await triggerValidation(req.body || {});
+    const result = await triggerValidation({
+      ...(req.body || {}),
+      actor: { type: 'admin', id: req.userId, name: req.user?.name },
+    });
     res.json(result);
   } catch (e) {
     console.error('run validation', e);
@@ -567,7 +597,7 @@ router.post('/run', async (req, res) => {
   }
 });
 
-async function processValidation(validationId, cfg, promoter, documents, requirements) {
+async function processValidation(validationId, cfg, promoter, documents, requirements, ctx = {}) {
   const prompt = buildPrompt(promoter, documents, requirements);
   const docs = documents.filter(d => d.file_url);
   const raw = await runAIValidation(cfg, prompt, docs);
@@ -583,7 +613,12 @@ async function processValidation(validationId, cfg, promoter, documents, require
   else if (criticalCount > 0) status = 'divergent';
   else status = 'pre_approved';
 
-  const autoApplied = requirements.autoApprove && status === 'approved';
+  // In hybrid mode, AI never finalizes — always sends to human review
+  if (requirements.approvalMode === 'hybrid' && status === 'approved') {
+    status = 'pre_approved';
+  }
+
+  const autoApplied = requirements.approvalMode === 'ai' && requirements.autoApprove && status === 'approved';
 
   await query(
     `UPDATE promoter_document_validations SET
@@ -591,25 +626,28 @@ async function processValidation(validationId, cfg, promoter, documents, require
        recommendation=$5, ai_raw_response=$6, auto_applied=$7,
        validated_at=NOW(), updated_at=NOW()
      WHERE id=$8`,
-    [
-      status,
-      score,
-      JSON.stringify(divergences),
-      JSON.stringify(parsed.extracted || {}),
-      parsed.recommendation || null,
-      raw.slice(0, 10000),
-      autoApplied,
-      validationId,
-    ]
+    [status, score, JSON.stringify(divergences), JSON.stringify(parsed.extracted || {}),
+     parsed.recommendation || null, raw.slice(0, 10000), autoApplied, validationId]
   );
 
-  // Auto-apply: activate promoter for the rede
+  await logAudit({
+    validationId, promoterId: promoter.id, redeId: ctx.rede_id, unitId: ctx.supermarket_unit_id,
+    eventType: 'ai_completed', actorType: 'ai', actorName: `${cfg.provider}/${cfg.model}`,
+    fromStatus: 'analyzing', toStatus: status, reason: parsed.summary || parsed.recommendation,
+    metadata: { score, divergences_count: divergences.length, critical_count: criticalCount, auto_applied: autoApplied },
+  });
+
   if (autoApplied) {
-    try {
-      await query(`UPDATE agency_promoters SET status='active', updated_at=NOW() WHERE id=$1`, [promoter.id]);
-    } catch (e) { console.error('auto-apply failed', e); }
+    try { await query(`UPDATE agency_promoters SET status='active', updated_at=NOW() WHERE id=$1`, [promoter.id]); }
+    catch (e) { console.error('auto-apply failed', e); }
   }
+
+  await dispatchNotifications({
+    validationId, organizationId: promoter.organization_id, redeId: ctx.rede_id, unitId: ctx.supermarket_unit_id,
+    eventType: status, promoter, validation: { score }, reason: parsed.summary, actorName: `IA (${cfg.provider})`,
+  });
 }
+
 
 // Manual override (approve/reject)
 router.post('/:id/review', async (req, res) => {
