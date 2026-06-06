@@ -6,8 +6,140 @@ import pdfParse from 'pdf-parse';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { loadDocValidationConfig } from './ayratech-ai.js';
+import * as whatsappProvider from '../lib/whatsapp-provider.js';
 
 const router = express.Router();
+
+// === Audit + notifications helpers ===
+async function ensureAuditTables() {
+  await query(`CREATE TABLE IF NOT EXISTS promoter_validation_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    validation_id UUID NOT NULL,
+    agency_promoter_id UUID,
+    rede_id UUID,
+    supermarket_unit_id UUID,
+    event_type VARCHAR(40) NOT NULL,
+    actor_type VARCHAR(20) NOT NULL,
+    actor_id UUID,
+    actor_name VARCHAR(255),
+    from_status VARCHAR(20),
+    to_status VARCHAR(20),
+    reason TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_pva_validation ON promoter_validation_audit(validation_id, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_pva_unit ON promoter_validation_audit(supermarket_unit_id, created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_pva_rede ON promoter_validation_audit(rede_id, created_at DESC)`);
+
+  await query(`CREATE TABLE IF NOT EXISTS promoter_validation_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    validation_id UUID NOT NULL,
+    organization_id UUID,
+    channel VARCHAR(20) NOT NULL,
+    target TEXT NOT NULL,
+    event_type VARCHAR(40) NOT NULL,
+    payload JSONB DEFAULT '{}'::jsonb,
+    dispatched BOOLEAN DEFAULT false,
+    dispatched_at TIMESTAMPTZ,
+    error TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_pvn_validation ON promoter_validation_notifications(validation_id, created_at DESC)`);
+}
+
+async function logAudit({ validationId, promoterId, redeId, unitId, eventType, actorType, actorId, actorName, fromStatus, toStatus, reason, metadata }) {
+  try {
+    await ensureAuditTables();
+    await query(
+      `INSERT INTO promoter_validation_audit
+        (validation_id, agency_promoter_id, rede_id, supermarket_unit_id, event_type, actor_type, actor_id, actor_name, from_status, to_status, reason, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [validationId, promoterId || null, redeId || null, unitId || null, eventType, actorType, actorId || null, actorName || null, fromStatus || null, toStatus || null, reason || null, JSON.stringify(metadata || {})]
+    );
+  } catch (e) { console.error('[promoter-validations] audit log error', e); }
+}
+
+async function getActiveConnection(organizationId) {
+  try {
+    const r = await query(
+      `SELECT * FROM connections WHERE organization_id = $1 AND status = 'connected' ORDER BY created_at ASC LIMIT 1`,
+      [organizationId]
+    );
+    return r.rows[0] || null;
+  } catch { return null; }
+}
+
+function formatValidationMessage({ promoter, validation, status, reason, actorName }) {
+  const statusLabel = {
+    approved: '✅ APROVADO', rejected: '❌ REJEITADO', divergent: '⚠️ DIVERGENTE',
+    pre_approved: '🟡 PRÉ-APROVADO', analyzing: '🔍 EM ANÁLISE', failed: '⚠️ FALHOU',
+  }[status] || status;
+  const score = validation?.score != null ? `\n📊 Score IA: ${Math.round(Number(validation.score))}` : '';
+  const by = actorName ? `\n👤 Decisão por: ${actorName}` : '';
+  const why = reason ? `\n📝 Motivo: ${reason}` : '';
+  return `🛡️ *Ayratech Access - Validação de Promotor*\n\n` +
+    `👤 *Promotor:* ${promoter?.name || '-'}\n` +
+    `📋 *CPF:* ${promoter?.cpf || '-'}\n` +
+    `🏢 *Agência:* ${promoter?.agency_name || '-'}\n\n` +
+    `*Status:* ${statusLabel}${score}${by}${why}`;
+}
+
+async function dispatchNotifications({ validationId, organizationId, redeId, unitId, eventType, promoter, validation, reason, actorName }) {
+  try {
+    await ensureAuditTables();
+    const targets = [];
+    if (unitId) {
+      const u = await query(
+        `SELECT notify_enabled, notify_events, notify_whatsapp, notify_emails
+         FROM supermarket_units WHERE id = $1`,
+        [unitId]
+      ).catch(() => ({ rows: [] }));
+      const row = u.rows[0];
+      if (row?.notify_enabled && Array.isArray(row.notify_events) && row.notify_events.includes(eventType)) {
+        (row.notify_whatsapp || []).forEach(p => targets.push({ channel: 'whatsapp', target: p }));
+        (row.notify_emails || []).forEach(e => targets.push({ channel: 'email', target: e }));
+      }
+    }
+    if (redeId && targets.length === 0) {
+      const r = await query(
+        `SELECT notify_enabled, notify_events, notify_whatsapp, notify_emails
+         FROM merch_redes WHERE id = $1`,
+        [redeId]
+      ).catch(() => ({ rows: [] }));
+      const row = r.rows[0];
+      if (row?.notify_enabled && Array.isArray(row.notify_events) && row.notify_events.includes(eventType)) {
+        (row.notify_whatsapp || []).forEach(p => targets.push({ channel: 'whatsapp', target: p }));
+        (row.notify_emails || []).forEach(e => targets.push({ channel: 'email', target: e }));
+      }
+    }
+    if (!targets.length) return;
+
+    const message = formatValidationMessage({ promoter, validation, status: eventType, reason, actorName });
+    const connection = organizationId ? await getActiveConnection(organizationId) : null;
+
+    for (const t of targets) {
+      const ins = await query(
+        `INSERT INTO promoter_validation_notifications
+          (validation_id, organization_id, channel, target, event_type, payload)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+        [validationId, organizationId || null, t.channel, t.target, eventType, JSON.stringify({ message, reason })]
+      );
+      const notifId = ins.rows[0].id;
+      if (t.channel === 'whatsapp' && connection) {
+        try {
+          await whatsappProvider.sendMessage(connection, t.target, message, 'text', null);
+          await query(`UPDATE promoter_validation_notifications SET dispatched=true, dispatched_at=NOW() WHERE id=$1`, [notifId]);
+        } catch (e) {
+          await query(`UPDATE promoter_validation_notifications SET error=$1 WHERE id=$2`, [String(e.message || e).slice(0, 300), notifId]);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[promoter-validations] dispatch notifications error', e);
+  }
+}
+
 router.use(authenticate);
 
 // Document categories supported
