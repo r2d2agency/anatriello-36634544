@@ -45,6 +45,9 @@ const AccessControlAdmin = () => {
             <TabsTrigger value="fraud" className="gap-1.5 text-xs sm:text-sm">
               <ShieldAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Fraudes</span><span className="sm:hidden">Fraud</span>
             </TabsTrigger>
+            <TabsTrigger value="compliance" className="gap-1.5 text-xs sm:text-sm">
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Compliance IA</span><span className="sm:hidden">Compl.</span>
+            </TabsTrigger>
             <TabsTrigger value="logs" className="gap-1.5 text-xs sm:text-sm">
               <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Logs
             </TabsTrigger>
