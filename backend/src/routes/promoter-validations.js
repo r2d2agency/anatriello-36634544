@@ -230,7 +230,7 @@ async function loadRedeRequirements(redeId, promoterType) {
   if (!redeId) return null;
   const r = await query(
     `SELECT id, doc_validation_enabled, required_documents, required_documents_freelance, required_documents_substituto,
-            facial_required, auto_approve_on_match, auto_approve_min_score
+            facial_required, auto_approve_on_match, auto_approve_min_score, approval_mode
      FROM merch_redes WHERE id = $1`,
     [redeId]
   );
@@ -243,6 +243,7 @@ async function loadRedeRequirements(redeId, promoterType) {
     facialRequired: !!row.facial_required,
     autoApprove: row.auto_approve_on_match !== false,
     autoApproveMinScore: Number(row.auto_approve_min_score ?? 95),
+    approvalMode: row.approval_mode || 'ai',
   };
 }
 
@@ -251,7 +252,7 @@ async function loadUnitRequirements(unitId, promoterType) {
   try {
     const r = await query(
       `SELECT doc_validation_enabled, required_documents, required_documents_freelance, required_documents_substituto,
-              facial_required, auto_approve_on_match, auto_approve_min_score
+              facial_required, auto_approve_on_match, auto_approve_min_score, approval_mode
        FROM supermarket_units WHERE id = $1`,
       [unitId]
     );
@@ -264,6 +265,7 @@ async function loadUnitRequirements(unitId, promoterType) {
     if (row.facial_required !== null) out.facialRequired = !!row.facial_required;
     if (row.auto_approve_on_match !== null) out.autoApprove = !!row.auto_approve_on_match;
     if (row.auto_approve_min_score !== null) out.autoApproveMinScore = Number(row.auto_approve_min_score);
+    if (row.approval_mode) out.approvalMode = row.approval_mode;
     return out;
   } catch { return null; }
 }
@@ -276,6 +278,7 @@ async function loadValidationRequirements(redeId, unitId, promoterType = 'fixo')
     facialRequired: false,
     autoApprove: true,
     autoApproveMinScore: 95,
+    approvalMode: 'ai',
   };
   const rede = (await loadRedeRequirements(redeId, promoterType)) || {};
   const unit = (await loadUnitRequirements(unitId, promoterType)) || {};
