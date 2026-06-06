@@ -174,7 +174,7 @@ async function ensureTables() {
   await query(`CREATE INDEX IF NOT EXISTS idx_pdv_promoter ON promoter_document_validations(agency_promoter_id, created_at DESC)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_pdv_status ON promoter_document_validations(status)`);
 
-  // Add columns to merch_redes for requirements config
+  // Add columns to merch_redes for requirements + approval mode + notifications
   await query(`ALTER TABLE merch_redes
     ADD COLUMN IF NOT EXISTS doc_validation_enabled BOOLEAN DEFAULT false,
     ADD COLUMN IF NOT EXISTS required_documents JSONB DEFAULT '[]'::jsonb,
@@ -182,7 +182,12 @@ async function ensureTables() {
     ADD COLUMN IF NOT EXISTS auto_approve_on_match BOOLEAN DEFAULT true,
     ADD COLUMN IF NOT EXISTS auto_approve_min_score NUMERIC(5,2) DEFAULT 95,
     ADD COLUMN IF NOT EXISTS required_documents_freelance JSONB,
-    ADD COLUMN IF NOT EXISTS required_documents_substituto JSONB`);
+    ADD COLUMN IF NOT EXISTS required_documents_substituto JSONB,
+    ADD COLUMN IF NOT EXISTS approval_mode VARCHAR(20) DEFAULT 'ai',
+    ADD COLUMN IF NOT EXISTS notify_enabled BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS notify_events JSONB DEFAULT '["approved","rejected","divergent"]'::jsonb,
+    ADD COLUMN IF NOT EXISTS notify_whatsapp JSONB DEFAULT '[]'::jsonb,
+    ADD COLUMN IF NOT EXISTS notify_emails JSONB DEFAULT '[]'::jsonb`);
 
   // Per-PDV config on supermarket_units (overrides rede)
   await query(`ALTER TABLE supermarket_units
@@ -192,11 +197,18 @@ async function ensureTables() {
     ADD COLUMN IF NOT EXISTS auto_approve_on_match BOOLEAN,
     ADD COLUMN IF NOT EXISTS auto_approve_min_score NUMERIC(5,2),
     ADD COLUMN IF NOT EXISTS required_documents_freelance JSONB,
-    ADD COLUMN IF NOT EXISTS required_documents_substituto JSONB`).catch(() => {});
+    ADD COLUMN IF NOT EXISTS required_documents_substituto JSONB,
+    ADD COLUMN IF NOT EXISTS approval_mode VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS notify_enabled BOOLEAN,
+    ADD COLUMN IF NOT EXISTS notify_events JSONB,
+    ADD COLUMN IF NOT EXISTS notify_whatsapp JSONB,
+    ADD COLUMN IF NOT EXISTS notify_emails JSONB`).catch(() => {});
 
   // Promoter type column for downstream selection
   await query(`ALTER TABLE agency_promoters
     ADD COLUMN IF NOT EXISTS promoter_type VARCHAR(20) DEFAULT 'fixo'`).catch(() => {});
+
+  await ensureAuditTables();
 }
 
 // Defaults per promoter type
