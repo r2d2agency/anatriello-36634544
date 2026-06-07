@@ -153,6 +153,10 @@ const clearScopedAuthTokens = (endpoint?: string) => {
     localStorage.removeItem('supermarket_auth_token');
     return;
   }
+  if (endpoint?.startsWith('/api/network-portal') && !endpoint?.startsWith('/api/network-portal/admin')) {
+    localStorage.removeItem('network_auth_token');
+    return;
+  }
   if (endpoint?.startsWith('/api/promotor') || endpoint?.includes('/merch/promotor/')) {
     localStorage.removeItem('promotor_token');
     return;
