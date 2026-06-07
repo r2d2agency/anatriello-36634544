@@ -74,6 +74,10 @@ function authFlex(req, res, next) {
       req.agencyUserId = decoded.userId;
       req.agencyId = decoded.agencyId;
       req.orgId = decoded.orgId;
+    } else if (decoded.type === 'network') {
+      req.networkUserId = decoded.userId;
+      req.networkId = decoded.networkId;
+      req.orgId = decoded.orgId;
     } else {
       req.userId = decoded.userId;
       req.userEmail = decoded.email;
