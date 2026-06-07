@@ -56,6 +56,7 @@ import merchChecklistsRoutes from './routes/merch-checklists.js';
 import ayratechAiRoutes from './routes/ayratech-ai.js';
 import promoterValidationsRoutes from './routes/promoter-validations.js';
 import pdvBlocksRoutes from './routes/pdv-blocks.js';
+import networkPortalRoutes from './routes/network-portal.js';
 import promoterLeavesRoutes from './routes/promoter-leaves.js';
 import accessControlDashboardRoutes from './routes/access-control-dashboard.js';
 import { initDatabase } from './init-db.js';
