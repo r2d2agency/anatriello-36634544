@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Building2, Loader2, Shield } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Loader2, Shield, KeyRound } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { NetworkAuthSettingsDialog } from "./NetworkAuthSettingsDialog";
+import { NetworkAccessDialog } from "./NetworkAccessDialog";
 import HelpPanel from "./HelpPanel";
 
 const NetworksTab = () => {
@@ -21,6 +22,7 @@ const NetworksTab = () => {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", cnpj: "", contact_email: "", contact_phone: "", notes: "" });
   const [authSettingsNetwork, setAuthSettingsNetwork] = useState<any>(null);
+  const [accessNetwork, setAccessNetwork] = useState<any>(null);
 
   const openNew = () => {
     setEditing(null);
@@ -114,6 +116,9 @@ const NetworksTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => setAccessNetwork(n)} title="Dar acesso ao Portal da Rede">
+                        <KeyRound className="h-4 w-4 text-amber-600" />
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => setAuthSettingsNetwork(n)} title="Regras de Autenticação">
                         <Shield className="h-4 w-4 text-primary" />
                       </Button>
@@ -156,6 +161,16 @@ const NetworksTab = () => {
           onOpenChange={(v) => { if (!v) setAuthSettingsNetwork(null); }}
           networkId={authSettingsNetwork.id}
           networkName={authSettingsNetwork.name}
+        />
+      )}
+
+      {accessNetwork && (
+        <NetworkAccessDialog
+          open={!!accessNetwork}
+          onOpenChange={(v) => { if (!v) setAccessNetwork(null); }}
+          networkId={accessNetwork.id}
+          networkName={accessNetwork.name}
+          defaultEmail={accessNetwork.contact_email}
         />
       )}
     </Card>
