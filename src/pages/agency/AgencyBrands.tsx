@@ -131,10 +131,11 @@ export default function AgencyBrands() {
       toast({ title: 'CNPJ obrigatório e válido', variant: 'destructive' });
       return;
     }
-    if (conflict && !conflict.is_own) {
+    // Conflito de própria agência bloqueia (duplicata interna); outras agências são permitidas
+    if (conflict?.is_own && (!editing || conflict.id !== editing.id)) {
       toast({
         title: 'CNPJ já cadastrado',
-        description: `Marca "${conflict.name}" pertence à agência ${conflict.agency_name}.`,
+        description: `Você já tem essa marca como "${conflict.name}".`,
         variant: 'destructive',
       });
       return;
