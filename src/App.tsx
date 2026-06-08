@@ -300,6 +300,7 @@ const App = () => (
               <Route path="visitas" element={<AgencyVisitRequests />} />
               <Route path="afastamentos" element={<AgencyLeaves />} />
               <Route path="regras" element={<AgencyAccessRules />} />
+              <Route path="solicitar-acesso" element={<AgencyNetworkRequest />} />
             </Route>
             {/* Supermarket Portal */}
             <Route path="/supermercado/login" element={<SupermarketAuthProvider><SupermarketLogin /></SupermarketAuthProvider>} />
