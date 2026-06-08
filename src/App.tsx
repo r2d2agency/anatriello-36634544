@@ -143,6 +143,8 @@ import AgencyNetworkRequest from "./pages/agency/AgencyNetworkRequest";
 import AgencySignup from "./pages/agency/AgencySignup";
 import NetworkAgencySignups from "./pages/network/NetworkAgencySignups";
 import NetworkPdvQrCodes from "./pages/network/NetworkPdvQrCodes";
+import NetworkDocRequirements from "./pages/network/NetworkDocRequirements";
+
 import { PromoterAppAuthProvider } from "./contexts/PromoterAppAuthContext";
 import PromoterAppLogin from "./pages/promoter-app/PromoterAppLogin";
 import PromoterAppHome from "./pages/promoter-app/PromoterAppHome";
