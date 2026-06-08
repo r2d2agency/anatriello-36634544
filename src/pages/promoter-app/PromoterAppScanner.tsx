@@ -67,7 +67,7 @@ export default function PromoterAppScanner() {
         setResult({ ok: true, unit: r.unit });
       } catch (e: any) {
         // backend returns 403 with reason
-        const reason = e?.data?.reason || e?.message || 'Acesso negado';
+        const reason = e?.response?.reason || e?.message || 'Acesso negado';
         setResult({ ok: false, reason });
       }
     } catch (e: any) {
