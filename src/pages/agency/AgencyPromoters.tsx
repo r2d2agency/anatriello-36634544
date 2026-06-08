@@ -91,6 +91,25 @@ export default function AgencyPromoters() {
     enabled: !!user && !isAuthLoading,
   });
 
+  const { data: docRequirements } = useQuery<{
+    block_submission: boolean;
+    required_by_type: { fixo: string[]; freelance: string[]; substituto: string[] };
+    networks: any[];
+  }>({
+    queryKey: ['agency-required-documents'],
+    queryFn: () => api('/api/access-control/agency/required-documents', { headers: getHeaders() }),
+    enabled: !!user && !isAuthLoading,
+  });
+
+  const requiredDocs: string[] = (docRequirements?.required_by_type as any)?.[form.promoter_type] || [];
+  const missingDocs = requiredDocs.filter(d => {
+    const field = DOC_FIELD_MAP[d];
+    if (!field) return false;
+    return !form[field];
+  });
+  const blockBecauseDocs = !!docRequirements?.block_submission && missingDocs.length > 0;
+
+
   const saveMutation = useMutation({
     mutationFn: (data: any) => {
       const payload = {
