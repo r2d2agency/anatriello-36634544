@@ -1488,6 +1488,63 @@ router.get('/agency/allowed-units', authenticateAgency, async (req, res) => {
   } catch (err) { logError('agency.allowed_units.list', err); res.status(500).json({ error: 'Erro' }); }
 });
 
+// Agency: required documents aggregated across networks this agency operates in
+router.get('/agency/required-documents', authenticateAgency, async (req, res) => {
+  try {
+    // Ensure columns exist
+    await query(`ALTER TABLE supermarket_networks
+      ADD COLUMN IF NOT EXISTS required_documents JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS required_documents_freelance JSONB,
+      ADD COLUMN IF NOT EXISTS required_documents_substituto JSONB,
+      ADD COLUMN IF NOT EXISTS docs_block_submission BOOLEAN DEFAULT true`).catch(() => {});
+
+    const r = await query(
+      `SELECT DISTINCT sn.id, sn.name,
+              sn.required_documents,
+              sn.required_documents_freelance,
+              sn.required_documents_substituto,
+              sn.docs_block_submission
+         FROM agency_allowed_units aau
+         JOIN supermarket_units su ON su.id = aau.supermarket_unit_id
+         JOIN supermarket_networks sn ON sn.id = su.network_id
+        WHERE aau.agency_id = $1 AND su.active = true`,
+      [req.agencyId]
+    );
+
+    const pickForType = (row, type) => {
+      if (type === 'freelance' && Array.isArray(row.required_documents_freelance)) return row.required_documents_freelance;
+      if (type === 'substituto' && Array.isArray(row.required_documents_substituto)) return row.required_documents_substituto;
+      return Array.isArray(row.required_documents) ? row.required_documents : [];
+    };
+
+    const byType = { fixo: new Set(), freelance: new Set(), substituto: new Set() };
+    let blockSubmission = false;
+    const networks = r.rows.map(row => {
+      ['fixo', 'freelance', 'substituto'].forEach(t => pickForType(row, t).forEach(d => byType[t].add(d)));
+      if (row.docs_block_submission !== false) blockSubmission = true;
+      return {
+        id: row.id,
+        name: row.name,
+        required_documents: pickForType(row, 'fixo'),
+        required_documents_freelance: pickForType(row, 'freelance'),
+        required_documents_substituto: pickForType(row, 'substituto'),
+        docs_block_submission: row.docs_block_submission !== false,
+      };
+    });
+
+    res.json({
+      block_submission: blockSubmission,
+      required_by_type: {
+        fixo: Array.from(byType.fixo),
+        freelance: Array.from(byType.freelance),
+        substituto: Array.from(byType.substituto),
+      },
+      networks,
+    });
+  } catch (err) { logError('agency.required_documents', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+
 // =====================================================================
 // VISIT REQUESTS (Supermarket side)
 // =====================================================================
