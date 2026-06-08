@@ -13,7 +13,6 @@ import FraudLogsTab from "@/components/access-control/FraudLogsTab";
 import WhatsAppAgentConfigTab from "@/components/access-control/WhatsAppAgentConfigTab";
 import ComplianceTab from "@/components/access-control/ComplianceTab";
 import InaugurationRequestsTab from "@/components/access-control/InaugurationRequestsTab";
-import { ClipboardPlus } from "lucide-react";
 
 const AccessControlAdmin = () => {
   const [tab, setTab] = useState("networks");
