@@ -51,6 +51,21 @@ export const PromoterAppAuthProvider = ({ children }: { children: ReactNode }) =
       await refresh();
       setIsLoading(false);
     })();
+
+    // Inject PWA manifest for promoter app
+    const linkId = 'promoter-app-manifest';
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'manifest';
+      link.href = '/promoter-app-manifest.webmanifest';
+      document.head.appendChild(link);
+      const theme = document.createElement('meta');
+      theme.name = 'theme-color';
+      theme.content = '#0f172a';
+      theme.id = 'promoter-app-theme';
+      document.head.appendChild(theme);
+    }
   }, []);
 
   const login = async (cpf: string, password: string) => {
