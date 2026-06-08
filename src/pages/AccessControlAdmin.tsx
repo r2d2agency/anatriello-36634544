@@ -28,6 +28,9 @@ const AccessControlAdmin = () => {
             <TabsTrigger value="units" className="gap-1.5 text-xs sm:text-sm">
               <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Unidades</span><span className="sm:hidden">PDVs</span>
             </TabsTrigger>
+            <TabsTrigger value="inaugurations" className="gap-1.5 text-xs sm:text-sm">
+              <ClipboardPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Inaugurações</span><span className="sm:hidden">Inaug.</span>
+            </TabsTrigger>
             <TabsTrigger value="agencies" className="gap-1.5 text-xs sm:text-sm">
               <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Agências</span><span className="sm:hidden">Agên.</span>
             </TabsTrigger>
