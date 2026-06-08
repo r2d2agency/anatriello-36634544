@@ -452,7 +452,8 @@ app.use('/api/promoter-validations', promoterValidationsRoutes);
 app.use('/api/pdv-blocks', pdvBlocksRoutes);
 app.use('/api/network-portal', networkPortalRoutes);
 app.use('/api', agencyNetworkRequestsRoutes);
-app.use('/api', promoterAccessRoutes);
+// promoterAccessRoutes already mounted above (before /api/public)
+
 app.use('/api/promoter-leaves', promoterLeavesRoutes);
 app.use('/api/access-control-dashboard', accessControlDashboardRoutes);
 
