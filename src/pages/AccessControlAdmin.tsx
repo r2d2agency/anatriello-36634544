@@ -60,6 +60,7 @@ const AccessControlAdmin = () => {
 
         <TabsContent value="networks"><AccessControlNetworks /></TabsContent>
         <TabsContent value="units"><AccessControlUnits /></TabsContent>
+        <TabsContent value="inaugurations"><InaugurationRequestsTab /></TabsContent>
         <TabsContent value="agencies"><AccessControlAgencies /></TabsContent>
         <TabsContent value="promoters"><AccessControlPromoters /></TabsContent>
         <TabsContent value="billing"><AgencyBillingPanel /></TabsContent>
