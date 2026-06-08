@@ -302,6 +302,7 @@ const App = () => (
             <Route path="/acesso-supermercado" element={<SupermarketLandingPage />} />
             {/* Agency Portal */}
             <Route path="/agencia/login" element={<AgencyAuthProvider><AgencyLogin /></AgencyAuthProvider>} />
+            <Route path="/agencia/cadastro" element={<AgencySignup />} />
             <Route path="/agencia" element={<AgencyAuthProvider><AgencyLayout /></AgencyAuthProvider>}>
               <Route path="dashboard" element={<AgencyDashboard />} />
               <Route path="promotores" element={<AgencyPromoters />} />
