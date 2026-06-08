@@ -397,7 +397,13 @@ export default function AgencyPromoters() {
             <TabsList className="w-full">
               <TabsTrigger value="dados" className="flex-1">Dados Pessoais</TabsTrigger>
               <TabsTrigger value="contato" className="flex-1">Contato</TabsTrigger>
-              <TabsTrigger value="docs" className="flex-1">Documentos</TabsTrigger>
+              <TabsTrigger value="docs" className="flex-1 gap-1.5">
+                Documentos
+                {missingDocs.length > 0 && (
+                  <Badge variant="destructive" className="h-4 px-1 text-[10px]">{missingDocs.length}</Badge>
+                )}
+              </TabsTrigger>
+
             </TabsList>
 
             <TabsContent value="dados" className="space-y-4 max-h-[50vh] overflow-y-auto">
