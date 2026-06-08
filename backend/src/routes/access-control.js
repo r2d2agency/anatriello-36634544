@@ -1403,10 +1403,13 @@ async function ensureAgencyBrandsSchema() {
     // Normalized CNPJ (digits only) for canonical uniqueness across all agencies of the same organization
     await query(`ALTER TABLE agency_brands ADD COLUMN IF NOT EXISTS cnpj_digits VARCHAR(14)`).catch(() => {});
     await query(`UPDATE agency_brands SET cnpj_digits = regexp_replace(COALESCE(cnpj,''), '\\D', '', 'g') WHERE cnpj_digits IS NULL`).catch(() => {});
-    await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_agency_brands_org_cnpj
-                 ON agency_brands(organization_id, cnpj_digits)
+    // Unicidade por agência: a mesma agência não duplica a marca; outras agências podem ter o mesmo CNPJ
+    await query(`DROP INDEX IF EXISTS uq_agency_brands_org_cnpj`).catch(() => {});
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_agency_brands_agency_cnpj
+                 ON agency_brands(agency_id, cnpj_digits)
                  WHERE cnpj_digits IS NOT NULL AND cnpj_digits <> ''`).catch(() => {});
     await query(`CREATE INDEX IF NOT EXISTS idx_agency_brands_org_name ON agency_brands(organization_id, lower(name))`).catch(() => {});
+    await query(`CREATE INDEX IF NOT EXISTS idx_agency_brands_org_cnpj ON agency_brands(organization_id, cnpj_digits)`).catch(() => {});
   })();
   try { await agencyBrandsSchemaReady; } catch(e) { agencyBrandsSchemaReady = null; throw e; }
 }
