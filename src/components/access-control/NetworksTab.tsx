@@ -163,6 +163,16 @@ const NetworksTab = () => {
           networkName={authSettingsNetwork.name}
         />
       )}
+
+      {accessNetwork && (
+        <NetworkAccessDialog
+          open={!!accessNetwork}
+          onOpenChange={(v) => { if (!v) setAccessNetwork(null); }}
+          networkId={accessNetwork.id}
+          networkName={accessNetwork.name}
+          defaultEmail={accessNetwork.contact_email}
+        />
+      )}
     </Card>
   );
 };
