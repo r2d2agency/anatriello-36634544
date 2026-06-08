@@ -140,6 +140,15 @@ import NetworkPartners from "./pages/network/NetworkPartners";
 import { NetworkBrands, NetworkBlocks, NetworkAudit, NetworkSettings } from "./pages/network/NetworkPages";
 import NetworkAccessRequests from "./pages/network/NetworkAccessRequests";
 import AgencyNetworkRequest from "./pages/agency/AgencyNetworkRequest";
+import AgencySignup from "./pages/agency/AgencySignup";
+import NetworkAgencySignups from "./pages/network/NetworkAgencySignups";
+import NetworkPdvQrCodes from "./pages/network/NetworkPdvQrCodes";
+import { PromoterAppAuthProvider } from "./contexts/PromoterAppAuthContext";
+import PromoterAppLogin from "./pages/promoter-app/PromoterAppLogin";
+import PromoterAppHome from "./pages/promoter-app/PromoterAppHome";
+import PromoterAppScanner from "./pages/promoter-app/PromoterAppScanner";
+import PromoterAppVisit from "./pages/promoter-app/PromoterAppVisit";
+import PromoterAppHistory from "./pages/promoter-app/PromoterAppHistory";
 
 const queryClient = new QueryClient({
   defaultOptions: {
