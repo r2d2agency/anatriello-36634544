@@ -42,7 +42,7 @@ export default function PromoterAppVisit() {
   if (!visit) {
     return (
       <div className="min-h-screen p-4 flex flex-col items-center justify-center gap-3">
-        <p>Nenhuma visita em andamento.</p>
+        <p>Nenhum acesso em andamento.</p>
         <Button onClick={() => navigate('/p/home')}>Voltar</Button>
       </div>
     );
@@ -55,7 +55,7 @@ export default function PromoterAppVisit() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/p/home')}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
-          <h1 className="font-semibold">Visita em andamento</h1>
+          <h1 className="font-semibold">Acesso ao PDV</h1>
         </div>
       </header>
       <div className="p-4 max-w-md mx-auto space-y-3">
