@@ -72,7 +72,7 @@ export function NetworkAccessDialog({ open, onOpenChange, networkId, networkName
     try {
       await api(`/api/network-portal/admin/network-users`, {
         method: "POST",
-        body: JSON.stringify({ network_id: networkId, ...form }),
+        body: { network_id: networkId, ...form },
       });
       toast.success("Acesso criado");
       setLastCreds({ email: form.email, password: form.password });
