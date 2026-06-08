@@ -104,7 +104,7 @@ export function NetworkAccessDialog({ open, onOpenChange, networkId, networkName
     try {
       await api(`/api/network-portal/admin/network-users/${u.id}`, {
         method: "PUT",
-        body: JSON.stringify({ active: !u.active }),
+        body: { active: !u.active },
       });
       load();
     } catch (e: any) {
