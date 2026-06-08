@@ -146,7 +146,17 @@ export default function AgencyPromoters() {
       promoter_type: p.promoter_type || 'fixo',
       mei_cnpj: p.mei_cnpj || '',
       hourly_rate: p.hourly_rate != null ? String(p.hourly_rate) : '',
+      cnh_url: p.cnh_url || '',
+      contrato_url: p.contrato_url || '',
+      comprovante_endereco_url: p.comprovante_endereco_url || '',
+      ctps_url: p.ctps_url || '',
+      selfie_url: p.selfie_url || '',
+      aso_url: p.aso_url || '',
+      declaracao_vinculo_url: p.declaracao_vinculo_url || '',
+      ctps_app_print_url: p.ctps_app_print_url || '',
+      termo_estacionamento_url: p.termo_estacionamento_url || '',
     });
+
     setDialogTab('dados');
     setDialogOpen(true);
   };
