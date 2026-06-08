@@ -91,7 +91,7 @@ export function NetworkAccessDialog({ open, onOpenChange, networkId, networkName
     try {
       await api(`/api/network-portal/admin/network-users/${u.id}`, {
         method: "PUT",
-        body: JSON.stringify({ password: newPass }),
+        body: { password: newPass },
       });
       setLastCreds({ email: u.email, password: newPass });
       toast.success("Senha resetada");
