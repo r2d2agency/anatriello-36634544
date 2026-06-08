@@ -138,6 +138,8 @@ import NetworkDashboard from "./pages/network/NetworkDashboard";
 import NetworkUnits from "./pages/network/NetworkUnits";
 import NetworkPartners from "./pages/network/NetworkPartners";
 import { NetworkBrands, NetworkBlocks, NetworkAudit, NetworkSettings } from "./pages/network/NetworkPages";
+import NetworkAccessRequests from "./pages/network/NetworkAccessRequests";
+import AgencyNetworkRequest from "./pages/agency/AgencyNetworkRequest";
 
 const queryClient = new QueryClient({
   defaultOptions: {
