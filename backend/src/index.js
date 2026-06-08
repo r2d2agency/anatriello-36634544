@@ -401,6 +401,9 @@ app.use('/api/contacts', contactsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/organizations', organizationsRoutes);
 app.use('/api/asaas', asaasRoutes);
+// Mount promoter-access early so its public routes (e.g. /api/public/networks)
+// are not swallowed by adminRoutes' authenticate middleware at /api/public.
+app.use('/api', promoterAccessRoutes);
 app.use('/api/admin', adminRoutes);
 // Mount admin routes also at /api/public for public endpoints (pre-register, branding)
 app.use('/api/public', adminRoutes);
@@ -449,7 +452,8 @@ app.use('/api/promoter-validations', promoterValidationsRoutes);
 app.use('/api/pdv-blocks', pdvBlocksRoutes);
 app.use('/api/network-portal', networkPortalRoutes);
 app.use('/api', agencyNetworkRequestsRoutes);
-app.use('/api', promoterAccessRoutes);
+// promoterAccessRoutes already mounted above (before /api/public)
+
 app.use('/api/promoter-leaves', promoterLeavesRoutes);
 app.use('/api/access-control-dashboard', accessControlDashboardRoutes);
 
