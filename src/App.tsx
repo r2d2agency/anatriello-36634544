@@ -323,6 +323,7 @@ const App = () => (
               <Route path="marcas" element={<NetworkBrands />} />
               <Route path="bloqueios" element={<NetworkBlocks />} />
               <Route path="solicitacoes" element={<NetworkUnits />} />
+              <Route path="solicitacoes-acesso" element={<NetworkAccessRequests />} />
               <Route path="auditoria" element={<NetworkAudit />} />
               <Route path="configuracoes" element={<NetworkSettings />} />
             </Route>
