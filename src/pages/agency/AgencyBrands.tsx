@@ -131,10 +131,11 @@ export default function AgencyBrands() {
       toast({ title: 'CNPJ obrigatório e válido', variant: 'destructive' });
       return;
     }
-    if (conflict && !conflict.is_own) {
+    // Conflito de própria agência bloqueia (duplicata interna); outras agências são permitidas
+    if (conflict?.is_own && (!editing || conflict.id !== editing.id)) {
       toast({
         title: 'CNPJ já cadastrado',
-        description: `Marca "${conflict.name}" pertence à agência ${conflict.agency_name}.`,
+        description: `Você já tem essa marca como "${conflict.name}".`,
         variant: 'destructive',
       });
       return;
@@ -274,21 +275,21 @@ export default function AgencyBrands() {
                   onChange={e => setForm(f => ({ ...f, cnpj: formatCnpj(e.target.value) }))}
                   placeholder="00.000.000/0000-00"
                   maxLength={18}
-                  className={cnpjError || conflict ? 'border-destructive' : cnpjValid ? 'border-emerald-500' : ''}
+                  className={cnpjError || (conflict?.is_own && (!editing || conflict.id !== editing.id)) ? 'border-destructive' : cnpjValid ? 'border-emerald-500' : ''}
                 />
                 {cnpjError && <p className="text-xs text-destructive mt-1">CNPJ inválido</p>}
                 {cnpjValid && !conflict && <p className="text-xs text-emerald-600 flex items-center gap-1 mt-1"><CheckCircle2 className="h-3 w-3" /> CNPJ válido</p>}
               </div>
             </div>
 
-            {conflict && (
-              <div className={`rounded-md border p-3 text-sm flex gap-2 ${conflict.is_own ? 'bg-muted border-border' : 'bg-destructive/10 border-destructive/30 text-destructive'}`}>
+            {conflict && (!editing || conflict.id !== editing.id) && (
+              <div className={`rounded-md border p-3 text-sm flex gap-2 ${conflict.is_own ? 'bg-destructive/10 border-destructive/30 text-destructive' : 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300'}`}>
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <div>
                   {conflict.is_own ? (
-                    <>Você já cadastrou essa marca como <strong>{conflict.name}</strong>.</>
+                    <>Você já cadastrou essa marca como <strong>{conflict.name}</strong>. Não é possível duplicar.</>
                   ) : (
-                    <>Já existe a marca <strong>{conflict.name}</strong> com esse CNPJ na agência <strong>{conflict.agency_name}</strong>. Não é possível duplicar — alinhe com a rede.</>
+                    <>A marca <strong>{conflict.name}</strong> também é representada por <strong>{conflict.agency_name}</strong>. Você pode cadastrá-la — o conflito real será verificado por PDV ao solicitar visitas.</>
                   )}
                 </div>
               </div>
@@ -317,7 +318,7 @@ export default function AgencyBrands() {
             <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
             <Button
               onClick={handleSave}
-              disabled={saveMutation.isPending || !cnpjValid || (!!conflict && !conflict.is_own)}
+              disabled={saveMutation.isPending || !cnpjValid || (!!conflict?.is_own && (!editing || conflict.id !== editing.id))}
             >
               {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {editing ? 'Salvar' : 'Cadastrar'}
