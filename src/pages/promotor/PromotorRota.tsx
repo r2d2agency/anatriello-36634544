@@ -1561,7 +1561,7 @@ export default function PromotorRota() {
               <Button variant="outline" onClick={() => { setShowPdvCheckout(false); navigate('/promotor/home'); }}>
                 Pular
               </Button>
-              <Button onClick={handlePdvCheckout} disabled={route.require_checkout_photo && !pdvCheckoutPhoto}>
+              <Button onClick={handlePdvCheckout}>
                 Fazer Checkout
               </Button>
             </DialogFooter>
