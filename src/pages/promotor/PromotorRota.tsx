@@ -803,8 +803,8 @@ export default function PromotorRota() {
   if (isLoading) return <PromotorLayout><div className="flex items-center justify-center h-64"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div></PromotorLayout>;
   if (!route) return <PromotorLayout><div className="text-center py-12 text-muted-foreground">Rota não encontrada</div></PromotorLayout>;
 
-  const needsCheckin = route.status === 'scheduled' || route.status === 'confirmed';
-  const isActive = route.status === 'in_progress';
+  const needsCheckin = (route.status === 'scheduled' || route.status === 'confirmed') && !checkinSubmitted;
+  const isActive = route.status === 'in_progress' || (checkinSubmitted && (route.status === 'scheduled' || route.status === 'confirmed'));
   const isCompleted = route.status === 'completed';
 
   // Multi-brand: show brand selection screen after check-in
