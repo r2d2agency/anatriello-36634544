@@ -710,7 +710,9 @@ export default function PromotorRota() {
       });
       // Removed toast per user request
 
-      setCheckinPhotoUrl('');
+      // Otimista: libera a UI imediatamente para o promotor seguir o trabalho
+      // sem esperar o refetch (a chamada de check-in é processada em background).
+      setCheckinSubmitted(true);
       // We still want to refetch the route data to show updated status, 
       // but we do it immediately without waiting for the checkin call to finish.
       // The backend check-in usually takes care of the status.
