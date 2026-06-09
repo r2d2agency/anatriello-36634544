@@ -456,9 +456,27 @@ export default function MerchRotas() {
 
                 {/* Action buttons */}
                 <div className="flex gap-2 pt-2">
-                  <Button size="sm" className="flex-1" onClick={() => { setSelectedRoute(viewRoute); setViewRoute(null); }}>
-                    <Edit className="h-4 w-4 mr-1" /> Editar
-                  </Button>
+                  {(() => {
+                    const locked = viewRoute.status === 'in_progress' || viewRoute.status === 'completed';
+                    return (
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={locked}
+                        title={locked ? 'Rota em execução ou concluída não pode ser editada' : ''}
+                        onClick={() => {
+                          if (locked) {
+                            toast.error('Esta rota já está em execução e não pode ser editada. Aguarde a finalização do promotor.');
+                            return;
+                          }
+                          setSelectedRoute(viewRoute);
+                          setViewRoute(null);
+                        }}
+                      >
+                        <Edit className="h-4 w-4 mr-1" /> {locked ? 'Bloqueada' : 'Editar'}
+                      </Button>
+                    );
+                  })()}
                   <Button variant="outline" size="sm" onClick={() => {
                     duplicateRoute.mutate({ id: viewRoute.id }, {
                       onSuccess: () => { toast.success('Rota duplicada'); setViewRoute(null); }
