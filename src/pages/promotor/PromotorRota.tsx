@@ -778,10 +778,11 @@ export default function PromotorRota() {
       // The backend check-in usually takes care of the status.
       setTimeout(() => refetch(), 1000); 
     } catch (err: any) {
+      (handleCheckin as any)._running = false;
       logger.error('[handleCheckin] Erro fatal no check-in', { message: err.message, routeId: id }, err);
       toast.error(err.message || 'Não foi possível realizar o check-in');
     }
-  }, [id, checkin, route?.require_checkin_photo, route?.status, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name, isOnline, queueApiCall, refetch]);
+  }, [id, checkin, route?.require_checkin_photo, route?.status, checkinPhotoUrl, isFacialActiveCheckin, faceVerifyAction, route?.pdv_name, isOnline, queueApiCall, refetch, checkinSubmitted]);
 
   const handleCompleteRoute = useCallback(async () => {
     if (!id) return;
