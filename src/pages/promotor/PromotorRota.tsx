@@ -32,6 +32,119 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { logger } from "@/lib/logger";
 import { SyncStatusIndicator } from "@/components/promotor/SyncStatusIndicator";
 
+// ===== Photo capture with Approve/Reject preview =====
+function PhotoApprovalCapture({
+  photos, onPhotosChange, min, allowExtras, isSending, onSubmit,
+  cameraProps, label, submitLabel, accentColorClass = 'text-primary',
+}: {
+  photos: string[];
+  onPhotosChange: (next: string[]) => void;
+  min: number;
+  allowExtras: boolean;
+  isSending: boolean;
+  onSubmit: () => void;
+  cameraProps: any;
+  label: string;
+  submitLabel: string;
+  accentColorClass?: string;
+}) {
+  const [pending, setPending] = useState<string | null>(null);
+  const [showExtraCamera, setShowExtraCamera] = useState(false);
+
+  const reachedMin = photos.length >= min;
+  const needsMore = photos.length < min;
+  // Auto-submit when min===1 and the single required photo was just approved
+  const autoSubmitAfterApprove = min === 1;
+
+  const approve = () => {
+    if (!pending) return;
+    const next = [...photos, pending];
+    onPhotosChange(next);
+    setPending(null);
+    setShowExtraCamera(false);
+    if (autoSubmitAfterApprove && next.length >= min) {
+      // defer to next tick so state is committed
+      setTimeout(() => onSubmit(), 0);
+    }
+  };
+  const reject = () => setPending(null);
+  const removeAt = (i: number) => onPhotosChange(photos.filter((_, idx) => idx !== i));
+
+  // Show camera if: nothing pending AND (no photos yet OR still below min OR user asked for extras)
+  const showCamera = !pending && (needsMore || showExtraCamera);
+
+  return (
+    <div className="space-y-2">
+      <Label className={`text-xs font-semibold flex items-center gap-1 ${accentColorClass}`}>
+        <Camera className="h-3.5 w-3.5" /> {label}
+      </Label>
+      {min > 1 && (
+        <p className="text-[10px] text-muted-foreground">
+          {reachedMin ? `${photos.length}/${min} fotos aprovadas` : `Tire ${min} foto(s). Faltam ${min - photos.length}.`}
+        </p>
+      )}
+
+      {/* Approved thumbnails */}
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {photos.map((url, i) => (
+            <div key={i} className="relative group">
+              <LocalImage src={url} alt={`Foto ${i + 1}`} className="w-full h-20 rounded-lg border-2 border-green-500/40 object-cover" />
+              <button
+                onClick={() => removeAt(i)}
+                className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
+              >✕</button>
+              <div className="absolute bottom-1 left-1 bg-green-600 text-white rounded px-1 text-[9px] font-medium flex items-center gap-0.5">
+                <Check className="h-2.5 w-2.5" /> {i + 1}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pending photo preview with Approve/Reject */}
+      {pending && (
+        <div className="space-y-2 p-2 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5">
+          <LocalImage src={pending} alt="Prévia" className="w-full rounded-lg max-h-64 object-cover" />
+          <p className="text-[11px] text-center text-muted-foreground">A foto ficou boa?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" className="h-11" onClick={reject} disabled={isSending}>
+              <Camera className="h-4 w-4 mr-1" /> Reprovar
+            </Button>
+            <Button className="h-11" onClick={approve} disabled={isSending}>
+              <Check className="h-4 w-4 mr-1" /> Aprovar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Camera */}
+      {showCamera && (
+        <CameraCapture
+          {...cameraProps}
+          onCapture={(url: string) => { setPending(url); setShowExtraCamera(false); }}
+          buttonLabel={photos.length === 0 ? 'Tirar foto' : `Tirar foto ${photos.length + 1}`}
+        />
+      )}
+
+      {/* Final actions when min reached and no pending */}
+      {!pending && reachedMin && !showCamera && (
+        <div className="space-y-2">
+          <Button className="w-full" onClick={onSubmit} disabled={isSending}>
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {isSending ? 'Enviando...' : submitLabel}
+          </Button>
+          {allowExtras && (
+            <Button variant="outline" className="w-full" onClick={() => setShowExtraCamera(true)} disabled={isSending}>
+              <Camera className="h-4 w-4 mr-2" /> Tirar mais uma foto
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const EXEC_STATUS_ICON: Record<string, any> = {
   pending: <Circle className="h-4 w-4 text-muted-foreground" />,
   in_progress: <Clock className="h-4 w-4 text-yellow-500" />,
@@ -221,52 +334,22 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
 
         {/* Bloco 3: Photos (multiple) */}
         {hasPointType && !hasPhoto && photoMode !== 'after' && (
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold flex items-center gap-1">
-              <Camera className="h-3.5 w-3.5" /> Foto obrigatória da categoria (ANTES da execução)
-            </Label>
-            <p className="text-[10px] text-muted-foreground">Mínimo {min} foto(s). Você pode tirar fotos adicionais.</p>
-
-            {/* Captured photos grid */}
-            {photos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <LocalImage src={url} alt={`Foto ${i + 1}`} className="w-full h-20 rounded-lg border object-cover" />
-                    <button
-                      onClick={() => handleRemovePhoto(i)}
-                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                    >✕</button>
-                    <div className="absolute bottom-1 left-1 bg-background/80 rounded px-1 text-[9px] font-medium">
-                      {i === 0 ? 'Principal' : `Adicional ${i}`}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Camera capture for more photos */}
-            <CameraCapture
-              onCapture={handleAddPhoto}
-              watermark={{ pdvName, brandName, promotorName, photoType: `Categoria (antes) ${photos.length + 1}` }}
-              customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
-              buttonLabel={photos.length === 0 ? 'Tirar foto da categoria' : 'Tirar foto adicional'}
-              qualityConfig={qualityConfig}
-              allowManualUpload={false}
-            />
-
-            {/* Submit button */}
-            {photos.length > 0 && (
-              <Button className="w-full" onClick={handleUploadPhoto} disabled={isSending || photos.length < min}>
-                <ImagePlus className="h-4 w-4 mr-2" />
-                {isSending
-                  ? 'Enviando...'
-                  : photos.length < min
-                    ? `Faltam ${min - photos.length} foto(s) para liberar`
-                    : `Registrar ${photos.length} foto(s) e liberar produtos`}
-              </Button>
-            )}
-          </div>
+          <PhotoApprovalCapture
+            photos={photos}
+            onPhotosChange={setPhotos}
+            min={min}
+            allowExtras={min > 1}
+            isSending={isSending}
+            onSubmit={handleUploadPhoto}
+            cameraProps={{
+              watermark: { pdvName, brandName, promotorName, photoType: 'Categoria (antes)' },
+              customTokenGetter: () => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token'),
+              qualityConfig,
+              allowManualUpload: false,
+            }}
+            label="Foto da categoria (ANTES da execução)"
+            submitLabel="Registrar e liberar produtos"
+          />
         )}
 
         {/* Lock message */}
@@ -354,36 +437,23 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold flex items-center gap-1">
-            <Camera className="h-3.5 w-3.5" /> Foto do Ponto Extra (obrigatória)
-          </Label>
-          {photos.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {photos.map((p, i) => (
-                <div key={i} className="relative">
-                  <LocalImage src={p} alt="" className="w-20 h-20 rounded-lg object-cover border" />
-                  <button className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
-                    onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <CameraCapture
-            onCapture={(url: string) => setPhotos(prev => [...prev, url])}
-            watermark={{ pdvName, brandName, photoType: 'Ponto Extra' }}
-            customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
-            buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto do ponto extra'}
-            qualityConfig={qualityConfig}
-            allowManualUpload={false}
-          />
-        </div>
-
-        {photos.length > 0 && (
-          <Button className="w-full" onClick={handleUploadPhoto} disabled={isSending || setCategoryPhoto.isPending}>
-            <Camera className="h-4 w-4 mr-2" /> {isSending ? 'Enviando...' : 'Confirmar e Liberar Produtos'}
-          </Button>
-        )}
+        <PhotoApprovalCapture
+          photos={photos}
+          onPhotosChange={setPhotos}
+          min={1}
+          allowExtras={false}
+          isSending={isSending || setCategoryPhoto.isPending}
+          onSubmit={handleUploadPhoto}
+          cameraProps={{
+            watermark: { pdvName, brandName, photoType: 'Ponto Extra' },
+            customTokenGetter: () => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token'),
+            qualityConfig,
+            allowManualUpload: false,
+          }}
+          label="Foto do Ponto Extra (obrigatória)"
+          submitLabel="Confirmar e liberar produtos"
+          accentColorClass="text-orange-700"
+        />
 
         <div className="flex items-center gap-2 p-2 rounded-md bg-orange-100/50 text-orange-800 text-[11px]">
           <Camera className="h-4 w-4 flex-shrink-0" />
@@ -449,41 +519,23 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
           </div>
         </div>
 
-        <p className="text-[10px] text-muted-foreground">
-          Tire pelo menos <b>{min}</b> foto(s) da categoria <b>DEPOIS</b> da execução para concluir.
-        </p>
-
-        {photos.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {photos.map((p, i) => (
-              <div key={i} className="relative">
-                <LocalImage src={p} alt="" className="w-20 h-20 rounded-lg object-cover border" />
-                <button className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
-                  onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <CameraCapture
-          onCapture={(url: string) => setPhotos(prev => [...prev, url])}
-          watermark={{ pdvName, brandName, promotorName, photoType: `Categoria (depois)` }}
-          customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
-          buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto DEPOIS'}
-          qualityConfig={qualityConfig}
-          allowManualUpload={false}
+        <PhotoApprovalCapture
+          photos={photos}
+          onPhotosChange={setPhotos}
+          min={min}
+          allowExtras={min > 1}
+          isSending={isSending || setCategoryAfterPhoto.isPending}
+          onSubmit={handleUpload}
+          cameraProps={{
+            watermark: { pdvName, brandName, promotorName, photoType: 'Categoria (depois)' },
+            customTokenGetter: () => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token'),
+            qualityConfig,
+            allowManualUpload: false,
+          }}
+          label="Foto da categoria DEPOIS da execução"
+          submitLabel="Registrar fotos e concluir categoria"
+          accentColorClass="text-green-700"
         />
-
-        {photos.length > 0 && (
-          <Button className="w-full" onClick={handleUpload} disabled={isSending || setCategoryAfterPhoto.isPending || photos.length < min}>
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            {isSending
-              ? 'Enviando...'
-              : photos.length < min
-                ? `Faltam ${min - photos.length} foto(s) DEPOIS`
-                : `Registrar ${photos.length} foto(s) e concluir categoria`}
-          </Button>
-        )}
 
         <div className="flex items-center gap-2 p-2 rounded-md bg-green-100/50 text-green-800 text-[11px]">
           <Camera className="h-4 w-4 flex-shrink-0" />
