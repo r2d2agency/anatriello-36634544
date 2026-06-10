@@ -1219,6 +1219,11 @@ export default function PromotorRota() {
                                           Loja: {exec.qty_store} | Estoque: {exec.qty_stock} | Total: {exec.qty_total}
                                         </div>
                                       )}
+                                      {requireValidityCheck && exec.nearest_expiry_date && (
+                                        <div className="text-[10px] text-blue-600 mt-0.5 flex items-center gap-1">
+                                          <CalendarIcon className="h-2.5 w-2.5" /> Val: {new Date(exec.nearest_expiry_date).toLocaleDateString('pt-BR')}
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
                                       {exec.has_rupture && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
