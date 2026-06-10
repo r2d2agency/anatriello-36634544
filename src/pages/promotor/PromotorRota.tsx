@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { useParams, useNavigate } from "react-router-dom";
 import { PromotorLayout } from "./PromotorLayout";
