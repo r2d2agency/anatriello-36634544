@@ -437,36 +437,23 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold flex items-center gap-1">
-            <Camera className="h-3.5 w-3.5" /> Foto do Ponto Extra (obrigatória)
-          </Label>
-          {photos.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {photos.map((p, i) => (
-                <div key={i} className="relative">
-                  <LocalImage src={p} alt="" className="w-20 h-20 rounded-lg object-cover border" />
-                  <button className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
-                    onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <CameraCapture
-            onCapture={(url: string) => setPhotos(prev => [...prev, url])}
-            watermark={{ pdvName, brandName, photoType: 'Ponto Extra' }}
-            customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
-            buttonLabel={photos.length > 0 ? 'Tirar mais uma foto' : 'Tirar foto do ponto extra'}
-            qualityConfig={qualityConfig}
-            allowManualUpload={false}
-          />
-        </div>
-
-        {photos.length > 0 && (
-          <Button className="w-full" onClick={handleUploadPhoto} disabled={isSending || setCategoryPhoto.isPending}>
-            <Camera className="h-4 w-4 mr-2" /> {isSending ? 'Enviando...' : 'Confirmar e Liberar Produtos'}
-          </Button>
-        )}
+        <PhotoApprovalCapture
+          photos={photos}
+          onPhotosChange={setPhotos}
+          min={1}
+          allowExtras={false}
+          isSending={isSending || setCategoryPhoto.isPending}
+          onSubmit={handleUploadPhoto}
+          cameraProps={{
+            watermark: { pdvName, brandName, photoType: 'Ponto Extra' },
+            customTokenGetter: () => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token'),
+            qualityConfig,
+            allowManualUpload: false,
+          }}
+          label="Foto do Ponto Extra (obrigatória)"
+          submitLabel="Confirmar e liberar produtos"
+          accentColorClass="text-orange-700"
+        />
 
         <div className="flex items-center gap-2 p-2 rounded-md bg-orange-100/50 text-orange-800 text-[11px]">
           <Camera className="h-4 w-4 flex-shrink-0" />
