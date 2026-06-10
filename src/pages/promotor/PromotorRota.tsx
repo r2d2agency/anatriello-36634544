@@ -1492,38 +1492,72 @@ export default function PromotorRota() {
               <Button variant="outline" size="sm" onClick={() => setSelectedExec(null)}>Fechar</Button>
               <Button size="sm" onClick={() => {
                 if (!selectedExec) return;
+                const qtyStore = actionForm.qty_store ?? selectedExec.qty_store ?? 0;
+                const qtyStock = actionForm.qty_stock ?? selectedExec.qty_stock ?? 0;
+                const observation = actionForm.product_observation ?? selectedExec.observation;
+                const expiryDate = actionForm.expiry_date || null;
+
+                if (requireValidityCheck && !expiryDate) {
+                  toast.error('Informe a data de validade mais próxima.');
+                  return;
+                }
+
                 const body = {
                   id: selectedExec.id,
-                  qty_store: actionForm.qty_store ?? selectedExec.qty_store ?? 0,
-                  qty_stock: actionForm.qty_stock ?? selectedExec.qty_stock ?? 0,
-                  observation: actionForm.product_observation ?? selectedExec.observation,
+                  qty_store: qtyStore,
+                  qty_stock: qtyStock,
+                  observation,
                   status: 'completed', checked: true,
+                };
+
+                // Save validity inline when checklist requires it
+                const saveValidityIfNeeded = async () => {
+                  if (!requireValidityCheck || !expiryDate) return;
+                  const validityBody = {
+                    expiry_date: expiryDate,
+                    qty_store: qtyStore,
+                    qty_stock: qtyStock,
+                    replace: true,
+                  };
+                  if (!isOnline) {
+                    queueApiCall({
+                      url: `/api/merch/promotor/executions/${selectedExec.id}/validity`,
+                      method: 'POST',
+                      body: validityBody,
+                      headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+                    });
+                  } else {
+                    await addValidity.mutateAsync({ executionId: selectedExec.id, ...validityBody }).catch((e: any) => {
+                      toast.error('Erro ao salvar validade: ' + (e?.message || ''));
+                      throw e;
+                    });
+                  }
                 };
 
                 if (!isOnline) {
                   queueApiCall({
                     url: `/api/merch/promotor/executions/${selectedExec.id}`,
                     method: 'PUT',
-                    body: {
-                      qty_store: actionForm.qty_store ?? selectedExec.qty_store ?? 0,
-                      qty_stock: actionForm.qty_stock ?? selectedExec.qty_stock ?? 0,
-                      observation: actionForm.product_observation ?? selectedExec.observation,
-                      status: 'completed', checked: true,
-                    },
+                    body: { qty_store: qtyStore, qty_stock: qtyStock, observation, status: 'completed', checked: true },
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
                   });
-                  // toast.info('Produto salvo offline!');
+                  saveValidityIfNeeded();
                   setSelectedExec(null);
                   return;
                 }
 
-                updateExec.mutate(body, {
-                  onSuccess: () => { setSelectedExec(null); },
-                  onError: (err: any) => toast.error(err.message),
-                });
-              }} disabled={updateExec.isPending}>
+                (async () => {
+                  try {
+                    await saveValidityIfNeeded();
+                    await updateExec.mutateAsync(body);
+                    setSelectedExec(null);
+                  } catch (err: any) {
+                    if (err?.message) toast.error(err.message);
+                  }
+                })();
+              }} disabled={updateExec.isPending || addValidity.isPending}>
                 <Check className="h-4 w-4 mr-1" />
-                {updateExec.isPending ? 'Salvando...' : 'Salvar e Concluir'}
+                {(updateExec.isPending || addValidity.isPending) ? 'Salvando...' : 'Salvar e Concluir'}
               </Button>
             </DialogFooter>
           </DialogContent>
