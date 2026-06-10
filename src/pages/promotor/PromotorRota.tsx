@@ -221,52 +221,22 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
 
         {/* Bloco 3: Photos (multiple) */}
         {hasPointType && !hasPhoto && photoMode !== 'after' && (
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold flex items-center gap-1">
-              <Camera className="h-3.5 w-3.5" /> Foto obrigatória da categoria (ANTES da execução)
-            </Label>
-            <p className="text-[10px] text-muted-foreground">Mínimo {min} foto(s). Você pode tirar fotos adicionais.</p>
-
-            {/* Captured photos grid */}
-            {photos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <LocalImage src={url} alt={`Foto ${i + 1}`} className="w-full h-20 rounded-lg border object-cover" />
-                    <button
-                      onClick={() => handleRemovePhoto(i)}
-                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                    >✕</button>
-                    <div className="absolute bottom-1 left-1 bg-background/80 rounded px-1 text-[9px] font-medium">
-                      {i === 0 ? 'Principal' : `Adicional ${i}`}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Camera capture for more photos */}
-            <CameraCapture
-              onCapture={handleAddPhoto}
-              watermark={{ pdvName, brandName, promotorName, photoType: `Categoria (antes) ${photos.length + 1}` }}
-              customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
-              buttonLabel={photos.length === 0 ? 'Tirar foto da categoria' : 'Tirar foto adicional'}
-              qualityConfig={qualityConfig}
-              allowManualUpload={false}
-            />
-
-            {/* Submit button */}
-            {photos.length > 0 && (
-              <Button className="w-full" onClick={handleUploadPhoto} disabled={isSending || photos.length < min}>
-                <ImagePlus className="h-4 w-4 mr-2" />
-                {isSending
-                  ? 'Enviando...'
-                  : photos.length < min
-                    ? `Faltam ${min - photos.length} foto(s) para liberar`
-                    : `Registrar ${photos.length} foto(s) e liberar produtos`}
-              </Button>
-            )}
-          </div>
+          <PhotoApprovalCapture
+            photos={photos}
+            onPhotosChange={setPhotos}
+            min={min}
+            allowExtras={min > 1}
+            isSending={isSending}
+            onSubmit={handleUploadPhoto}
+            cameraProps={{
+              watermark: { pdvName, brandName, promotorName, photoType: 'Categoria (antes)' },
+              customTokenGetter: () => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token'),
+              qualityConfig,
+              allowManualUpload: false,
+            }}
+            label="Foto da categoria (ANTES da execução)"
+            submitLabel="Registrar e liberar produtos"
+          />
         )}
 
         {/* Lock message */}
