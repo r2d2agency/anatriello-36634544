@@ -647,7 +647,7 @@ export default function PromotorRota() {
     if (requireStockCount || requireValidityCheck) return;
     if (!route?.executions?.length) return;
     Object.values(groupedExecs).forEach(({ catId, execs, isExtraGroup }) => {
-      const catStatus = catStatusMap[catId];
+      const catStatus = categoryStatusMap[catId];
       const unlocked = isExtraGroup
         ? !!extraGroupPhotos[`extra_${catId}_${execs[0]?.route_brand_id || 'null'}`]
         : !!catStatus?.products_unlocked;
@@ -665,7 +665,7 @@ export default function PromotorRota() {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupedExecs, catStatusMap, extraGroupPhotos, requireStockCount, requireValidityCheck]);
+  }, [groupedExecs, categoryStatusMap, extraGroupPhotos, requireStockCount, requireValidityCheck]);
 
   const handleCheckin = useCallback(async () => {
     if (!id) return;
