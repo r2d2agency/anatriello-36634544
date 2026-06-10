@@ -1002,17 +1002,17 @@ export default function PromotorRota() {
                       variant="outline"
                       className="h-12"
                       onClick={() => setCheckinPhotoUrl('')}
-                      disabled={checkin.isPending}
+                      disabled={checkin.isPending || checkinSubmitted}
                     >
                       <Camera className="h-4 w-4 mr-1" /> Reprovar
                     </Button>
                     <Button
                       className="h-12"
                       onClick={handleCheckin}
-                      disabled={checkin.isPending}
+                      disabled={checkin.isPending || checkinSubmitted}
                     >
                       {isFacialActiveCheckin ? <ScanFace className="h-4 w-4 mr-1" /> : <Check className="h-4 w-4 mr-1" />}
-                      {checkin.isPending ? 'Enviando...' : 'Aprovar'}
+                      {checkin.isPending || checkinSubmitted ? 'Enviando...' : 'Aprovar'}
                     </Button>
                   </div>
                 </div>
