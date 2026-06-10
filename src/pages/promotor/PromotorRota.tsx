@@ -26,7 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   MapPin, Camera, Check, AlertTriangle, Archive, Clock,
   CheckCircle2, Circle, Calendar as CalendarIcon, Trash2, Store, Info,
-  Lock, Unlock, ChevronRight, Target, ImagePlus, Plus, ScanFace, Package,
+  Lock, Unlock, ChevronRight, ChevronDown, ChevronUp, Target, ImagePlus, Plus, ScanFace, Package,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logger } from "@/lib/logger";
@@ -534,6 +534,7 @@ export default function PromotorRota() {
   const [selectedExtraProducts, setSelectedExtraProducts] = useState<string[]>([]);
   const [showExtraPointCategoryPicker, setShowExtraPointCategoryPicker] = useState(false);
   const [extraGroupPhotos, setExtraGroupPhotos] = useState<Record<string, boolean>>({});
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [showFaceVerify, setShowFaceVerify] = useState(false);
   const [faceVerifyAction, setFaceVerifyAction] = useState<'checkin' | 'checkout' | 'pdv_checkout' | null>(null);
 
@@ -1093,49 +1094,75 @@ export default function PromotorRota() {
                     </div>
                   </div>
 
-                  {/* Products list (locked or unlocked) */}
-                  <div className={`space-y-1.5 ${effectivelyLocked ? 'opacity-40 pointer-events-none select-none' : ''}`}>
-                    {execs.map((exec: any) => (
-                      <Card key={exec.id} className={`transition-colors hover:border-primary/40 ${exec.status === 'completed' ? 'border-green-500/30 bg-green-500/5' : ''}`}>
-                        <CardContent className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 cursor-pointer" onClick={() => {
-                              if (canQuickCheck) {
-                                updateExec.mutate({
-                                  id: exec.id,
-                                  status: exec.status === 'completed' ? 'pending' : 'completed',
-                                  checked: exec.status !== 'completed',
-                                  qty_store: 0,
-                                  qty_stock: 0
-                                }, {
-                                  onSuccess: () => { /* toast removed */ },
-                                  onError: (err: any) => toast.error(err.message)
-                                });
-                              } else {
-                                handleOpenProduct(exec);
-                              }
-                            }}>
-                              {EXEC_STATUS_ICON[exec.status] || EXEC_STATUS_ICON.pending}
-                            </div>
-                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
-                              <div className="text-sm font-medium truncate">{exec.product_name}</div>
-                              {exec.exposure_point !== 'natural' && <Badge variant="secondary" className="text-[9px] mt-0.5">{exec.exposure_point}</Badge>}
-                              {requireStockCount && (exec.qty_store > 0 || exec.qty_stock > 0) && (
-                                <div className="text-[10px] text-muted-foreground mt-0.5">
-                                  Loja: {exec.qty_store} | Estoque: {exec.qty_stock} | Total: {exec.qty_total}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
-                              {exec.has_rupture && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-                              {exec.has_damage && <Archive className="h-3.5 w-3.5 text-orange-500" />}
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            </div>
+                  {/* Photo-only mode: collapse products into accordion (only matters when stock/validity counting is OFF) */}
+                  {(() => {
+                    const photoOnlyMode = !requireStockCount && !requireValidityCheck;
+                    const accordionKey = `${catId}_${routeBrandId || 'null'}`;
+                    const isExpanded = photoOnlyMode ? !!expandedCategories[accordionKey] : true;
+                    const showProducts = !photoOnlyMode || isExpanded;
+                    return (
+                      <>
+                        {photoOnlyMode && !effectivelyLocked && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedCategories(prev => ({ ...prev, [accordionKey]: !prev[accordionKey] }))}
+                            className="w-full flex items-center justify-between gap-2 text-[11px] text-muted-foreground py-1.5 px-2 rounded hover:bg-muted/50 border border-dashed border-muted-foreground/20 mb-1.5"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Package className="h-3 w-3" />
+                              {isExpanded ? 'Ocultar produtos' : `Ver ${execs.length} produto(s) para registrar avaria/ruptura/validade`}
+                            </span>
+                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+
+                        {showProducts && (
+                          <div className={`space-y-1.5 ${effectivelyLocked ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+                            {execs.map((exec: any) => (
+                              <Card key={exec.id} className={`transition-colors hover:border-primary/40 ${exec.status === 'completed' ? 'border-green-500/30 bg-green-500/5' : ''}`}>
+                                <CardContent className="p-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex-shrink-0 cursor-pointer" onClick={() => {
+                                      if (canQuickCheck) {
+                                        updateExec.mutate({
+                                          id: exec.id,
+                                          status: exec.status === 'completed' ? 'pending' : 'completed',
+                                          checked: exec.status !== 'completed',
+                                          qty_store: 0,
+                                          qty_stock: 0
+                                        }, {
+                                          onSuccess: () => { /* toast removed */ },
+                                          onError: (err: any) => toast.error(err.message)
+                                        });
+                                      } else {
+                                        handleOpenProduct(exec);
+                                      }
+                                    }}>
+                                      {EXEC_STATUS_ICON[exec.status] || EXEC_STATUS_ICON.pending}
+                                    </div>
+                                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
+                                      <div className="text-sm font-medium truncate">{exec.product_name}</div>
+                                      {exec.exposure_point !== 'natural' && <Badge variant="secondary" className="text-[9px] mt-0.5">{exec.exposure_point}</Badge>}
+                                      {requireStockCount && (exec.qty_store > 0 || exec.qty_stock > 0) && (
+                                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                                          Loja: {exec.qty_store} | Estoque: {exec.qty_stock} | Total: {exec.qty_total}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => handleOpenProduct(exec)}>
+                                      {exec.has_rupture && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                                      {exec.has_damage && <Archive className="h-3.5 w-3.5 text-orange-500" />}
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* After Photo Gate - shown when all products done but category not yet completed */}
                   {needsAfterPhoto && (
