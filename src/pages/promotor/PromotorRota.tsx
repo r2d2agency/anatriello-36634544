@@ -846,7 +846,11 @@ export default function PromotorRota() {
       return;
     }
     setSelectedExec(exec);
-    setActionForm({ qty_store: exec.qty_store || 0, qty_stock: exec.qty_stock || 0 });
+    setActionForm({
+      qty_store: exec.qty_store || 0,
+      qty_stock: exec.qty_stock || 0,
+      expiry_date: exec.nearest_expiry_date ? String(exec.nearest_expiry_date).slice(0, 10) : '',
+    });
     setActiveAction(null);
   }, [categoryStatusMap]);
 
