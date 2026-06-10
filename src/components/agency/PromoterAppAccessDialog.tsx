@@ -46,7 +46,7 @@ export default function PromoterAppAccessDialog({ open, onOpenChange, promoter }
     setSaving(true);
     try {
       const token = localStorage.getItem('agency_auth_token');
-      await api(`/api/access-control/agency/promoter-credentials/${promoter.id}`, {
+      await api(`/api/agency/promoter-credentials/${promoter.id}`, {
         method: 'POST',
         body: { password },
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
