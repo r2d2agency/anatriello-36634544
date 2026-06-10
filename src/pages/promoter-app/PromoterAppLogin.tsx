@@ -57,6 +57,10 @@ export default function PromoterAppLogin() {
       <p className="text-xs text-muted-foreground mt-4">
         App de controle de acesso · ayratech
       </p>
+      <InstallPwaPrompt
+        storageKey="promoter_app_install_dismissed_at"
+        manifestHref="/promoter-app-manifest.webmanifest"
+      />
     </div>
   );
 }
