@@ -15,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useUpload } from '@/hooks/use-upload';
-import { Plus, Search, Edit, Ban, CheckCircle, Users, FileText, Camera, CalendarDays, Loader2, Phone, Mail, MapPin, Key, AlertCircle, Upload, Smartphone } from 'lucide-react';
+import { Plus, Search, Edit, Ban, CheckCircle, Users, FileText, Camera, CalendarDays, Loader2, Phone, Mail, MapPin, Key, AlertCircle, AlertTriangle, Upload, Smartphone, Shield } from 'lucide-react';
 import PromoterAppAccessDialog from '@/components/agency/PromoterAppAccessDialog';
+import PromoterAccessRulesDialog from '@/components/agency/PromoterAccessRulesDialog';
 import { RegistrationKeyDialog } from '@/components/access-control/RegistrationKeyDialog';
 import { AuthorizationLetterDialog } from '@/components/access-control/AuthorizationLetterDialog';
 import { formatCpf, formatPhone, isValidCpf, onlyDigits } from '@/lib/br-utils';
@@ -67,6 +68,7 @@ export default function AgencyPromoters() {
   const [form, setForm] = useState(defaultForm);
   const [detailPromoter, setDetailPromoter] = useState<any>(null);
   const [appAccessPromoter, setAppAccessPromoter] = useState<any>(null);
+  const [rulesPromoter, setRulesPromoter] = useState<any>(null);
   const [regKeyOpen, setRegKeyOpen] = useState(false);
 
   const { data: promoters = [], isLoading } = useQuery({
