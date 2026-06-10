@@ -711,10 +711,12 @@ export default function PromotorRota() {
     }
 
     if (route?.require_checkin_photo && !checkinPhotoUrl) {
+      (handleCheckin as any)._running = false;
       toast.error('Esta rota exige foto obrigatória no check-in');
       return;
     }
     if (isFacialActiveCheckin && faceVerifyAction !== 'checkin') {
+      (handleCheckin as any)._running = false;
       setFaceVerifyAction('checkin');
       setShowFaceVerify(true);
       return;
