@@ -66,6 +66,7 @@ export default function AgencyPromoters() {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState(defaultForm);
   const [detailPromoter, setDetailPromoter] = useState<any>(null);
+  const [appAccessPromoter, setAppAccessPromoter] = useState<any>(null);
   const [regKeyOpen, setRegKeyOpen] = useState(false);
 
   const { data: promoters = [], isLoading } = useQuery({
