@@ -48,31 +48,24 @@ function PhotoApprovalCapture({
   submitLabel?: string; // ignored — kept for backward compatibility
   accentColorClass?: string;
 }) {
-  const [pending, setPending] = useState<string | null>(null);
   const submittedRef = useRef(false);
 
   const reachedMin = photos.length >= min;
   const needsMore = photos.length < min;
 
-  const approve = () => {
-    if (!pending) return;
-    const next = [...photos, pending];
+  const handleCapture = (url: string) => {
+    const next = [...photos, url];
     onPhotosChange(next);
-    setPending(null);
-    // Auto-submit as soon as min is reached — no extra confirm button
     if (next.length >= min && !submittedRef.current) {
       submittedRef.current = true;
       setTimeout(() => onSubmit(), 0);
     }
   };
-  const reject = () => setPending(null);
+
   const removeAt = (i: number) => {
     submittedRef.current = false;
     onPhotosChange(photos.filter((_, idx) => idx !== i));
   };
-
-  // Show camera if nothing pending AND still below min
-  const showCamera = !pending && needsMore;
 
   return (
     <div className="space-y-2">
@@ -81,11 +74,11 @@ function PhotoApprovalCapture({
       </Label>
       {min > 1 && (
         <p className="text-[10px] text-muted-foreground">
-          {reachedMin ? `${photos.length}/${min} fotos aprovadas` : `Tire ${min} foto(s). Faltam ${min - photos.length}.`}
+          {reachedMin ? `${photos.length}/${min} fotos registradas` : `Tire ${min} foto(s). Faltam ${min - photos.length}.`}
         </p>
       )}
 
-      {/* Approved thumbnails */}
+      {/* Thumbnails */}
       {photos.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {photos.map((url, i) => (
@@ -104,35 +97,19 @@ function PhotoApprovalCapture({
         </div>
       )}
 
-      {/* Pending photo preview with Approve/Reject */}
-      {pending && (
-        <div className="space-y-2 p-2 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5">
-          <LocalImage src={pending} alt="Prévia" className="w-full rounded-lg max-h-64 object-cover" />
-          <p className="text-[11px] text-center text-muted-foreground">A foto ficou boa?</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" className="h-11" onClick={reject} disabled={isSending}>
-              <Camera className="h-4 w-4 mr-1" /> Reprovar
-            </Button>
-            <Button className="h-11" onClick={approve} disabled={isSending}>
-              <Check className="h-4 w-4 mr-1" /> Aprovar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Camera */}
-      {showCamera && (
+      {/* Camera (only while we still need more) */}
+      {needsMore && (
         <CameraCapture
           {...cameraProps}
-          onCapture={(url: string) => { setPending(url); }}
+          onCapture={handleCapture}
           buttonLabel={photos.length === 0 ? 'Tirar foto' : `Tirar foto ${photos.length + 1}`}
         />
       )}
 
-      {/* Sending feedback when min reached */}
-      {!pending && reachedMin && !showCamera && isSending && (
+      {!needsMore && isSending && (
         <p className="text-[11px] text-center text-muted-foreground">Enviando...</p>
       )}
+
     </div>
   );
 }
