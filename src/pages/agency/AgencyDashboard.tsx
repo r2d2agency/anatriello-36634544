@@ -58,6 +58,8 @@ export default function AgencyDashboard() {
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground">Bem-vindo, {user?.name} — {format(new Date(), 'dd/MM/yyyy')}</p>
       </div>
+      <PromoterAppLinkCard />
+
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
