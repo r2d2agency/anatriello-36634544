@@ -1095,7 +1095,8 @@ export default function PromotorRota() {
                 
               const doneCount = execs.filter((e: any) => e.status === 'completed').length;
               const allProductsDone = doneCount === execs.length && execs.length > 0;
-              const hasAfterPhoto = !!catStatus?.category_after_photo || !!catStatus?.completed;
+              const afterPhotoKey = `${catId}_${routeBrandId || 'null'}`;
+              const hasAfterPhoto = !!catStatus?.category_after_photo || !!catStatus?.completed || !!optimisticAfterPhoto[afterPhotoKey];
               
               // Show after photo gate when all products done AND mode is 'both' or 'after'
               const needsAfterPhoto = requireCategoryPhotos && 
@@ -1103,6 +1104,7 @@ export default function PromotorRota() {
                 !isLocked && 
                 !hasAfterPhoto && 
                 (photoMode === 'both' || photoMode === 'after');
+
 
               return (
 
