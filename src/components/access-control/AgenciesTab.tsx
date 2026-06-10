@@ -440,8 +440,20 @@ const AgenciesTab = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => { setSendAccessAgency(a); setSendAccessOpen(true); }} title="Enviar Acesso">
+                      <Button size="icon" variant="ghost" onClick={() => { setSendAccessAgency(a); setSendAccessOpen(true); }} title="Enviar Acesso ao Portal">
                         <Send className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Copiar link do App do Promotor (entrada/saída PDV)"
+                        onClick={() => {
+                          const url = `${window.location.origin}/p/login`;
+                          navigator.clipboard.writeText(url);
+                          toast({ title: "Link copiado!", description: url });
+                        }}
+                      >
+                        <Smartphone className="h-4 w-4 text-primary" />
                       </Button>
                       <Button size="icon" variant="ghost" onClick={() => openContractDialog(a)} title="Gerar Contrato">
                         <FileSignature className="h-4 w-4 text-primary" />
