@@ -194,8 +194,9 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
     });
   };
 
-  const handleUploadPhoto = async () => {
-    if (photos.length < min) return toast.error(`É necessário enviar pelo menos ${min} foto(s) ANTES.`);
+  const handleUploadPhoto = async (submittedPhotos?: string[]) => {
+    const effective = submittedPhotos && submittedPhotos.length ? submittedPhotos : photos;
+    if (effective.length < min) return toast.error(`É necessário enviar pelo menos ${min} foto(s) ANTES.`);
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -204,8 +205,8 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
 
       const body = {
         route_brand_id: routeBrandId, 
-        photo_url: photos[0], 
-        photos,
+        photo_url: effective[0], 
+        photos: effective,
         latitude: pos?.coords.latitude, 
         longitude: pos?.coords.longitude,
       };
@@ -216,10 +217,9 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         method: 'POST',
         body: { ...body, routeId, catId },
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
-        dependsOnUploadId: photos[0]?.startsWith('local-file://') ? photos[0].replace('local-file://', '') : undefined
+        dependsOnUploadId: effective[0]?.startsWith('local-file://') ? effective[0].replace('local-file://', '') : undefined
       });
       
-      // toast.success(`${photos.length} foto(s) registrada(s)! Produtos liberados.`); // Removed toast per user request
       setPhotos([]);
       setIsSending(false);
       onUnlocked();
