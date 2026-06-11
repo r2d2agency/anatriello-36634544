@@ -425,8 +425,9 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
 
   const min = Math.max(1, minPhotos || 1);
 
-  const handleUpload = async () => {
-    if (photos.length < min) return toast.error(`É necessário enviar pelo menos ${min} foto(s) DEPOIS.`);
+  const handleUpload = async (submittedPhotos?: string[]) => {
+    const effective = submittedPhotos && submittedPhotos.length ? submittedPhotos : photos;
+    if (effective.length < min) return toast.error(`É necessário enviar pelo menos ${min} foto(s) DEPOIS.`);
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -434,12 +435,10 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
       ).catch(() => null);
 
       const body = {
-        routeId, catId, route_brand_id: routeBrandId, photo_url: photos[0], photos,
+        routeId, catId, route_brand_id: routeBrandId, photo_url: effective[0], photos: effective,
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
       };
 
-      // Always use queue for photo-related actions for maximum performance
-      // This allows the user to continue working immediately
       await queueApiCall({
         url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/after-photo`,
         method: 'POST',
@@ -447,7 +446,6 @@ function CategoryAfterPhotoGate({ catId, routeBrandId, categoryName, routeId, pd
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
-      // Removed toast per user request
       setPhotos([]);
       setIsSending(false);
       onCompleted();
