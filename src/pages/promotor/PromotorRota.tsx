@@ -544,6 +544,7 @@ export default function PromotorRota() {
   const [selectedExtraProducts, setSelectedExtraProducts] = useState<string[]>([]);
   const [showExtraPointCategoryPicker, setShowExtraPointCategoryPicker] = useState(false);
   const [extraGroupPhotos, setExtraGroupPhotos] = useState<Record<string, boolean>>({});
+  const [optimisticBeforeUnlock, setOptimisticBeforeUnlock] = useState<Record<string, boolean>>({});
   const [optimisticAfterPhoto, setOptimisticAfterPhoto] = useState<Record<string, boolean>>({});
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -835,13 +836,14 @@ export default function PromotorRota() {
 
   const handleOpenProduct = useCallback((exec: any) => {
     const routeBrandId = exec.route_brand_id;
-    const catStatus = categoryStatusMap[`${exec.category_id}_${routeBrandId || 'null'}`] || categoryStatusMap[exec.category_id];
+    const categoryKey = `${exec.category_id}_${routeBrandId || 'null'}`;
+    const catStatus = categoryStatusMap[categoryKey] || categoryStatusMap[exec.category_id];
     
     // Check checklist settings for this brand
     const rb = isMultiBrand ? routeBrands.find((b: any) => b.id === routeBrandId) : null;
     const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
     
-    if (requireCategoryPhotos && !catStatus?.products_unlocked) {
+    if (requireCategoryPhotos && !catStatus?.products_unlocked && !optimisticBeforeUnlock[categoryKey]) {
       toast.error('Finalize a etapa de preparação da categoria antes de executar produtos.');
       return;
     }
@@ -852,7 +854,7 @@ export default function PromotorRota() {
       expiry_date: exec.nearest_expiry_date ? String(exec.nearest_expiry_date).slice(0, 10) : '',
     });
     setActiveAction(null);
-  }, [categoryStatusMap]);
+  }, [categoryStatusMap, optimisticBeforeUnlock]);
 
   if (isLoading) return <PromotorLayout><div className="flex items-center justify-center h-64"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div></PromotorLayout>;
   if (!route) return <PromotorLayout><div className="text-center py-12 text-muted-foreground">Rota não encontrada</div></PromotorLayout>;
