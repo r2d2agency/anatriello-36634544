@@ -325,6 +325,8 @@ export function CameraCapture({
     setValidationError(null);
     setCapturedImage(canvas.toDataURL("image/jpeg", 0.95));
     stopCamera();
+    // Auto-accept: no manual Aprovar step. Run on next tick so canvas state settles.
+    setTimeout(() => { void handleAccept(); }, 0);
   };
 
   const handleRetake = () => {
