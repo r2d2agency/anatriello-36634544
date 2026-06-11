@@ -331,8 +331,9 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
   const { isOnline, queueApiCall } = useOfflineSync();
 
 
-  const handleUploadPhoto = async () => {
-    if (photos.length === 0) return toast.error('É necessário tirar pelo menos 1 foto do ponto extra.');
+  const handleUploadPhoto = async (submittedPhotos?: string[]) => {
+    const effective = submittedPhotos && submittedPhotos.length ? submittedPhotos : photos;
+    if (effective.length === 0) return toast.error('É necessário tirar pelo menos 1 foto do ponto extra.');
     setIsSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -340,11 +341,10 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
       ).catch(() => null);
 
       const body = {
-        routeId, catId, photo_url: photos[0], photos,
+        routeId, catId, photo_url: effective[0], photos: effective,
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
       };
 
-      // Always use background queue for photo-related actions for performance
       await queueApiCall({
         url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
         method: 'POST',
@@ -352,7 +352,6 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
       
-      // toast.success('Foto do ponto extra registrada! Produtos liberados.'); // Removed per user request
       setPhotos([]);
       setIsSending(false);
       onPhotoTaken();
