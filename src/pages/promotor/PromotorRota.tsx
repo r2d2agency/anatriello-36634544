@@ -880,6 +880,9 @@ export default function PromotorRota() {
       qty_store: exec.qty_store || 0,
       qty_stock: exec.qty_stock || 0,
       expiry_date: exec.nearest_expiry_date ? String(exec.nearest_expiry_date).slice(0, 10) : '',
+      val_qty_store: exec.nearest_expiry_qty_store ?? 0,
+      val_qty_stock: exec.nearest_expiry_qty_stock ?? 0,
+      product_observation: exec.observation ?? '',
     });
     setActiveAction(null);
   }, [categoryStatusMap, optimisticBeforeUnlock]);
