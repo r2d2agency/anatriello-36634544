@@ -4,7 +4,11 @@ import { authenticate } from '../middleware/auth.js';
 import { logInfo, logError, logWarn } from '../logger.js';
 
 const router = express.Router();
-router.use(authenticate);
+router.use((req, res, next) => {
+  // Public/tolerant endpoints (handle their own auth)
+  if (req.method === 'GET' && req.path === '/photo-quality-config') return next();
+  return authenticate(req, res, next);
+});
 
 async function hasColumn(tableName, columnName) {
   const result = await query(
