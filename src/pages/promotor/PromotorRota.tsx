@@ -850,8 +850,10 @@ export default function PromotorRota() {
     // Check checklist settings for this brand
     const rb = isMultiBrand ? routeBrands.find((b: any) => b.id === routeBrandId) : null;
     const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
+    const photoMode = (rb || route as any)?.category_photo_mode || 'both';
+    const hasCategoryAccess = !!catStatus?.products_unlocked || !!catStatus?.category_before_photo || !!optimisticBeforeUnlock[categoryKey] || (photoMode === 'after' && !!catStatus?.point_type);
     
-    if (requireCategoryPhotos && !catStatus?.products_unlocked && !catStatus?.category_before_photo && !optimisticBeforeUnlock[categoryKey]) {
+    if (requireCategoryPhotos && !hasCategoryAccess) {
       toast.error('Finalize a etapa de preparação da categoria antes de executar produtos.');
       return;
     }
