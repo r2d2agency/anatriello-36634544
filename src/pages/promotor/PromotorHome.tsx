@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,7 @@ export default function PromotorHome() {
   const [qrLoading, setQrLoading] = useState(false);
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
+  const pdvCheckinRunningRef = useRef(false);
   const queryClient = useQueryClient();
 
   // Fetch facial config for this promotor
@@ -137,11 +138,14 @@ export default function PromotorHome() {
   }, [todayRoutes, pdvVisits]);
 
   // PDV Check-in handler
-  const handlePdvCheckin = useCallback(async (pdvId: string) => {
-    if (!pdvCheckinPhoto) {
+  const handlePdvCheckin = useCallback(async (pdvId: string, photoOverride?: string) => {
+    const effectivePhoto = photoOverride || pdvCheckinPhoto;
+    if (pdvCheckinRunningRef.current) return;
+    if (!effectivePhoto) {
       toast({ title: 'Foto obrigatória', description: 'Tire uma foto da fachada da loja para o check-in.', variant: 'destructive' });
       return;
     }
+    pdvCheckinRunningRef.current = true;
     setPdvCheckinLoading(true);
     try {
       logger.info('[handlePdvCheckin] Iniciando check-in da loja', { pdvId });
@@ -157,7 +161,6 @@ export default function PromotorHome() {
         throw new Error('Não foi possível obter sua localização. Verifique se o GPS está ativado.');
       });
 
-      const token = localStorage.getItem('promotor_token');
       const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       
       // Buscamos a rota ativa do PDV para usar o id correto.
@@ -174,8 +177,23 @@ export default function PromotorHome() {
       const body = {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
-        photo_url: pdvCheckinPhoto,
+        photo_url: effectivePhoto,
         all_routes_at_pdv: true
+      };
+
+      const markPdvRoutesCheckedIn = () => {
+        todayRoutes
+          .filter((r: any) => r.pdv_id === pdvId && r.status !== 'completed')
+          .forEach((r: any) => {
+            queryClient.setQueryData(['promotor-route', r.id], (old: any) => old ? {
+              ...old,
+              status: 'in_progress',
+              checkin_at: old.checkin_at || new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }),
+              checkin_photo_url: old.checkin_photo_url || effectivePhoto,
+            } : old);
+          });
+        queryClient.invalidateQueries({ queryKey: ['promotor-route'] });
+        queryClient.invalidateQueries({ queryKey: ['promotor-home'] });
       };
 
       if (!isOnline) {
@@ -186,10 +204,11 @@ export default function PromotorHome() {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}`
           },
-          dependsOnUploadId: pdvCheckinPhoto.startsWith('local-file://') ? pdvCheckinPhoto.replace('local-file://', '') : undefined
+          dependsOnUploadId: effectivePhoto.startsWith('local-file://') ? effectivePhoto.replace('local-file://', '') : undefined
         });
 
         // toast({ title: 'Check-in salvo offline!', description: 'Será sincronizado automaticamente.' });
+        markPdvRoutesCheckedIn();
         setShowPdvCheckin(false);
         setPdvCheckinPhoto('');
         setTimeout(() => navigate(`/promotor/rota/${activeRouteForPdv.id}`), 100);
@@ -225,6 +244,7 @@ export default function PromotorHome() {
       toast({ title: 'Check-in da loja realizado!' });
       
       // Limpa estados e navega
+      markPdvRoutesCheckedIn();
       setShowPdvCheckin(false);
       setPdvCheckinPhoto('');
       
@@ -242,8 +262,9 @@ export default function PromotorHome() {
       });
     } finally {
       setPdvCheckinLoading(false);
+      pdvCheckinRunningRef.current = false;
     }
-  }, [pdvCheckinPhoto, todayRoutes, navigate, toast]);
+  }, [pdvCheckinPhoto, todayRoutes, navigate, toast, isOnline, queueApiCall, queryClient]);
 
   const handlePdvCheckout = useCallback(async (pdvId: string) => {
     setPdvCheckoutLoading(true);
@@ -991,24 +1012,24 @@ export default function PromotorHome() {
               {pdvCheckinPhoto ? (
                 <div className="space-y-2">
                   <LocalImage src={pdvCheckinPhoto} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
-                  <Button variant="outline" size="sm" onClick={() => setPdvCheckinPhoto('')}>Tirar outra foto</Button>
+                  <p className="text-xs text-muted-foreground text-center">Registrando check-in...</p>
                 </div>
               ) : (
                 <CameraCapture
-                  onCapture={setPdvCheckinPhoto}
+                  onCapture={(url) => {
+                    setPdvCheckinPhoto(url);
+                    if (actionPdv?.pdv_id) setTimeout(() => { void handlePdvCheckin(actionPdv.pdv_id, url); }, 0);
+                  }}
                   watermark={{ pdvName: actionPdv?.pdv_name || '', brandName: '', photoType: 'Check-in PDV' }}
                   customTokenGetter={() => localStorage.getItem('promotor_token')}
                   buttonLabel="Tirar foto da fachada da loja"
+                  disabled={pdvCheckinLoading}
                 />
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowPdvCheckin(false); setActionPdv(null); }}>Cancelar</Button>
-            <Button onClick={() => actionPdv && handlePdvCheckin(actionPdv.pdv_id)} disabled={pdvCheckinLoading || !pdvCheckinPhoto}>
-              {pdvCheckinLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirmar Check-in
-            </Button>
+            <Button variant="outline" onClick={() => { setShowPdvCheckin(false); setActionPdv(null); }} disabled={pdvCheckinLoading}>Cancelar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
