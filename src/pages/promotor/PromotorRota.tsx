@@ -324,13 +324,12 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
 }
 
 // ===== Extra Point Photo Gate (no point type, only photo) =====
-function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, onPhotoTaken }: {
-  catId: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; onPhotoTaken: () => void;
+function ExtraPointPhotoGate({ catId, routeBrandId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, onPhotoTaken }: {
+  catId: string; routeBrandId?: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; onPhotoTaken: () => void;
 }) {
-  const setCategoryPhoto = usePromotorCategoryPhoto();
   const [photos, setPhotos] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
-  const { isOnline, queueApiCall } = useOfflineSync();
+  const { queueApiCall } = useOfflineSync();
 
 
   const handleUploadPhoto = async (submittedPhotos?: string[]) => {
@@ -343,15 +342,20 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
       ).catch(() => null);
 
       const body = {
-        routeId, catId, photo_url: effective[0], photos: effective,
+        photo_type: 'extra_point',
+        category_id: catId,
+        route_brand_id: routeBrandId,
+        exposure_point: 'extra',
+        photo_url: effective[0],
         latitude: pos?.coords.latitude, longitude: pos?.coords.longitude,
       };
 
       await queueApiCall({
-        url: `/api/merch/promotor/routes/${routeId}/categories/${catId}/photo`,
+        url: `/api/merch/promotor/routes/${routeId}/photos`,
         method: 'POST',
         body,
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
+        dependsOnUploadId: effective[0]?.startsWith('local-file://') ? effective[0].replace('local-file://', '') : undefined
       });
       
       setPhotos([]);
@@ -394,7 +398,7 @@ function ExtraPointPhotoGate({ catId, categoryName, routeId, pdvName, brandName,
           onPhotosChange={setPhotos}
           min={1}
           allowExtras={false}
-          isSending={isSending || setCategoryPhoto.isPending}
+          isSending={isSending}
           onSubmit={handleUploadPhoto}
           cameraProps={{
             watermark: { pdvName, brandName, photoType: 'Ponto Extra' },
@@ -656,6 +660,16 @@ export default function PromotorRota() {
     return set;
   }, [route?.executions]);
 
+  const persistedExtraPointPhotoKeys = useMemo(() => {
+    const set = new Set<string>();
+    route?.photos?.forEach((photo: any) => {
+      const isExtraPointPhoto = photo.photo_type === 'extra_point' || photo.exposure_point === 'extra';
+      if (!isExtraPointPhoto) return;
+      set.add(`extra_${photo.category_id || 'null'}_${photo.route_brand_id || 'null'}`);
+    });
+    return set;
+  }, [route?.photos]);
+
   // Photo-only mode: auto-complete pending products ONLY after the required
   // category photos (before/after according to checklist) have been registered.
   // This keeps progress tied to actual photos taken.
@@ -678,7 +692,8 @@ export default function PromotorRota() {
 
       let photosSatisfied = false;
       if (isExtraGroup) {
-        photosSatisfied = !!extraGroupPhotos[`extra_${catId}_${execs[0]?.route_brand_id || 'null'}`];
+        const extraKey = `extra_${catId || 'null'}_${execs[0]?.route_brand_id || 'null'}`;
+        photosSatisfied = !!extraGroupPhotos[extraKey] || persistedExtraPointPhotoKeys.has(extraKey);
       } else if (!requireCategoryPhotos) {
         photosSatisfied = true;
       } else {
@@ -703,7 +718,7 @@ export default function PromotorRota() {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupedExecs, categoryStatusMap, extraGroupPhotos, optimisticAfterPhoto, isMultiBrand, routeBrands, route]);
+  }, [groupedExecs, categoryStatusMap, extraGroupPhotos, persistedExtraPointPhotoKeys, optimisticAfterPhoto, isMultiBrand, routeBrands, route]);
 
   const handleCheckin = useCallback(async (photoOverride?: string) => {
     const effectivePhotoUrl = photoOverride || checkinPhotoUrl;
@@ -1079,8 +1094,8 @@ export default function PromotorRota() {
               const photoMode = (rb || route as any)?.category_photo_mode || 'both';
               const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
               
-              const extraPhotoKey = `extra_${catId}_${routeBrandId || 'null'}`;
-              const hasExtraPhoto = extraGroupPhotos[extraPhotoKey];
+              const extraPhotoKey = `extra_${catId || 'null'}_${routeBrandId || 'null'}`;
+              const hasExtraPhoto = !!extraGroupPhotos[extraPhotoKey] || persistedExtraPointPhotoKeys.has(extraPhotoKey);
               
               // Unlocked depends on photoMode:
               // if 'after', products_unlocked comes from point-type selection
@@ -1138,6 +1153,7 @@ export default function PromotorRota() {
                   {isExtraGroup && !hasExtraPhoto && (
                     <ExtraPointPhotoGate
                       catId={catId}
+                      routeBrandId={routeBrandId}
                       categoryName={category}
                       routeId={id!}
                       pdvName={route.pdv_name}
