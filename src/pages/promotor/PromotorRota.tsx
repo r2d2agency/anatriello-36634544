@@ -1094,8 +1094,8 @@ export default function PromotorRota() {
               const photoMode = (rb || route as any)?.category_photo_mode || 'both';
               const requireCategoryPhotos = (rb || route as any)?.require_category_photos !== false;
               
-              const extraPhotoKey = `extra_${catId}_${routeBrandId || 'null'}`;
-              const hasExtraPhoto = extraGroupPhotos[extraPhotoKey];
+              const extraPhotoKey = `extra_${catId || 'null'}_${routeBrandId || 'null'}`;
+              const hasExtraPhoto = !!extraGroupPhotos[extraPhotoKey] || persistedExtraPointPhotoKeys.has(extraPhotoKey);
               
               // Unlocked depends on photoMode:
               // if 'after', products_unlocked comes from point-type selection
@@ -1153,6 +1153,7 @@ export default function PromotorRota() {
                   {isExtraGroup && !hasExtraPhoto && (
                     <ExtraPointPhotoGate
                       catId={catId}
+                      routeBrandId={routeBrandId}
                       categoryName={category}
                       routeId={id!}
                       pdvName={route.pdv_name}
