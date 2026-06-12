@@ -660,15 +660,21 @@ export default function PromotorRota() {
   // category photos (before/after according to checklist) have been registered.
   // This keeps progress tied to actual photos taken.
   useEffect(() => {
-    if (requireStockCount || requireValidityCheck) return;
     if (!route?.executions?.length) return;
     Object.values(groupedExecs).forEach(({ catId, execs, isExtraGroup }) => {
       const routeBrandId = execs[0]?.route_brand_id;
       const categoryKey = `${catId}_${routeBrandId || 'null'}`;
       const catStatus = categoryStatusMap[categoryKey] || categoryStatusMap[catId];
       const rbConfig = isMultiBrand ? routeBrands.find((b: any) => b.id === routeBrandId) : null;
-      const requireCategoryPhotos = (rbConfig || route as any)?.require_category_photos !== false;
-      const photoMode = (rbConfig || route as any)?.category_photo_mode || 'both';
+      const source = rbConfig || (route as any);
+      // Per-brand (ou rota): se contagem OU validade são exigidas, NÃO auto-completa.
+      // Progresso tem que ser produto a produto via formulário do produto.
+      const brandRequiresStock = !!source?.require_stock_count;
+      const brandRequiresValidity = !!source?.require_validity_check;
+      if (brandRequiresStock || brandRequiresValidity) return;
+
+      const requireCategoryPhotos = source?.require_category_photos !== false;
+      const photoMode = source?.category_photo_mode || 'both';
 
       let photosSatisfied = false;
       if (isExtraGroup) {
@@ -697,7 +703,7 @@ export default function PromotorRota() {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupedExecs, categoryStatusMap, extraGroupPhotos, optimisticAfterPhoto, requireStockCount, requireValidityCheck, isMultiBrand, routeBrands, route]);
+  }, [groupedExecs, categoryStatusMap, extraGroupPhotos, optimisticAfterPhoto, isMultiBrand, routeBrands, route]);
 
   const handleCheckin = useCallback(async (photoOverride?: string) => {
     const effectivePhotoUrl = photoOverride || checkinPhotoUrl;
