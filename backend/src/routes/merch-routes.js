@@ -3095,32 +3095,41 @@ router.get('/workload', authenticate, async (req, res) => {
 
 // ===== PHOTO QUALITY CONFIG =====
 
-router.get('/photo-quality-config', authenticate, async (req, res) => {
+router.get('/photo-quality-config', async (req, res) => {
+  const defaults = {
+    blur_tolerance: 30, min_brightness: 40, max_brightness: 220,
+    min_resolution_w: 640, min_resolution_h: 480,
+    compression_quality: 0.7, max_file_size_kb: 1024,
+  };
   try {
-    const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [req.userId]);
-    if (!orgRes.rows.length) return res.status(403).json({ error: 'Sem organização' });
-    const orgId = orgRes.rows[0].organization_id;
+    // Accept either main user token or promotor token; fall back to defaults on auth/lookup failure.
+    let orgId = null;
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+        if (decoded.organizationId || decoded.organization_id) {
+          orgId = decoded.organizationId || decoded.organization_id;
+        } else if (decoded.userId) {
+          const orgRes = await query('SELECT organization_id FROM organization_members WHERE user_id=$1 LIMIT 1', [decoded.userId]);
+          orgId = orgRes.rows[0]?.organization_id || null;
+        } else if (decoded.employeeId || decoded.employee_id) {
+          const empId = decoded.employeeId || decoded.employee_id;
+          const orgRes = await query('SELECT organization_id FROM employees WHERE id=$1 LIMIT 1', [empId]);
+          orgId = orgRes.rows[0]?.organization_id || null;
+        }
+      } catch { /* ignore, return defaults */ }
+    }
+    if (!orgId) return res.json({ config: defaults });
 
     const result = await query(
       `SELECT config FROM organization_settings WHERE organization_id = $1 AND setting_key = 'photo_quality_config'`,
       [orgId]
     );
-    const config = result.rows[0]?.config || {
-      blur_tolerance: 30, min_brightness: 40, max_brightness: 220,
-      min_resolution_w: 640, min_resolution_h: 480,
-      compression_quality: 0.7, max_file_size_kb: 1024,
-    };
-    res.json({ config });
+    res.json({ config: result.rows[0]?.config || defaults });
   } catch (err) {
     logError('merch.photo-quality-config.get', err);
-    // Return defaults on any error (table might not exist yet)
-    res.json({
-      config: {
-        blur_tolerance: 30, min_brightness: 40, max_brightness: 220,
-        min_resolution_w: 640, min_resolution_h: 480,
-        compression_quality: 0.7, max_file_size_kb: 1024,
-      }
-    });
+    res.json({ config: defaults });
   }
 });
 
