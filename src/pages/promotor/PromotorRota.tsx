@@ -138,8 +138,8 @@ const usePromotorPdvCheckout = () => {
 };
 
 // ===== Category Preparation Component =====
-function CategoryPreparation({ category, catId, routeBrandId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, photoMode, onUnlocked }: {
-  category: any; catId: string; routeBrandId?: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; photoMode?: 'before' | 'after' | 'both'; onUnlocked: () => void;
+function CategoryPreparation({ category, catId, routeBrandId, categoryName, routeId, pdvName, brandName, promotorName, qualityConfig, minPhotos, photoMode, onUnlocked, onPointTypeSet }: {
+  category: any; catId: string; routeBrandId?: string; categoryName: string; routeId: string; pdvName: string; brandName: string; promotorName?: string; qualityConfig?: PhotoQualityConfig; minPhotos: number; photoMode?: 'before' | 'after' | 'both'; onUnlocked: () => void; onPointTypeSet?: () => void;
 }) {
   const setPointType = usePromotorSetPointType();
   const setCategoryPhoto = usePromotorCategoryPhoto();
@@ -160,6 +160,10 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
     
     // Se o modo for "after" (Somente Depois), já desbloqueamos os produtos imediatamente após escolher o tipo de ponto
     const shouldUnlockImmediately = photoMode === 'after';
+    const notifySuccess = () => {
+      if (shouldUnlockImmediately) onUnlocked();
+      else onPointTypeSet?.();
+    };
 
     if (!isOnline) {
       queueApiCall({
@@ -172,8 +176,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
         },
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` }
       });
-      // Removed offline toast per user request
-      onUnlocked();
+      notifySuccess();
       return;
     }
     setPointType.mutate({ 
@@ -184,8 +187,7 @@ function CategoryPreparation({ category, catId, routeBrandId, categoryName, rout
       products_unlocked: shouldUnlockImmediately 
     }, {
       onSuccess: () => { 
-        // toast.success(`Ponto ${type === 'natural' ? 'Natural' : 'Extra'} selecionado`); 
-        onUnlocked(); 
+        notifySuccess();
       },
       onError: (err: any) => {
         logger.error(`Erro ao selecionar tipo de ponto: ${type}`, { error: err.message, routeId, catId }, err);
@@ -1097,6 +1099,7 @@ export default function PromotorRota() {
                       photoMode={photoMode}
                       minPhotos={Math.max(1, parseInt((rb || route as any)?.min_category_photos_before, 10) || 1)}
                       onUnlocked={() => { setOptimisticBeforeUnlock(prev => ({ ...prev, [categoryKey]: true })); refetch(); }}
+                      onPointTypeSet={() => { refetch(); }}
                     />
                   )}
 
