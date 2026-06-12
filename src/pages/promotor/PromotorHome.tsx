@@ -997,24 +997,24 @@ export default function PromotorHome() {
               {pdvCheckinPhoto ? (
                 <div className="space-y-2">
                   <LocalImage src={pdvCheckinPhoto} alt="Check-in" className="w-full rounded-lg border max-h-48 object-cover" />
-                  <Button variant="outline" size="sm" onClick={() => setPdvCheckinPhoto('')}>Tirar outra foto</Button>
+                  <p className="text-xs text-muted-foreground text-center">Registrando check-in...</p>
                 </div>
               ) : (
                 <CameraCapture
-                  onCapture={setPdvCheckinPhoto}
+                  onCapture={(url) => {
+                    setPdvCheckinPhoto(url);
+                    if (actionPdv?.pdv_id) setTimeout(() => { void handlePdvCheckin(actionPdv.pdv_id, url); }, 0);
+                  }}
                   watermark={{ pdvName: actionPdv?.pdv_name || '', brandName: '', photoType: 'Check-in PDV' }}
                   customTokenGetter={() => localStorage.getItem('promotor_token')}
                   buttonLabel="Tirar foto da fachada da loja"
+                  disabled={pdvCheckinLoading}
                 />
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowPdvCheckin(false); setActionPdv(null); }}>Cancelar</Button>
-            <Button onClick={() => actionPdv && handlePdvCheckin(actionPdv.pdv_id)} disabled={pdvCheckinLoading || !pdvCheckinPhoto}>
-              {pdvCheckinLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirmar Check-in
-            </Button>
+            <Button variant="outline" onClick={() => { setShowPdvCheckin(false); setActionPdv(null); }} disabled={pdvCheckinLoading}>Cancelar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
