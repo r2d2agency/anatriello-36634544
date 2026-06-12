@@ -161,7 +161,6 @@ export default function PromotorHome() {
         throw new Error('Não foi possível obter sua localização. Verifique se o GPS está ativado.');
       });
 
-      const token = localStorage.getItem('promotor_token');
       const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       
       // Buscamos a rota ativa do PDV para usar o id correto.
@@ -182,6 +181,21 @@ export default function PromotorHome() {
         all_routes_at_pdv: true
       };
 
+      const markPdvRoutesCheckedIn = () => {
+        todayRoutes
+          .filter((r: any) => r.pdv_id === pdvId && r.status !== 'completed')
+          .forEach((r: any) => {
+            queryClient.setQueryData(['promotor-route', r.id], (old: any) => old ? {
+              ...old,
+              status: 'in_progress',
+              checkin_at: old.checkin_at || new Date().toISOString(),
+              checkin_photo_url: old.checkin_photo_url || effectivePhoto,
+            } : old);
+          });
+        queryClient.invalidateQueries({ queryKey: ['promotor-route'] });
+        queryClient.invalidateQueries({ queryKey: ['promotor-home'] });
+      };
+
       if (!isOnline) {
         await queueApiCall({
           url: `/api/merch/promotor/routes/${activeRouteForPdv.id}/checkin`,
@@ -194,6 +208,7 @@ export default function PromotorHome() {
         });
 
         // toast({ title: 'Check-in salvo offline!', description: 'Será sincronizado automaticamente.' });
+        markPdvRoutesCheckedIn();
         setShowPdvCheckin(false);
         setPdvCheckinPhoto('');
         setTimeout(() => navigate(`/promotor/rota/${activeRouteForPdv.id}`), 100);
@@ -229,9 +244,9 @@ export default function PromotorHome() {
       toast({ title: 'Check-in da loja realizado!' });
       
       // Limpa estados e navega
+      markPdvRoutesCheckedIn();
       setShowPdvCheckin(false);
       setPdvCheckinPhoto('');
-      queryClient.invalidateQueries({ queryKey: ['promotor-home'] });
       
       // Pequeno delay para garantir que o estado local foi limpo antes de navegar
       setTimeout(() => {
