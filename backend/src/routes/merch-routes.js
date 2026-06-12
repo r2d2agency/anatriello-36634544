@@ -2054,17 +2054,29 @@ router.post('/promotor/executions/:id/validity', promotorAuth, async (req, res) 
     if (!exec.rows.length) return res.status(404).json({ error: 'Execução não encontrada' });
     const { expiry_date, qty_store, qty_stock, replace } = req.body;
     if (!expiry_date) return res.status(400).json({ error: 'expiry_date é obrigatório' });
+    // Ensure qty columns exist on legacy databases
+    if (!(await hasColumn('product_validity_entries', 'qty_store'))) {
+      await query(`ALTER TABLE product_validity_entries ADD COLUMN IF NOT EXISTS qty_store INTEGER DEFAULT 0`);
+    }
+    if (!(await hasColumn('product_validity_entries', 'qty_stock'))) {
+      await query(`ALTER TABLE product_validity_entries ADD COLUMN IF NOT EXISTS qty_stock INTEGER DEFAULT 0`);
+    }
     // When called inline (replace=true), keep a single validity entry per execution
     if (replace) {
       await query('DELETE FROM product_validity_entries WHERE execution_id=$1', [req.params.id]);
     }
+    const qStore = Number.isFinite(Number(qty_store)) ? Number(qty_store) : 0;
+    const qStock = Number.isFinite(Number(qty_stock)) ? Number(qty_stock) : 0;
     const result = await query(
       `INSERT INTO product_validity_entries (execution_id, route_id, product_id, expiry_date, qty_store, qty_stock, recorded_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.params.id, exec.rows[0].route_id, exec.rows[0].product_id, expiry_date, qty_store || 0, qty_stock || 0, req.employeeId]
+      [req.params.id, exec.rows[0].route_id, exec.rows[0].product_id, expiry_date, qStore, qStock, req.employeeId]
     );
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err?.message || 'Erro' }); }
+  } catch (err) {
+    logError('promotor.validity_add', err, { id: req.params.id, body: req.body });
+    res.status(500).json({ error: err?.message || 'Erro' });
+  }
 });
 
 // Promotor: Report rupture
