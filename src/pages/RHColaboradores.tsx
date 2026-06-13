@@ -966,7 +966,7 @@ export default function RHColaboradores() {
               )}
             </TabsContent>
 
-            <TabsContent value="documentos" className="space-y-3 mt-4">
+            <TabsContent value="documentos" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div><Label>CTPS Número</Label><Input value={form.ctps_number} onChange={e => setField("ctps_number", e.target.value)} /></div>
                 <div><Label>PIS/PASEP</Label><Input value={form.pis_pasep} onChange={e => setField("pis_pasep", e.target.value)} /></div>
@@ -977,6 +977,19 @@ export default function RHColaboradores() {
                   </>
                 )}
               </div>
+
+              <div className="border-t pt-4">
+                <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4" /> Arquivos do Colaborador
+                </Label>
+                {editId ? (
+                  <EmployeeDocumentsManager employeeId={editId} />
+                ) : (
+                  <p className="text-sm text-muted-foreground p-4 border border-dashed rounded-lg text-center">
+                    Salve o colaborador primeiro para anexar documentos.
+                  </p>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="bancario" className="space-y-3 mt-4">
@@ -984,15 +997,40 @@ export default function RHColaboradores() {
                 <div><Label>Banco</Label><Input value={form.bank_name} onChange={e => setField("bank_name", e.target.value)} /></div>
                 <div><Label>Agência</Label><Input value={form.bank_agency} onChange={e => setField("bank_agency", e.target.value)} /></div>
                 <div><Label>Conta</Label><Input value={form.bank_account} onChange={e => setField("bank_account", e.target.value)} /></div>
-                <div><Label>Tipo</Label>
+                <div><Label>Tipo de Conta</Label>
                   <Select value={form.bank_account_type || ""} onValueChange={v => setField("bank_account_type", v)}>
                     <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="corrente">Corrente</SelectItem>
                       <SelectItem value="poupanca">Poupança</SelectItem>
-                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="salario">Conta Salário</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="border-t pt-3 space-y-3">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" /> Chave PIX
+                </Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Tipo da Chave</Label>
+                    <Select value={form.pix_key_type || ""} onValueChange={v => setField("pix_key_type", v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                        <SelectItem value="cnpj">CNPJ</SelectItem>
+                        <SelectItem value="email">E-mail</SelectItem>
+                        <SelectItem value="telefone">Telefone</SelectItem>
+                        <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Chave PIX</Label>
+                    <Input value={form.pix_key} onChange={e => setField("pix_key", e.target.value)} placeholder="Digite a chave PIX" />
+                  </div>
                 </div>
               </div>
             </TabsContent>
