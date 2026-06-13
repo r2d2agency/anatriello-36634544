@@ -7,10 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { usePromotorSettings, usePromotorUpdateSettings, usePromotorChangePassword } from "@/hooks/use-promotor";
+import { usePromotorSettings, usePromotorUpdateSettings, usePromotorChangePassword, usePromotorFaceEnrollment, usePromotorSaveFaceEnrollment } from "@/hooks/use-promotor";
 import { PromotorLayout } from "./PromotorLayout";
 import { SyncDiagnosticPanel } from "@/components/promotor/SyncDiagnosticPanel";
-import { Settings, Lock, Palette, Wifi, WifiOff, Navigation, Smartphone, Loader2, Download, RefreshCw } from "lucide-react";
+import { Settings, Lock, Palette, Wifi, WifiOff, Navigation, Smartphone, Loader2, Download, RefreshCw, ScanFace, CheckCircle2, ShieldCheck } from "lucide-react";
+import { FaceCaptureDialog } from "@/components/facial-recognition/FaceCaptureDialog";
+import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDialog";
+import { resolveMediaUrl } from "@/lib/media";
 import { canInstallPWA, installPWA, isPWAInstalled } from "@/lib/pwa";
 
 export default function PromotorConfig() {
@@ -29,6 +32,13 @@ export default function PromotorConfig() {
   const [gpsStatus, setGpsStatus] = useState('checking');
   const [pwaInstalled, setPwaInstalled] = useState(isPWAInstalled());
   const [canInstall, setCanInstall] = useState(canInstallPWA());
+
+  // Biometria facial
+  const { data: faceStatus, refetch: refetchFace } = usePromotorFaceEnrollment();
+  const saveFace = usePromotorSaveFaceEnrollment();
+  const [faceCaptureOpen, setFaceCaptureOpen] = useState(false);
+  const [faceVerifyOpen, setFaceVerifyOpen] = useState(false);
+  const [pendingFace, setPendingFace] = useState<{ descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number> } | null>(null);
 
   const employee = JSON.parse(localStorage.getItem('promotor_employee') || '{}');
 
@@ -136,6 +146,41 @@ export default function PromotorConfig() {
     }
   };
 
+  const handleFaceCaptured = (data: { descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number> }) => {
+    setPendingFace(data);
+    setFaceCaptureOpen(false);
+    // dispara teste de verificação automaticamente
+    setTimeout(() => setFaceVerifyOpen(true), 200);
+  };
+
+  const handleFaceVerified = async (result: { match: boolean; score: number; imageDataUrl: string }) => {
+    setFaceVerifyOpen(false);
+    if (!pendingFace) return;
+    if (!result.match || result.score < 70) {
+      toast({
+        title: '❌ Teste falhou',
+        description: `Pontuação ${result.score.toFixed(0)}%. Recapture a foto com melhor iluminação e enquadramento.`,
+        variant: 'destructive',
+      });
+      setPendingFace(null);
+      return;
+    }
+    try {
+      await saveFace.mutateAsync({
+        descriptor: pendingFace.descriptor,
+        landmarks: pendingFace.landmarks,
+        imageDataUrl: pendingFace.imageDataUrl,
+        geometricProfile: pendingFace.geometricProfile,
+        selfTestScore: result.score,
+      });
+      toast({ title: '✅ Biometria cadastrada!', description: `Validação aprovada com ${result.score.toFixed(0)}%.` });
+      setPendingFace(null);
+      refetchFace();
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <PromotorLayout>
       <div className="p-4 max-w-lg mx-auto space-y-4">
@@ -203,6 +248,61 @@ export default function PromotorConfig() {
           </CardContent>
         </Card>
 
+
+        {/* Biometria Facial */}
+        <Card className={faceStatus?.enrolled ? "border-green-500/40 bg-green-500/5" : "border-primary/30 bg-primary/5"}>
+          <CardHeader className="p-3 pb-1">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ScanFace className="h-4 w-4" /> Biometria Facial
+              {faceStatus?.enrolled && <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 space-y-3">
+            {faceStatus?.enrolled ? (
+              <>
+                <div className="flex items-center gap-3">
+                  {faceStatus.face_photo_url && (
+                    <img
+                      src={resolveMediaUrl(faceStatus.face_photo_url) || faceStatus.face_photo_url}
+                      alt="Foto facial"
+                      className="h-16 w-16 rounded-full object-cover border-2 border-green-500"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-1">
+                      <ShieldCheck className="h-4 w-4" /> Aprovada
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Cadastrada em {faceStatus.face_enrolled_at ? new Date(faceStatus.face_enrolled_at).toLocaleString('pt-BR') : '-'}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground">
+                  🔒 Foto bloqueada. Para alterar, procure o RH da sua agência.
+                </div>
+                <Button size="sm" className="w-full" variant="outline" disabled>
+                  <Lock className="h-4 w-4 mr-1" /> Cadastro travado
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Cadastre sua biometria facial para liberar entradas em PDVs com reconhecimento. O sistema vai validar automaticamente a qualidade da foto.
+                </p>
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => setFaceCaptureOpen(true)}
+                  disabled={saveFace.isPending}
+                >
+                  {saveFace.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />}
+                  {saveFace.isPending ? 'Salvando...' : 'Capturar foto facial'}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Change Password */}
         <Card>
           <CardHeader className="p-3 pb-1"><CardTitle className="text-sm flex items-center gap-2"><Lock className="h-4 w-4" /> Alterar Senha</CardTitle></CardHeader>
@@ -256,6 +356,26 @@ export default function PromotorConfig() {
           </CardContent>
         </Card>
       </div>
+
+      <FaceCaptureDialog
+        open={faceCaptureOpen}
+        onOpenChange={setFaceCaptureOpen}
+        onCapture={handleFaceCaptured}
+        title="Cadastro Biométrico"
+        description="Posicione seu rosto centralizado, com boa iluminação. O sistema validará a captura automaticamente."
+      />
+
+      {pendingFace && (
+        <FaceVerifyDialog
+          open={faceVerifyOpen}
+          onOpenChange={(o) => { setFaceVerifyOpen(o); if (!o && pendingFace) setPendingFace(null); }}
+          storedDescriptor={pendingFace.descriptor}
+          storedPhotoUrl={pendingFace.imageDataUrl}
+          personName="você mesmo"
+          threshold={70}
+          onResult={handleFaceVerified}
+        />
+      )}
     </PromotorLayout>
   );
 }
