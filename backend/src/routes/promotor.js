@@ -22,6 +22,7 @@ router.use((req, res, next) => {
                           req.path.startsWith('/notifications') ||
                           req.path.startsWith('/settings') ||
                           req.path.startsWith('/change-password') ||
+                          req.path.startsWith('/face-enrollment') ||
                           req.path.startsWith('/sync');
 
   if (isPromotorRoute) {
