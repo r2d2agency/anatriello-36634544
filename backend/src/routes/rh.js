@@ -479,18 +479,18 @@ router.post('/employees', async (req, res) => {
         registration_number, worker_profile, employment_type, position, role_level,
         branch_id, department_id, cost_center_id, direct_manager_id,
         admission_date, contract_end_date, salary, work_schedule,
-        bank_name, bank_agency, bank_account, bank_account_type,
+        bank_name, bank_agency, bank_account, bank_account_type, pix_key, pix_key_type,
         ctps_number, ctps_series, pis_pasep, voter_id, voter_zone, voter_section, skin_color,
         cnpj, company_name, status, photo_url, created_by,
         salary_items, benefits, home_latitude, home_longitude)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54)
        RETURNING *`,
       [orgId, d.full_name, d.social_name, d.cpf, d.rg, d.rg_issuer, d.birth_date, d.gender, d.marital_status, d.email, d.phone, d.phone2,
         d.address, d.address_number, d.complement, d.neighborhood, d.city, d.state, d.zip_code,
         d.registration_number, d.worker_profile, d.employment_type, d.position, d.role_level,
         d.branch_id, d.department_id, d.cost_center_id, d.direct_manager_id,
         d.admission_date, d.contract_end_date, d.salary, d.work_schedule,
-        d.bank_name, d.bank_agency, d.bank_account, d.bank_account_type,
+        d.bank_name, d.bank_agency, d.bank_account, d.bank_account_type, d.pix_key, d.pix_key_type,
         d.ctps_number, d.ctps_series, d.pis_pasep, d.voter_id, d.voter_zone, d.voter_section, d.skin_color,
         d.cnpj, d.company_name, d.status, d.photo_url, req.userId,
         JSON.stringify(d.salary_items), JSON.stringify(d.benefits), d.home_latitude, d.home_longitude]
