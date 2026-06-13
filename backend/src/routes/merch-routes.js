@@ -1637,6 +1637,114 @@ async function hydrateRouteBrandProducts(routeId, routeBrandId, pdvId, brandId) 
   } catch (e) { logError('hydrateRouteBrandProducts', e); return 0; }
 }
 
+async function ensureChecklistPhotoColumns() {
+  try {
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`);
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS category_photo_mode VARCHAR(20) DEFAULT 'both'`);
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_before INT DEFAULT 1`);
+    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_after INT DEFAULT 1`);
+  } catch (e) {
+    logWarn('ensureChecklistPhotoColumns.failed', { error: e?.message });
+  }
+}
+
+async function calculateRouteExecutionProgress(routeId, routeBrandId = null) {
+  await ensureRouteBrandsTables().catch(() => {});
+  await ensureExecutionCategoryTables().catch(() => {});
+  await ensureChecklistPhotoColumns().catch(() => {});
+
+  const params = [routeId];
+  let brandFilter = '';
+  if (routeBrandId) {
+    params.push(routeBrandId);
+    brandFilter = ` AND rpe.route_brand_id = $${params.length}`;
+  }
+
+  const progressRes = await query(
+    `SELECT rpe.category_id, rpe.route_brand_id,
+            COUNT(*)::int as total_products,
+            COUNT(*) FILTER (WHERE rpe.status = 'completed')::int as completed_products,
+            COALESCE(mec.category_before_photo, '') as category_before_photo,
+            COALESCE(mec.category_after_photo, '') as category_after_photo,
+            COALESCE(mec.completed, false) as category_completed,
+            COALESCE(bc_rb.require_category_photos, bc_route.require_category_photos, bc_brand.require_category_photos, true) as require_category_photos,
+            COALESCE(bc_rb.category_photo_mode, bc_route.category_photo_mode, bc_brand.category_photo_mode, 'both') as category_photo_mode
+     FROM route_product_executions rpe
+     JOIN merch_routes r ON r.id = rpe.route_id
+     LEFT JOIN route_brands rb ON rb.id = rpe.route_brand_id
+     LEFT JOIN brand_checklists bc_rb ON bc_rb.id = rb.checklist_id
+     LEFT JOIN brand_checklists bc_route ON bc_route.id = r.checklist_id
+     LEFT JOIN LATERAL (
+       SELECT bc3.* FROM brand_checklists bc3
+       WHERE bc3.brand_id = COALESCE(rb.brand_id, r.brand_id) AND bc3.active = true
+       ORDER BY bc3.created_at DESC LIMIT 1
+     ) bc_brand ON true
+     LEFT JOIN merch_execution_categories mec
+       ON mec.route_id = rpe.route_id
+      AND mec.category_id IS NOT DISTINCT FROM rpe.category_id
+      AND mec.route_brand_id IS NOT DISTINCT FROM rpe.route_brand_id
+     WHERE rpe.route_id = $1 ${brandFilter}
+     GROUP BY rpe.category_id, rpe.route_brand_id, mec.category_before_photo, mec.category_after_photo, mec.completed,
+              bc_rb.require_category_photos, bc_route.require_category_photos, bc_brand.require_category_photos,
+              bc_rb.category_photo_mode, bc_route.category_photo_mode, bc_brand.category_photo_mode`,
+    params
+  );
+
+  let productTotal = 0;
+  let productDone = 0;
+  let photoTotal = 0;
+  let photoDone = 0;
+
+  for (const row of progressRes.rows) {
+    productTotal += Number(row.total_products || 0);
+    productDone += Number(row.completed_products || 0);
+
+    if (row.require_category_photos === false) continue;
+    const mode = row.category_photo_mode || 'both';
+    if (mode === 'before' || mode === 'both') {
+      photoTotal += 1;
+      if (row.category_before_photo) photoDone += 1;
+    }
+    if (mode === 'after' || mode === 'both') {
+      photoTotal += 1;
+      if (row.category_after_photo || row.category_completed) photoDone += 1;
+    }
+  }
+
+  const totalTasks = productTotal + photoTotal;
+  const doneTasks = productDone + photoDone;
+  const pct = totalTasks > 0 ? Math.min(100, Math.round((doneTasks / totalTasks) * 10000) / 100) : 0;
+  return { pct, totalTasks, doneTasks, productTotal, productDone, photoTotal, photoDone };
+}
+
+async function refreshRouteProgress(routeId, routeBrandId = null, refreshAllBrands = false) {
+  const routeBrands = {};
+  try {
+    const params = [routeId];
+    let sql = 'SELECT id FROM route_brands WHERE route_id=$1';
+    if (routeBrandId && !refreshAllBrands) {
+      params.push(routeBrandId);
+      sql += ` AND id=$${params.length}`;
+    }
+    const rbRes = await query(sql, params);
+    for (const rb of rbRes.rows) {
+      const brandProgress = await calculateRouteExecutionProgress(routeId, rb.id);
+      const brandStatus = brandProgress.pct >= 100 ? 'completed' : brandProgress.doneTasks > 0 ? 'in_progress' : 'pending';
+      await query(
+        `UPDATE route_brands SET progress_pct=$2, status=$3, updated_at=NOW() WHERE id=$1`,
+        [rb.id, brandProgress.pct, brandStatus]
+      );
+      routeBrands[rb.id] = { ...brandProgress, status: brandStatus };
+    }
+  } catch (e) {
+    logWarn('refreshRouteProgress.brands_failed', { routeId, routeBrandId, error: e?.message });
+  }
+
+  const routeProgress = await calculateRouteExecutionProgress(routeId);
+  await query('UPDATE merch_routes SET progress_pct=$2, updated_at=NOW() WHERE id=$1', [routeId, routeProgress.pct]);
+  return { route: routeProgress, routeBrands };
+}
+
 // Promotor auth middleware
 function promotorAuth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
