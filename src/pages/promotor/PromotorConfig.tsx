@@ -33,6 +33,13 @@ export default function PromotorConfig() {
   const [pwaInstalled, setPwaInstalled] = useState(isPWAInstalled());
   const [canInstall, setCanInstall] = useState(canInstallPWA());
 
+  // Biometria facial
+  const { data: faceStatus, refetch: refetchFace } = usePromotorFaceEnrollment();
+  const saveFace = usePromotorSaveFaceEnrollment();
+  const [faceCaptureOpen, setFaceCaptureOpen] = useState(false);
+  const [faceVerifyOpen, setFaceVerifyOpen] = useState(false);
+  const [pendingFace, setPendingFace] = useState<{ descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number> } | null>(null);
+
   const employee = JSON.parse(localStorage.getItem('promotor_employee') || '{}');
 
   useEffect(() => {
