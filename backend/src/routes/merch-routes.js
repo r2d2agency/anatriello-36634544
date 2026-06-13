@@ -1980,6 +1980,20 @@ router.get('/promotor/routes/:id', promotorAuth, async (req, res) => {
       }
     }
 
+    // Recalcula o progresso antes de devolver a rota: produtos concluídos não bastam
+    // para 100% quando o checklist também exige foto de ANTES/DEPOIS da categoria.
+    try {
+      const refreshed = await refreshRouteProgress(req.params.id, null, true);
+      route.progress_pct = refreshed.route.pct;
+      routeBrands = routeBrands.map((rb) => ({
+        ...rb,
+        progress_pct: refreshed.routeBrands[rb.id]?.pct ?? rb.progress_pct,
+        status: refreshed.routeBrands[rb.id]?.status ?? rb.status,
+      }));
+    } catch (e) {
+      logWarn('promotor.route_detail.progress_refresh_failed', { routeId: req.params.id, error: e?.message });
+    }
+
     res.json({
       ...route,
       executions: executions.rows,
