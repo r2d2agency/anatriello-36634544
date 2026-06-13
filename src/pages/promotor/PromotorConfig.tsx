@@ -356,6 +356,26 @@ export default function PromotorConfig() {
           </CardContent>
         </Card>
       </div>
+
+      <FaceCaptureDialog
+        open={faceCaptureOpen}
+        onOpenChange={setFaceCaptureOpen}
+        onCapture={handleFaceCaptured}
+        title="Cadastro Biométrico"
+        description="Posicione seu rosto centralizado, com boa iluminação. O sistema validará a captura automaticamente."
+      />
+
+      {pendingFace && (
+        <FaceVerifyDialog
+          open={faceVerifyOpen}
+          onOpenChange={(o) => { setFaceVerifyOpen(o); if (!o && pendingFace) setPendingFace(null); }}
+          storedDescriptor={pendingFace.descriptor}
+          storedPhotoUrl={pendingFace.imageDataUrl}
+          personName="você mesmo"
+          threshold={70}
+          onResult={handleFaceVerified}
+        />
+      )}
     </PromotorLayout>
   );
 }
