@@ -2738,61 +2738,88 @@ router.get('/promotor/pdv-timeline', promotorAuth, async (req, res) => {
   }
 });
 
-// Promotor: My damages
+// Promotor: My damages + discards (unified Perdas list)
 router.get('/promotor/damages', promotorAuth, async (req, res) => {
   try {
-    const { status } = req.query;
-    let sql = `SELECT pd.*, pr.name as product_name, p.name as pdv_name, b.name as brand_name
+    await ensurePerdasSchema();
+    const { status, kind } = req.query;
+    let sql = `SELECT pd.*, COALESCE(pd.kind,'damage') AS kind, pr.name as product_name, p.name as pdv_name, b.name as brand_name
                FROM product_damages pd
                JOIN merch_products pr ON pr.id=pd.product_id
                JOIN pdvs p ON p.id=pd.pdv_id
                JOIN merch_brands b ON b.id=pd.brand_id
                WHERE pd.promoter_id=$1`;
     const params = [req.employeeId];
-    if (status) { sql += ' AND pd.status=$2'; params.push(status); }
+    let idx = 2;
+    if (status) { sql += ` AND pd.status=$${idx++}`; params.push(status); }
+    if (kind) { sql += ` AND pd.kind=$${idx++}`; params.push(kind); }
     sql += ' ORDER BY pd.created_at DESC';
     res.json((await query(sql, params)).rows);
-  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+  } catch (err) { logError('promotor.perdas.list', err); res.status(500).json({ error: 'Erro' }); }
 });
 
-// Promotor: Request return
+// Promotor: Request return (group damages+discards by pdv+brand)
 router.post('/promotor/return-requests', promotorAuth, async (req, res) => {
   try {
+    await ensurePerdasSchema();
     const { damage_ids, pdv_id, brand_id, notes } = req.body;
     const result = await query(
       `INSERT INTO damage_return_requests (organization_id, pdv_id, brand_id, promoter_id, notes)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [req.orgId, pdv_id, brand_id, req.employeeId, notes]
     );
-
     for (const did of damage_ids) {
       await query('INSERT INTO damage_return_items (request_id, damage_id) VALUES ($1,$2)', [result.rows[0].id, did]);
-      await query('UPDATE product_damages SET status=$2 WHERE id=$1', [did, 'awaiting_invoice']);
+      await query('UPDATE product_damages SET status=$2, updated_at=NOW() WHERE id=$1', [did, 'awaiting_invoice']);
     }
-
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+  } catch (err) { logError('promotor.return-request', err); res.status(500).json({ error: 'Erro' }); }
 });
 
-// Promotor: Upload return invoice
+// Promotor: Upload return invoice + divergence handling
 router.post('/promotor/return-invoices', promotorAuth, async (req, res) => {
   try {
-    const { request_id, invoice_number, invoice_date, issuer_name, photo_url, pdf_url } = req.body;
-    const result = await query(
-      `INSERT INTO return_invoices (request_id, invoice_number, invoice_date, issuer_name, photo_url, pdf_url, uploaded_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [request_id, invoice_number, invoice_date, issuer_name, photo_url, pdf_url, req.employeeId]
+    await ensurePerdasSchema();
+    const { request_id, invoice_number, invoice_date, issuer_name, photo_url, pdf_url, invoice_total_qty, observation } = req.body;
+
+    // Sum of qty registered by promoter in this request
+    const sumRes = await query(
+      `SELECT COALESCE(SUM(pd.qty_store + pd.qty_stock),0)::int AS total_registered,
+              MAX(pd.pdv_id) AS pdv_id, MAX(pd.brand_id) AS brand_id, MAX(pd.organization_id) AS organization_id, MAX(pd.route_id) AS route_id
+         FROM damage_return_items dri
+         JOIN product_damages pd ON pd.id = dri.damage_id
+        WHERE dri.request_id = $1`, [request_id]
+    );
+    const totalRegistered = sumRes.rows[0]?.total_registered || 0;
+    const totalNF = Math.max(0, parseInt(invoice_total_qty || 0, 10));
+    const divergence = Math.max(0, totalNF - totalRegistered);
+
+    const inv = await query(
+      `INSERT INTO return_invoices (request_id, invoice_number, invoice_date, issuer_name, photo_url, pdf_url,
+        invoice_total_qty, total_registered_qty, divergence_qty, observation, review_status, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11) RETURNING *`,
+      [request_id, invoice_number, invoice_date, issuer_name, photo_url, pdf_url,
+       totalNF, totalRegistered, divergence, observation, req.employeeId]
     );
 
-    await query('UPDATE damage_return_requests SET status=$2, updated_at=NOW() WHERE id=$1', [request_id, 'invoice_sent']);
-    // Update related damages
+    await query(`UPDATE damage_return_requests SET status='in_review', updated_at=NOW() WHERE id=$1`, [request_id]);
     const items = await query('SELECT damage_id FROM damage_return_items WHERE request_id=$1', [request_id]);
     for (const item of items.rows) {
-      await query('UPDATE product_damages SET status=$2 WHERE id=$1', [item.damage_id, 'invoice_sent']);
+      await query(`UPDATE product_damages SET status='in_review', updated_at=NOW() WHERE id=$1`, [item.damage_id]);
     }
 
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+    // Auto-create "Descarte PDV" record when divergence > 0
+    if (divergence > 0 && sumRes.rows[0]) {
+      const s = sumRes.rows[0];
+      await query(
+        `INSERT INTO pdv_extra_discards (organization_id, request_id, invoice_id, pdv_id, brand_id, qty, recorded_by, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'invoice_divergence')`,
+        [s.organization_id, request_id, inv.rows[0].id, s.pdv_id, s.brand_id, divergence, req.employeeId]
+      );
+    }
+
+    res.json({ ...inv.rows[0], divergence_qty: divergence, total_registered_qty: totalRegistered });
+  } catch (err) { logError('promotor.return-invoice', err); res.status(500).json({ error: err?.message || 'Erro' }); }
 });
 
 // Promotor: Postpone stock count
