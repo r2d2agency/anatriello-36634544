@@ -2201,9 +2201,10 @@ router.post('/promotor/executions/:id/rupture', promotorAuth, async (req, res) =
   } catch (err) { res.status(500).json({ error: 'Erro' }); }
 });
 
-// Promotor: Report damage
+// Promotor: Report damage (kind='damage')
 router.post('/promotor/executions/:id/damage', promotorAuth, async (req, res) => {
   try {
+    await ensurePerdasSchema();
     const exec = await query('SELECT rpe.*, r.pdv_id, r.brand_id, r.organization_id FROM route_product_executions rpe JOIN merch_routes r ON r.id=rpe.route_id WHERE rpe.id=$1', [req.params.id]);
     if (!exec.rows.length) return res.status(404).json({ error: 'Execução não encontrada' });
     const e = exec.rows[0];
@@ -2211,13 +2212,13 @@ router.post('/promotor/executions/:id/damage', promotorAuth, async (req, res) =>
     await query('UPDATE route_product_executions SET has_damage=true WHERE id=$1', [req.params.id]);
     const result = await query(
       `INSERT INTO product_damages (organization_id, route_id, product_id, pdv_id, brand_id, execution_id, promoter_id,
-       location, qty_store, qty_stock, reason, description, photo_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+       location, qty_store, qty_stock, reason, description, photo_url, kind)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'damage') RETURNING *`,
       [e.organization_id, e.route_id, e.product_id, e.pdv_id, e.brand_id, req.params.id, req.employeeId,
        location||'store', qty_store||0, qty_stock||0, reason, description, photo_url]
     );
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+  } catch (err) { logError('promotor.damage', err); res.status(500).json({ error: err?.message || 'Erro' }); }
 });
 
 // Promotor: Report discard (now ALSO writes to product_damages with kind='discard' for unified Perdas workflow)
