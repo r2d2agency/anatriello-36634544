@@ -34,6 +34,7 @@ interface CameraCaptureProps {
   disabled?: boolean;
   qualityConfig?: PhotoQualityConfig;
   allowManualUpload?: boolean;
+  autoOpen?: boolean;
 }
 
 export interface PhotoQualityConfig {
