@@ -367,7 +367,7 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
     const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified } = req.body;
 
     // ===== WORK SCHEDULE VALIDATION =====
-    const empRes = await query(`SELECT work_schedule, face_descriptor FROM employees WHERE id = $1`, [req.employeeId]);
+    const empRes = await query(`SELECT work_schedule, face_descriptor, facial_required FROM employees WHERE id = $1`, [req.employeeId]);
     const wsRaw = empRes.rows[0]?.work_schedule || '08:00-17:00';
     const now = is_offline && offline_local_time
       ? new Date(offline_local_time)
@@ -436,6 +436,7 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
       );
 
       const cfg = facialCfg.rows[0];
+      const empOverride = empRes.rows[0]?.facial_required; // true|false|null
       const rawDescriptor = empRes.rows[0]?.face_descriptor;
       const parsedDescriptor = typeof rawDescriptor === 'string'
         ? JSON.parse(rawDescriptor)
@@ -446,14 +447,19 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
           ? parsedDescriptor.descriptor.length > 0
           : false;
 
-      if (cfg?.enabled && cfg?.use_for_attendance && !hasEnrollment && cfg.allow_manual_fallback === false) {
+      // Override por colaborador: false => dispensado; true => sempre exigir
+      // null => segue config da organização
+      const orgRequires = !!(cfg?.enabled && cfg?.use_for_attendance);
+      const facialRequired = empOverride === false ? false : (empOverride === true ? true : orgRequires);
+
+      if (facialRequired && !hasEnrollment && cfg?.allow_manual_fallback === false) {
         return res.status(403).json({
           error: 'Biometria facial obrigatória, mas este colaborador ainda não possui cadastro facial.',
           code: 'FACIAL_ENROLLMENT_REQUIRED'
         });
       }
 
-      if (cfg?.enabled && cfg?.use_for_attendance && hasEnrollment && !facial_verified) {
+      if (facialRequired && hasEnrollment && !facial_verified) {
         return res.status(403).json({
           error: 'Confirmação facial obrigatória para registrar o ponto.',
           code: 'FACIAL_REQUIRED'
@@ -1753,45 +1759,56 @@ router.get('/facial-config', authenticatePromotor, async (req, res) => {
       // table may not exist
     }
 
-    if (!enabled) {
-      return res.json({ enabled: false });
-    }
-
-    // Get employee's face descriptor
+    // Per-employee override (true=sempre exigir, false=dispensado, null=segue org)
+    let empOverride = null;
     let descriptor = null;
     let photoUrl = null;
     let hasEnrollment = false;
     try {
       const { rows: empRows } = await query(
-        `SELECT face_descriptor, face_photo_url FROM employees WHERE id = $1`,
+        `SELECT face_descriptor, face_photo_url, facial_required FROM employees WHERE id = $1`,
         [empId]
       );
-      if (empRows.length && empRows[0].face_descriptor) {
-        const parsedDescriptor = typeof empRows[0].face_descriptor === 'string'
-          ? JSON.parse(empRows[0].face_descriptor)
-          : empRows[0].face_descriptor;
-
-        descriptor = Array.isArray(parsedDescriptor)
-          ? parsedDescriptor
-          : Array.isArray(parsedDescriptor?.descriptor)
-            ? parsedDescriptor.descriptor
-            : null;
-
-        photoUrl = empRows[0].face_photo_url;
-        hasEnrollment = Array.isArray(descriptor) && descriptor.length > 0;
+      if (empRows.length) {
+        empOverride = empRows[0].facial_required;
+        if (empRows[0].face_descriptor) {
+          const parsedDescriptor = typeof empRows[0].face_descriptor === 'string'
+            ? JSON.parse(empRows[0].face_descriptor)
+            : empRows[0].face_descriptor;
+          descriptor = Array.isArray(parsedDescriptor)
+            ? parsedDescriptor
+            : Array.isArray(parsedDescriptor?.descriptor)
+              ? parsedDescriptor.descriptor
+              : null;
+          photoUrl = empRows[0].face_photo_url;
+          hasEnrollment = Array.isArray(descriptor) && descriptor.length > 0;
+        }
       }
     } catch {
       // columns may not exist
     }
 
+    // Se o colaborador está dispensado, retorna desabilitado para este usuário
+    if (empOverride === false) {
+      return res.json({ enabled: false, employee_exempt: true });
+    }
+    // Se não está habilitado globalmente e não há override true, desabilitado
+    if (!enabled && empOverride !== true) {
+      return res.json({ enabled: false });
+    }
+
+    const effectiveAttendance = empOverride === true ? true : useForAttendance;
+    const effectiveCheckin = empOverride === true ? true : useForCheckin;
+
     res.json({
-      enabled,
-      use_for_attendance: useForAttendance,
-      use_for_checkin: useForCheckin,
+      enabled: true,
+      use_for_attendance: effectiveAttendance,
+      use_for_checkin: effectiveCheckin,
       min_confidence: minConfidence,
       has_enrollment: hasEnrollment,
       descriptor,
       photo_url: photoUrl,
+      employee_override: empOverride,
     });
   } catch (err) {
     logError('promotor.facial-config', err);

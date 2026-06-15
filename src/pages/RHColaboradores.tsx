@@ -96,6 +96,7 @@ const EMPTY_FORM = {
   work_schedule: { ...DEFAULT_SCHEDULE, days: { ...DEFAULT_SCHEDULE.days } },
   bank_name: "", bank_agency: "", bank_account: "", bank_account_type: "", pix_key: "", pix_key_type: "",
   ctps_number: "", pis_pasep: "", cnpj: "", company_name: "", status: "ativo",
+  facial_required: null as boolean | null,
   salary_items: [] as { type: string; description: string; value: string }[],
   benefits: [] as { type: string; description: string; value: string; employer_cost: string }[],
 };
@@ -789,6 +790,24 @@ export default function RHColaboradores() {
                       <SelectItem value="desligado">Desligado</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <Label>Validação Facial (este colaborador)</Label>
+                  <Select
+                    value={form.facial_required === true ? "always" : form.facial_required === false ? "never" : "default"}
+                    onValueChange={v => setField("facial_required", v === "always" ? true : v === "never" ? false : null)}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Seguir configuração da organização (padrão)</SelectItem>
+                      <SelectItem value="always">Sempre exigir biometria facial</SelectItem>
+                      <SelectItem value="never">Dispensar — não exigir facial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Substitui a configuração global de RH → Biometria Facial apenas para este colaborador.
+                  </p>
                 </div>
 
                 {/* Acesso App Promotor */}

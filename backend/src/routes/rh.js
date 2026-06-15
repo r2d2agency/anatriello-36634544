@@ -259,6 +259,8 @@ async function ensureEmployeeExtraColumns() {
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_zone VARCHAR(20)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_section VARCHAR(20)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS skin_color VARCHAR(50)`);
+    // facial_required: null = segue config da organização; true = sempre exigir; false = dispensado
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS facial_required BOOLEAN`);
     employeeExtraColsReady = true;
   } catch (e) {
     logError('rh.employees.ensureExtraCols', e);
@@ -495,6 +497,10 @@ router.post('/employees', async (req, res) => {
         d.cnpj, d.company_name, d.status, d.photo_url, req.userId,
         JSON.stringify(d.salary_items), JSON.stringify(d.benefits), d.home_latitude, d.home_longitude]
     );
+    if (req.body.facial_required === true || req.body.facial_required === false) {
+      await query(`UPDATE employees SET facial_required = $1 WHERE id = $2`, [req.body.facial_required, result.rows[0].id]);
+      result.rows[0].facial_required = req.body.facial_required;
+    }
     await auditLog(orgId, 'employee', result.rows[0].id, 'create', [{ field: 'full_name', oldVal: null, newVal: d.full_name }], req.userId);
     res.json(result.rows[0]);
   } catch (err) {
@@ -517,7 +523,7 @@ router.put('/employees/:id', async (req, res) => {
       'bank_account','bank_account_type','pix_key','pix_key_type','ctps_number','ctps_series','pis_pasep',
       'voter_id','voter_zone','voter_section','skin_color','cnpj',
       'company_name','status','photo_url','salary_items','benefits',
-      'home_latitude','home_longitude'
+      'home_latitude','home_longitude','facial_required'
     ]);
 
     const sentKeys = Object.keys(req.body).filter(k => allowedCols.has(k));
