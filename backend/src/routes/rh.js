@@ -497,6 +497,10 @@ router.post('/employees', async (req, res) => {
         d.cnpj, d.company_name, d.status, d.photo_url, req.userId,
         JSON.stringify(d.salary_items), JSON.stringify(d.benefits), d.home_latitude, d.home_longitude]
     );
+    if (req.body.facial_required === true || req.body.facial_required === false) {
+      await query(`UPDATE employees SET facial_required = $1 WHERE id = $2`, [req.body.facial_required, result.rows[0].id]);
+      result.rows[0].facial_required = req.body.facial_required;
+    }
     await auditLog(orgId, 'employee', result.rows[0].id, 'create', [{ field: 'full_name', oldVal: null, newVal: d.full_name }], req.userId);
     res.json(result.rows[0]);
   } catch (err) {
