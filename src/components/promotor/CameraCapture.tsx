@@ -196,6 +196,7 @@ export function CameraCapture({
   disabled,
   qualityConfig,
   allowManualUpload = true,
+  autoOpen = false,
 }: CameraCaptureProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
