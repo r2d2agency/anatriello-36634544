@@ -703,6 +703,7 @@ export default function PromotorRota() {
   const [optimisticAfterPhoto, setOptimisticAfterPhoto] = useState<Record<string, boolean>>({});
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [extraPhotosOpen, setExtraPhotosOpen] = useState<Record<string, boolean>>({});
   const [showFaceVerify, setShowFaceVerify] = useState(false);
   const [faceVerifyAction, setFaceVerifyAction] = useState<'checkin' | 'checkout' | 'pdv_checkout' | null>(null);
 
