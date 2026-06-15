@@ -14,8 +14,7 @@ function isDepartmentsSchemaMissing(error) {
   // 42P01 = undefined_table, 42703 = undefined_column
   if (!['42P01', '42703'].includes(code)) return false;
   const msg = String(error?.message || '');
-  // Inclui colunas usadas pelos endpoints deste arquivo para evitar 500 durante migrações.
-  return /\bdepartments\b|\bdepartment_members\b|\bdepartment_id\b|\battendance_status\b|\bstatus\b/i.test(msg);
+  return /\bdepartments\b|\bdepartment_members\b|\bdepartment_id\b|\battendance_status\b|\bconversations\b|\bstatus\b|\bis_available\b|\bcurrent_chats\b/i.test(msg);
 }
 
 // Helper para obter organização do usuário
