@@ -367,7 +367,7 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
     const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified } = req.body;
 
     // ===== WORK SCHEDULE VALIDATION =====
-    const empRes = await query(`SELECT work_schedule, face_descriptor FROM employees WHERE id = $1`, [req.employeeId]);
+    const empRes = await query(`SELECT work_schedule, face_descriptor, facial_required FROM employees WHERE id = $1`, [req.employeeId]);
     const wsRaw = empRes.rows[0]?.work_schedule || '08:00-17:00';
     const now = is_offline && offline_local_time
       ? new Date(offline_local_time)
