@@ -270,6 +270,17 @@ export function CameraCapture({
     void startCamera(facingMode);
   };
 
+  // Auto-abrir a câmera ao montar quando solicitado (ex.: usuário clicou em
+  // "Adicionar mais fotos" e queremos evitar um clique adicional no botão).
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpen && !autoOpenedRef.current && !disabled) {
+      autoOpenedRef.current = true;
+      handleOpen();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen, disabled]);
+
   // Re-attach the existing stream to the video element when the dialog mounts
   // (in case the <video> wasn't in the DOM when startCamera ran).
   useEffect(() => {
