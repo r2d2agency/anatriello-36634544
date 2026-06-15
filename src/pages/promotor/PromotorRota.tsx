@@ -530,9 +530,10 @@ function CategoryExtraPhotosPanel({
   const afterPhotos = photos.filter((p: any) => p.photo_type === 'category_after');
 
   // Regra: só pode adicionar mais ANTES se ainda NÃO começou fotos DEPOIS
-  const canAddBefore = !hasAnyAfter && !completed;
-  // Adicionar mais DEPOIS: enquanto a categoria não estiver finalizada (after concluído)
-  const canAddAfter = hasAnyBefore && !completed && hasAnyAfter;
+  const canAddBefore = !hasAnyAfter;
+  // Adicionar mais DEPOIS: sempre permitido (mesmo após 100%, o promotor pode
+  // querer registrar fotos adicionais da execução)
+  const canAddAfter = true;
 
   const handleCapture = (url: string) => setNewPhotos((prev) => [...prev, url]);
   const handleRemove = (i: number) => setNewPhotos((prev) => prev.filter((_, idx) => idx !== i));
