@@ -610,14 +610,9 @@ function CategoryExtraPhotosPanel({
               <ImagePlus className="h-3.5 w-3.5 mr-1.5" /> Adicionar mais fotos DEPOIS
             </Button>
           )}
-          {!canAddBefore && hasAnyAfter && !completed && (
+          {!canAddBefore && hasAnyAfter && (
             <p className="text-[10px] text-muted-foreground flex items-center gap-1">
               <Lock className="h-3 w-3" /> Não é possível adicionar fotos ANTES após iniciar as fotos DEPOIS.
-            </p>
-          )}
-          {completed && (
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Lock className="h-3 w-3" /> Categoria finalizada — fotos travadas.
             </p>
           )}
         </div>
