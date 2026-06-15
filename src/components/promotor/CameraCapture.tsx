@@ -254,6 +254,11 @@ export function CameraCapture({
   // This is required on iOS Safari to avoid the "black screen / permission re-prompt"
   // bug when the video element is mounted asynchronously.
   const handleOpen = () => {
+    // #4 — Pré-aquece TLS/conexão com o endpoint de upload e
+    //       já dispara a geolocalização em background (popula cache).
+    prewarmUploadConnection();
+    warmGeolocation();
+
     flushSync(() => {
       setCapturedImage(null);
       setValidationError(null);
