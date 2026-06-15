@@ -1979,6 +1979,34 @@ router.delete('/conversations/:id/messages/:messageId', authenticate, async (req
 // TAGS
 // ==========================================
 
+// Just-in-Time Schema Management para tags do chat
+async function ensureChatTagsSchema() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS conversation_tags (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      color VARCHAR(20) DEFAULT '#3B82F6',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(organization_id, name)
+    )
+  `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS conversation_tag_links (
+      conversation_id UUID NOT NULL,
+      tag_id UUID NOT NULL REFERENCES conversation_tags(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (conversation_id, tag_id)
+    )
+  `);
+}
+
+function isChatTagsSchemaMissing(error) {
+  if (!error) return false;
+  if (!['42P01', '42703'].includes(error.code)) return false;
+  return /conversation_tags|conversation_tag_links/i.test(String(error.message || ''));
+}
+
 // Get all tags
 router.get('/tags', authenticate, async (req, res) => {
   try {
@@ -1989,12 +2017,19 @@ router.get('/tags', authenticate, async (req, res) => {
       return res.json([]);
     }
 
-    const result = await query(
-      `SELECT * FROM conversation_tags WHERE organization_id = $1 ORDER BY name`,
-      [organizationId]
-    );
-
-    res.json(result.rows);
+    try {
+      const result = await query(
+        `SELECT * FROM conversation_tags WHERE organization_id = $1 ORDER BY name`,
+        [organizationId]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      if (isChatTagsSchemaMissing(err)) {
+        await ensureChatTagsSchema().catch(() => {});
+        return res.json([]);
+      }
+      throw err;
+    }
   } catch (error) {
     console.error('Get tags error:', error);
     res.status(500).json({ error: 'Erro ao buscar tags' });
@@ -2011,19 +2046,26 @@ router.get('/tags/with-count', authenticate, async (req, res) => {
       return res.json([]);
     }
 
-    const result = await query(
-      `SELECT t.*, 
-        COALESCE(
-          (SELECT COUNT(*) FROM conversation_tag_links ctl WHERE ctl.tag_id = t.id),
-          0
-        )::int as conversation_count
-       FROM conversation_tags t
-       WHERE t.organization_id = $1 
-       ORDER BY t.name`,
-      [organizationId]
-    );
-
-    res.json(result.rows);
+    try {
+      const result = await query(
+        `SELECT t.*, 
+          COALESCE(
+            (SELECT COUNT(*) FROM conversation_tag_links ctl WHERE ctl.tag_id = t.id),
+            0
+          )::int as conversation_count
+         FROM conversation_tags t
+         WHERE t.organization_id = $1 
+         ORDER BY t.name`,
+        [organizationId]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      if (isChatTagsSchemaMissing(err)) {
+        await ensureChatTagsSchema().catch(() => {});
+        return res.json([]);
+      }
+      throw err;
+    }
   } catch (error) {
     console.error('Get tags with count error:', error);
     res.status(500).json({ error: 'Erro ao buscar tags' });
