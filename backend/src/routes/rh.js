@@ -259,6 +259,8 @@ async function ensureEmployeeExtraColumns() {
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_zone VARCHAR(20)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_section VARCHAR(20)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS skin_color VARCHAR(50)`);
+    // facial_required: null = segue config da organização; true = sempre exigir; false = dispensado
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS facial_required BOOLEAN`);
     employeeExtraColsReady = true;
   } catch (e) {
     logError('rh.employees.ensureExtraCols', e);
