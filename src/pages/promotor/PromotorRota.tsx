@@ -535,11 +535,11 @@ function CategoryExtraPhotosPanel({
   // querer registrar fotos adicionais da execução)
   const canAddAfter = true;
 
-  const handleCapture = (url: string) => setNewPhotos((prev) => [...prev, url]);
   const handleRemove = (i: number) => setNewPhotos((prev) => prev.filter((_, idx) => idx !== i));
 
-  const handleSubmit = async () => {
-    if (!newPhotos.length || !mode) return;
+  const handleCapture = async (url: string) => {
+    if (!mode) return;
+    setNewPhotos((prev) => [...prev, url]);
     setSending(true);
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -551,24 +551,23 @@ function CategoryExtraPhotosPanel({
         method: 'POST',
         body: {
           route_brand_id: routeBrandId,
-          photo_url: newPhotos[0],
-          photos: newPhotos,
+          photo_url: url,
+          photos: [url],
           latitude: pos?.coords.latitude,
           longitude: pos?.coords.longitude,
           routeId, catId,
         },
         headers: { 'Authorization': `Bearer ${localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}` },
       });
-      toast.success(`${newPhotos.length} foto(s) adicionada(s)`);
-      setNewPhotos([]);
-      setMode(null);
+      toast.success('Foto adicionada');
       onUploaded();
     } catch {
-      toast.error('Erro ao enviar fotos');
+      toast.error('Erro ao enviar foto');
     } finally {
       setSending(false);
     }
   };
+
 
   return (
     <div className="mt-2 p-3 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 space-y-3">
