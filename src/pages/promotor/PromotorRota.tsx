@@ -1456,41 +1456,48 @@ export default function PromotorRota() {
           </CardContent>
         </Card>
 
-        {/* Multi-brand progress overview (always visible when multi-brand & active) */}
+        {/* Multi-brand: accordion of brands with categories nested inside */}
         {isMultiBrand && isActive && (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {routeBrands.map((rb: any) => {
               const isSelected = activeBrandId === rb.brand_id;
               return (
-                <Card key={rb.brand_id}
-                  className={`cursor-pointer transition-all ${isSelected ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'} ${rb.status === 'completed' ? 'bg-green-500/5' : ''}`}
-                  onClick={() => setActiveBrandId(rb.brand_id)}>
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {rb.status === 'completed' ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        ) : rb.status === 'in_progress' ? (
-                          <Clock className="h-5 w-5 text-orange-500" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-muted-foreground" />
-                        )}
-                        <div>
-                          <div className="text-sm font-semibold">{rb.brand_name}</div>
-                          {rb.checklist_name && <div className="text-[10px] text-muted-foreground">{rb.checklist_name}</div>}
+                <div key={rb.brand_id} className="space-y-2">
+                  <Card
+                    className={`cursor-pointer transition-all ${isSelected ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'} ${rb.status === 'completed' ? 'bg-green-500/5' : ''}`}
+                    onClick={() => setActiveBrandId(isSelected ? null : rb.brand_id)}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {rb.status === 'completed' ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : rb.status === 'in_progress' ? (
+                            <Clock className="h-5 w-5 text-orange-500" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <div>
+                            <div className="text-sm font-semibold">{rb.brand_name}</div>
+                            {rb.checklist_name && <div className="text-[10px] text-muted-foreground">{rb.checklist_name}</div>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono font-bold">{Math.round(rb.progress_pct || 0)}%</span>
+                          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono font-bold">{Math.round(rb.progress_pct || 0)}%</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
+                        <div className={`h-full rounded-full transition-all ${rb.status === 'completed' ? 'bg-green-500' : 'bg-primary'}`}
+                          style={{ width: `${rb.progress_pct || 0}%` }} />
                       </div>
+                    </CardContent>
+                  </Card>
+                  {isSelected && (
+                    <div className="pl-2 border-l-2 border-primary/30 ml-2">
+                      {categoriesBlock}
                     </div>
-                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-                      <div className={`h-full rounded-full transition-all ${rb.status === 'completed' ? 'bg-green-500' : 'bg-primary'}`}
-                        style={{ width: `${rb.progress_pct || 0}%` }} />
-                    </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1501,26 +1508,14 @@ export default function PromotorRota() {
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="p-4 text-center">
               <Store className="h-8 w-8 mx-auto text-primary mb-2" />
-              <p className="text-sm font-medium mb-1">Selecione uma marca para iniciar</p>
+              <p className="text-sm font-medium mb-1">Selecione uma marca para abrir as categorias</p>
               <p className="text-[10px] text-muted-foreground mb-3">
-                Escolha por qual marca deseja começar. Você poderá alternar entre elas a qualquer momento.
+                Toque na marca acima para expandir suas categorias. Toque novamente para recolher.
               </p>
             </CardContent>
           </Card>
         )}
 
-        {/* Active brand indicator */}
-        {isMultiBrand && activeBrandId && isActive && (
-          <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="flex items-center gap-2 text-sm">
-              <Package className="h-4 w-4 text-primary" />
-              <span className="font-medium">{currentBrand?.brand_name || 'Marca'}</span>
-            </div>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setActiveBrandId(null)}>
-              Trocar marca
-            </Button>
-          </div>
-        )}
 
         {/* Check-in photo requirement */}
         {needsCheckin && route.require_checkin_photo && !checkinPhotoUrl && (
