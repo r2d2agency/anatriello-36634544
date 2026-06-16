@@ -619,24 +619,10 @@ function CategoryExtraPhotosPanel({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-semibold">
-              Novas fotos {mode === 'before' ? 'ANTES' : 'DEPOIS'} ({newPhotos.length})
+              Adicionando {mode === 'before' ? 'ANTES' : 'DEPOIS'}
             </Label>
-            <Button size="sm" variant="ghost" onClick={() => { setMode(null); setNewPhotos([]); }} disabled={sending} className="h-7 text-[11px]">Cancelar</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setMode(null); setNewPhotos([]); }} disabled={sending} className="h-7 text-[11px]">Concluir</Button>
           </div>
-          {newPhotos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {newPhotos.map((url, i) => (
-                <div key={i} className="relative">
-                  <LocalImage src={url} alt={`Nova ${i+1}`} className="w-full h-20 rounded border-2 border-green-500/40 object-cover" />
-                  <button
-                    onClick={() => handleRemove(i)}
-                    disabled={sending}
-                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
-                  >✕</button>
-                </div>
-              ))}
-            </div>
-          )}
           <CameraCapture
             watermark={{ pdvName, brandName, promotorName, photoType: mode === 'before' ? 'Categoria (antes - extra)' : 'Categoria (depois - extra)' }}
             customTokenGetter={() => localStorage.getItem('promotor_token') || localStorage.getItem('auth_token')}
@@ -644,12 +630,11 @@ function CategoryExtraPhotosPanel({
             allowManualUpload={false}
             autoOpen={newPhotos.length === 0}
             onCapture={handleCapture}
-            buttonLabel={newPhotos.length === 0 ? 'Tirar foto' : `Tirar foto ${newPhotos.length + 1}`}
+            disabled={sending}
+            buttonLabel={sending ? 'Enviando...' : (newPhotos.length === 0 ? 'Tirar foto' : `Tirar outra foto`)}
           />
-          <Button size="sm" className="w-full" onClick={handleSubmit} disabled={!newPhotos.length || sending}>
-            {sending ? 'Enviando...' : `Salvar ${newPhotos.length} foto(s)`}
-          </Button>
         </div>
+
       )}
     </div>
   );
