@@ -1523,6 +1523,38 @@ export default function PromotorRota() {
                 </Card>
               );
             })}
+
+            {(() => {
+              const allBrandsCompleted = routeBrands.length > 0 && routeBrands.every((rb: any) => rb.status === 'completed' || (rb.progress_pct || 0) >= 100);
+              if (!allBrandsCompleted) return null;
+              const minDuration = parseInt(route?.min_duration_minutes || "0", 10);
+              const checkinAt = route?.checkin_at ? new Date(route.checkin_at) : null;
+              const elapsedMinutes = checkinAt ? Math.floor((currentTime.getTime() - checkinAt.getTime()) / 60000) : 0;
+              const hasMinDurationMet = minDuration === 0 || elapsedMinutes >= minDuration;
+              return (
+                <div className="pt-2 space-y-1">
+                  <Button
+                    className="w-full h-12"
+                    onClick={() => {
+                      if (!hasMinDurationMet) {
+                        toast.error(`Tempo mínimo de permanência não atingido. Faltam ${minDuration - elapsedMinutes} minuto(s).`);
+                        return;
+                      }
+                      setShowCompleteRoute(true);
+                    }}
+                    disabled={checkout.isPending}
+                    variant={hasMinDurationMet ? 'default' : 'secondary'}
+                  >
+                    <Check className="h-5 w-5 mr-2" /> Concluir Rota
+                  </Button>
+                  {!hasMinDurationMet && (
+                    <p className="text-[10px] text-center text-muted-foreground flex items-center justify-center gap-1">
+                      <Clock className="h-3 w-3" /> Tempo mínimo: faltam {minDuration - elapsedMinutes} min
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
