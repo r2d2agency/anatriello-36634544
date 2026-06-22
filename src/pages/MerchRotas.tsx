@@ -603,8 +603,29 @@ export default function MerchRotas() {
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Bulk delete confirm (superadmin) */}
+        <AlertDialog open={!!bulkConfirm} onOpenChange={(o) => !o && setBulkConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+              <AlertDialogDescription>
+                {bulkConfirm?.includeFuture
+                  ? `Serão excluídas as ${selectedIds.size} rota(s) selecionada(s) e TODAS as rotas futuras agendadas/confirmadas com o mesmo promotor, PDV e marca. Esta ação não pode ser desfeita.`
+                  : `Serão excluídas as ${selectedIds.size} rota(s) selecionada(s). Esta ação não pode ser desfeita.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button variant="destructive" disabled={bulkDelete.isPending} onClick={() => runBulkDelete(!!bulkConfirm?.includeFuture)}>
+                {bulkDelete.isPending ? 'Excluindo...' : 'Confirmar exclusão'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* AI Route Planner */}
         <AIRoutePlanner open={showAIPlanner} onClose={() => setShowAIPlanner(false)} />
+
       </div>
     </MainLayout>
   );
