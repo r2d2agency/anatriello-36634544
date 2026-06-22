@@ -553,7 +553,10 @@ router.post('/routes/:id/complete', async (req, res) => {
 router.post('/routes/bulk-delete', async (req, res) => {
   try {
     const su = await query('SELECT is_superadmin FROM users WHERE id=$1', [req.userId]);
-    if (!su.rows[0]?.is_superadmin) return res.status(403).json({ error: 'Apenas superadmin' });
+    const isSu = !!su.rows[0]?.is_superadmin;
+    const mem = await query(`SELECT role FROM organization_members WHERE user_id=$1`, [req.userId]);
+    const isAdmin = mem.rows.some(r => ['owner', 'admin'].includes(r.role));
+    if (!isSu && !isAdmin) return res.status(403).json({ error: 'Apenas admin ou superadmin' });
     const { ids = [], include_future = false } = req.body || {};
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids requerido' });
 
