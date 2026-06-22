@@ -855,6 +855,41 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                   onChange={(v) => setMultiBrands(prev => prev.map(b => b.brand_id === configuringBrandId ? { ...b, checklist_id: v } : b))}
                 />
 
+                {!route && form.recurrence_type === 'weekly' && (
+                  <div className="space-y-1 border-t pt-2">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias da semana desta marca</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEKDAY_LABELS.map((lbl, idx) => {
+                        const wd = idx === 6 ? 0 : idx + 1;
+                        const brandCfg = multiBrands.find(b => b.brand_id === configuringBrandId);
+                        const active = (brandCfg?.weekdays || []).includes(wd);
+                        return (
+                          <button
+                            key={wd}
+                            type="button"
+                            onClick={() => {
+                              setMultiBrands(prev => prev.map(b => {
+                                if (b.brand_id !== configuringBrandId) return b;
+                                const cur = b.weekdays || [];
+                                return { ...b, weekdays: cur.includes(wd) ? cur.filter(d => d !== wd) : [...cur, wd] };
+                              }));
+                            }}
+                            className={cn(
+                              'h-7 px-2.5 rounded-md border text-[11px] font-medium transition-colors',
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                            )}
+                          >{lbl}</button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Vazio = usa os dias gerais da rota. Ex: Marca A seg/qua/sex, Marca B ter/qui.
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-2 border-t pt-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Mix de Produtos</Label>
