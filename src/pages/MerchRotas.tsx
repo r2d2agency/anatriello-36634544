@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import AIRoutePlanner from "@/components/merch/AIRoutePlanner";
 import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBulkDeleteMerchRoutes, useBrandChecklists, useBrandPromoters, useRouteMixPreview, useRouteProducts, useAddRouteProduct, useRemoveRouteProduct, useSyncRouteProducts } from "@/hooks/use-merch-routes";
 import { useSuperadmin } from "@/hooks/use-superadmin";
+import { useAuth } from "@/contexts/AuthContext";
 import { useBrands, useBrandPdvs, usePdvBrands } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { useEmployees } from "@/hooks/use-rh";
@@ -77,12 +78,18 @@ export default function MerchRotas() {
   const duplicateRoute = useDuplicateMerchRoute();
   const bulkDelete = useBulkDeleteMerchRoutes();
 
-  // Superadmin check for bulk maintenance
+  // Admin/Superadmin check for bulk maintenance
   const { checkSuperadmin } = useSuperadmin();
+  const { user } = useAuth();
   const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<null | { includeFuture: boolean }>(null);
-  useEffect(() => { checkSuperadmin().then(setIsSuperadmin); }, [checkSuperadmin]);
+  useEffect(() => {
+    checkSuperadmin().then((su) => {
+      const isAdmin = ['owner', 'admin'].includes((user as any)?.role || '');
+      setIsSuperadmin(!!su || isAdmin);
+    });
+  }, [checkSuperadmin, user]);
   useEffect(() => { setSelectedIds(new Set()); }, [viewMode, currentDate, filterPromoter, filterBrand, filterStatus]);
 
   const toggleSelect = (id: string) => {
