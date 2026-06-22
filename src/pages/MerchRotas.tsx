@@ -972,7 +972,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                       })}
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      Vazio = usa os dias gerais da rota. Ex: Marca A seg/qua/sex, Marca B ter/qui.
+                      Vazio = repete no dia da data de início. Ex: Marca A seg/qua/sex, Marca B ter/qui.
                     </p>
                   </div>
                 )}
