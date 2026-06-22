@@ -25,6 +25,15 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function hasTables(tableNames) {
+  const placeholders = tableNames.map((_, index) => `$${index + 1}`).join(', ');
+  const result = await query(
+    `SELECT COUNT(*)::int AS count FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname IN (${placeholders})`,
+    tableNames
+  );
+  return Number(result.rows[0]?.count || 0) === tableNames.length;
+}
+
 // ==================== MAIN ENTRY POINT ====================
 
 /**
@@ -1889,6 +1898,9 @@ function parseRequiredVariables(value) {
  */
 export async function checkInactivityTimeouts() {
   try {
+    const schemaReady = await hasTables(['ai_agent_sessions', 'ai_agents', 'conversations']);
+    if (!schemaReady) return 0;
+
     const result = await query(
       `SELECT s.id, s.conversation_id, s.contact_phone, s.agent_id, s.last_interaction_at,
               a.inactivity_timeout_minutes, a.inactivity_message, a.name as agent_name,

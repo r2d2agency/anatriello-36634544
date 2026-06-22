@@ -6,6 +6,17 @@ async function sendWhatsAppMessage(connection, phone, content, messageType, medi
   return whatsappProvider.sendMessage(connection, phone, content, messageType, mediaUrl);
 }
 
+async function hasRequiredTables() {
+  const result = await query(`
+    SELECT
+      to_regclass('public.scheduled_messages') IS NOT NULL AS scheduled_messages,
+      to_regclass('public.conversations') IS NOT NULL AS conversations,
+      to_regclass('public.connections') IS NOT NULL AS connections,
+      to_regclass('public.chat_messages') IS NOT NULL AS chat_messages
+  `);
+  return Object.values(result.rows[0] || {}).every(Boolean);
+}
+
 // Main function to execute scheduled messages
 export async function executeScheduledMessages() {
   console.log('📅 [CRON] Checking scheduled messages...');
@@ -17,6 +28,11 @@ export async function executeScheduledMessages() {
   };
 
   try {
+    if (!(await hasRequiredTables())) {
+      console.log('📅 [CRON] Scheduled messages schema not ready, skipping');
+      return stats;
+    }
+
     // Get all pending scheduled messages that are due
     // For W-API, accept connections with instance_id/wapi_token even if status not 'connected'
     const pendingMessages = await query(`
