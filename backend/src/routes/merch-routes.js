@@ -18,6 +18,11 @@ async function hasColumn(tableName, columnName) {
   return result.rows.length > 0;
 }
 
+async function hasTable(tableName) {
+  const result = await query(`SELECT to_regclass($1) AS table_ref`, [`public.${tableName}`]);
+  return Boolean(result.rows[0]?.table_ref);
+}
+
 // ===== ADMIN ROUTES =====
 
 // List routes with filters
@@ -39,19 +44,34 @@ router.get('/routes', async (req, res) => {
       if (colCheck2.rows.length) checkoutCol = 'checkout_photo';
     } catch {}
 
+    const hasProductExecutions = await hasTable('route_product_executions').catch(() => false);
+    const productCountSelect = hasProductExecutions
+      ? `COALESCE(pc.total_products, 0) as total_products,
+                COALESCE(pc.completed_products, 0) as completed_products`
+      : `0 as total_products,
+                0 as completed_products`;
+    const productCountJoin = hasProductExecutions
+      ? `LEFT JOIN LATERAL (
+                 SELECT COUNT(*)::int as total_products,
+                        COUNT(*) FILTER (WHERE status = 'completed')::int as completed_products
+                 FROM route_product_executions rpe
+                 WHERE rpe.route_id = r.id
+               ) pc ON true`
+      : '';
+
     let sql = `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, p.city as pdv_city, b.name as brand_name,
                sv.full_name as supervisor_name, bc.name as checklist_name,
                r.checkin_at, r.checkout_at, r.completed_at, COALESCE(r.progress_pct, 0) as progress_pct,
                r.${checkinCol} as checkin_photo,
                r.${checkoutCol} as checkout_photo,
-               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as total_products,
-               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as completed_products
+                ${productCountSelect}
                FROM merch_routes r
                LEFT JOIN employees e ON e.id = r.promoter_id
                LEFT JOIN pdvs p ON p.id = r.pdv_id
                LEFT JOIN merch_brands b ON b.id = r.brand_id
                LEFT JOIN employees sv ON sv.id = r.supervisor_id
                LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
+                ${productCountJoin}
                WHERE r.organization_id = $1`;
     const params = [orgId];
     let idx = 2;
@@ -875,30 +895,6 @@ router.get('/brand-checklists', authenticate, async (req, res) => {
     const orgId = orgRes.rows[0].organization_id;
     const { brand_id } = req.query;
 
-    // Ensure table exists
-    await query(`CREATE TABLE IF NOT EXISTS brand_checklists (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      organization_id UUID NOT NULL,
-      brand_id UUID NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      require_checkin_photo BOOLEAN DEFAULT true,
-      require_checkout_photo BOOLEAN DEFAULT false,
-      require_stock_count BOOLEAN DEFAULT false,
-       require_validity_check BOOLEAN DEFAULT false,
-       require_extra_point BOOLEAN DEFAULT false,
-       require_category_photos BOOLEAN DEFAULT true,
-       stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
-      validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
-      active BOOLEAN DEFAULT true,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`).catch(() => {});
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS category_photo_mode VARCHAR(20) DEFAULT 'both'`).catch(() => {});
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_before INT DEFAULT 1`).catch(() => {});
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_after INT DEFAULT 1`).catch(() => {});
-
     let sql = 'SELECT bc.*, b.name as brand_name FROM brand_checklists bc LEFT JOIN merch_brands b ON b.id=bc.brand_id WHERE bc.organization_id=$1';
     const params = [orgId];
     if (brand_id) { sql += ' AND bc.brand_id=$2'; params.push(brand_id); }
@@ -1655,6 +1651,10 @@ async function ensureRouteBrandsTables() {
     await query(`ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
     await query(`ALTER TABLE merch_routes ALTER COLUMN brand_id DROP NOT NULL`);
     try { await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID`); } catch {}
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_brands_route ON route_brands(route_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_brands_brand ON route_brands(brand_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_product_exec_route_status ON route_product_executions(route_id, status)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_product_exec_route_brand ON route_product_executions(route_brand_id)`);
   } catch (e) { logWarn('ensureRouteBrandsTables.failed', { error: e?.message }); }
 }
 ensureRouteBrandsTables().catch(() => {});

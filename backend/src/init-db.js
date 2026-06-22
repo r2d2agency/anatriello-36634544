@@ -3946,6 +3946,10 @@ ALTER TABLE merch_routes ALTER COLUMN brand_id DROP NOT NULL;
 ALTER TABLE merch_routes ALTER COLUMN recurrence TYPE TEXT;
 CREATE INDEX IF NOT EXISTS idx_merch_routes_org ON merch_routes(organization_id);
 CREATE INDEX IF NOT EXISTS idx_merch_routes_promoter ON merch_routes(promoter_id, visit_date);
+CREATE INDEX IF NOT EXISTS idx_merch_routes_org_visit ON merch_routes(organization_id, visit_date DESC, scheduled_time);
+CREATE INDEX IF NOT EXISTS idx_merch_routes_org_promoter_visit ON merch_routes(organization_id, promoter_id, visit_date DESC);
+CREATE INDEX IF NOT EXISTS idx_merch_routes_org_brand_visit ON merch_routes(organization_id, brand_id, visit_date DESC);
+CREATE INDEX IF NOT EXISTS idx_merch_routes_org_pdv_visit ON merch_routes(organization_id, pdv_id, visit_date DESC);
 CREATE INDEX IF NOT EXISTS idx_merch_routes_status ON merch_routes(status);
 
 CREATE TABLE IF NOT EXISTS route_person_assignments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID, employee_id UUID NOT NULL, role VARCHAR(20) DEFAULT 'executor', assigned_at TIMESTAMPTZ DEFAULT NOW(), removed_at TIMESTAMPTZ, reason TEXT, assigned_by UUID, active BOOLEAN DEFAULT true);
@@ -3953,6 +3957,8 @@ CREATE TABLE IF NOT EXISTS route_person_assignments (id UUID PRIMARY KEY DEFAULT
 CREATE TABLE IF NOT EXISTS route_photos (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID, photo_type VARCHAR(30) NOT NULL, category_id UUID, product_id UUID, exposure_point VARCHAR(50), photo_url TEXT NOT NULL, thumbnail_url TEXT, original_size_bytes INTEGER, compressed_size_bytes INTEGER, latitude NUMERIC(10,7), longitude NUMERIC(10,7), quality_score NUMERIC(5,2), quality_passed BOOLEAN DEFAULT true, quality_rejection_reason TEXT, watermark_applied BOOLEAN DEFAULT false, upload_source VARCHAR(20) DEFAULT 'app', uploaded_by UUID, contingency_reason TEXT, captured_at TIMESTAMPTZ DEFAULT NOW(), created_at TIMESTAMPTZ DEFAULT NOW());
 
 CREATE TABLE IF NOT EXISTS route_product_executions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), route_id UUID, product_id UUID NOT NULL, category_id UUID, exposure_point VARCHAR(50) DEFAULT 'natural', status VARCHAR(20) DEFAULT 'pending', checked BOOLEAN DEFAULT false, qty_store INTEGER DEFAULT 0, qty_stock INTEGER DEFAULT 0, qty_total INTEGER DEFAULT 0, has_rupture BOOLEAN DEFAULT false, has_damage BOOLEAN DEFAULT false, has_discard BOOLEAN DEFAULT false, observation TEXT, executed_by UUID, executed_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+CREATE INDEX IF NOT EXISTS idx_route_product_exec_route_status ON route_product_executions(route_id, status);
+CREATE INDEX IF NOT EXISTS idx_brand_checklists_org_brand_active ON brand_checklists(organization_id, brand_id, active, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS product_validity_entries (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), execution_id UUID, route_id UUID, product_id UUID NOT NULL, expiry_date DATE NOT NULL, qty_store INTEGER DEFAULT 0, qty_stock INTEGER DEFAULT 0, recorded_by UUID, created_at TIMESTAMPTZ DEFAULT NOW());
 

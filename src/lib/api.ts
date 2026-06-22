@@ -35,6 +35,10 @@ const CHAT_UNREAD_ENDPOINT = '/api/chat/conversations/unread';
 const CHAT_ALERTS_ENDPOINT = '/api/chat/alerts';
 const CHAT_POLLING_COOLDOWN_MS = 60 * 1000;
 
+const MERCH_ROUTES_LIST_ENDPOINT = '/api/merch/routes';
+const BRAND_CHECKLISTS_ENDPOINT = '/api/merch/brand-checklists';
+const GENERAL_ENDPOINT_COOLDOWN_MS = 60 * 1000;
+
 interface EndpointResilienceConfig {
   cooldownMs: number;
   fallbackToOtherBases: boolean;
@@ -74,6 +78,16 @@ const ENDPOINT_RESILIENCE: Record<string, EndpointResilienceConfig> = {
 
 const getResilienceConfig = (endpoint: string) => {
   if (ENDPOINT_RESILIENCE[endpoint]) return ENDPOINT_RESILIENCE[endpoint];
+  const path = endpoint.split('?')[0];
+  if (path === MERCH_ROUTES_LIST_ENDPOINT || path === BRAND_CHECKLISTS_ENDPOINT || path === '/api/connections') {
+    return {
+      cooldownMs: GENERAL_ENDPOINT_COOLDOWN_MS,
+      fallbackToOtherBases: false,
+      fallbackValue: () => [],
+      maxRetries: 0,
+      silent: true,
+    };
+  }
   return undefined;
 };
 
