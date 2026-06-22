@@ -27,17 +27,27 @@ router.use(authenticate);
   logInfo('[CRM] Self-healing company columns check complete');
 
   // Self-healing: funnel connection_id
-  try { await query(`ALTER TABLE crm_funnels ADD COLUMN IF NOT EXISTS connection_id UUID REFERENCES connections(id) ON DELETE SET NULL`); } catch(e) {}
+  try {
+    const hasFunnels = await query(`SELECT to_regclass('public.crm_funnels') IS NOT NULL AS exists`);
+    if (hasFunnels.rows[0]?.exists) {
+      await query(`ALTER TABLE crm_funnels ADD COLUMN IF NOT EXISTS connection_id UUID REFERENCES connections(id) ON DELETE SET NULL`);
+    }
+  } catch(e) {}
 
   // Self-healing: automation schedule columns
-  const autoCols = [
-    { name: 'schedule_days', type: "JSONB DEFAULT '[1,2,3,4,5]'" },
-    { name: 'schedule_start_time', type: "VARCHAR(5) DEFAULT '08:00'" },
-    { name: 'schedule_end_time', type: "VARCHAR(5) DEFAULT '18:00'" },
-  ];
-  for (const col of autoCols) {
-    try { await query(`ALTER TABLE crm_stage_automations ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`); } catch(e) {}
-  }
+  try {
+    const hasAutomations = await query(`SELECT to_regclass('public.crm_stage_automations') IS NOT NULL AS exists`);
+    if (hasAutomations.rows[0]?.exists) {
+      const autoCols = [
+        { name: 'schedule_days', type: "JSONB DEFAULT '[1,2,3,4,5]'" },
+        { name: 'schedule_start_time', type: "VARCHAR(5) DEFAULT '08:00'" },
+        { name: 'schedule_end_time', type: "VARCHAR(5) DEFAULT '18:00'" },
+      ];
+      for (const col of autoCols) {
+        await query(`ALTER TABLE crm_stage_automations ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+      }
+    }
+  } catch(e) {}
   logInfo('[CRM] Self-healing funnel/automation columns check complete');
 })();
 
