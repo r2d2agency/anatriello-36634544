@@ -16,7 +16,8 @@ import { Progress } from "@/components/ui/progress";
 import { Calendar, ChevronLeft, ChevronRight, Plus, MapPin, Clock, User, Eye, Copy, Trash2, Edit, Filter, Repeat, Sparkles, Package, RefreshCw, X, CheckCircle2, Activity, Store, Info, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AIRoutePlanner from "@/components/merch/AIRoutePlanner";
-import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBrandChecklists, useBrandPromoters, useRouteMixPreview, useRouteProducts, useAddRouteProduct, useRemoveRouteProduct, useSyncRouteProducts } from "@/hooks/use-merch-routes";
+import { useMerchRoutes, useCreateMerchRoute, useUpdateMerchRoute, useDeleteMerchRoute, useDuplicateMerchRoute, useBulkDeleteMerchRoutes, useBrandChecklists, useBrandPromoters, useRouteMixPreview, useRouteProducts, useAddRouteProduct, useRemoveRouteProduct, useSyncRouteProducts } from "@/hooks/use-merch-routes";
+import { useSuperadmin } from "@/hooks/use-superadmin";
 import { useBrands, useBrandPdvs, usePdvBrands } from "@/hooks/use-merchandising";
 import { usePDVs } from "@/hooks/use-promotor";
 import { useEmployees } from "@/hooks/use-rh";
@@ -74,6 +75,45 @@ export default function MerchRotas() {
   const updateRoute = useUpdateMerchRoute();
   const deleteRoute = useDeleteMerchRoute();
   const duplicateRoute = useDuplicateMerchRoute();
+  const bulkDelete = useBulkDeleteMerchRoutes();
+
+  // Superadmin check for bulk maintenance
+  const { checkSuperadmin } = useSuperadmin();
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState<null | { includeFuture: boolean }>(null);
+  useEffect(() => { checkSuperadmin().then(setIsSuperadmin); }, [checkSuperadmin]);
+  useEffect(() => { setSelectedIds(new Set()); }, [viewMode, currentDate, filterPromoter, filterBrand, filterStatus]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (ids: string[]) => {
+    setSelectedIds(prev => {
+      const allSelected = ids.every(id => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) ids.forEach(id => next.delete(id));
+      else ids.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const runBulkDelete = (includeFuture: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    bulkDelete.mutate({ ids, include_future: includeFuture }, {
+      onSuccess: (res: any) => {
+        toast.success(`${res?.deleted || ids.length} rota(s) excluída(s)${includeFuture && res?.future_deleted ? ` + ${res.future_deleted} futura(s)` : ''}`);
+        setSelectedIds(new Set());
+        setBulkConfirm(null);
+      },
+      onError: () => { toast.error('Erro ao excluir em massa'); setBulkConfirm(null); },
+    });
+  };
 
   // Check if route has future siblings (recurrence)
   const hasFutureSiblings = (route: any) => {
@@ -288,26 +328,56 @@ export default function MerchRotas() {
                 const isCurrentMonth = isSameMonth(day, currentDate);
 
                 if (viewMode === 'day') {
+                  const dayIds = dayRoutes.map((r: any) => r.id);
+                  const allSelected = dayIds.length > 0 && dayIds.every(id => selectedIds.has(id));
                   return (
                     <div key={dayStr} className="space-y-2">
+                      {isSuperadmin && dayRoutes.length > 0 && (
+                        <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/30 px-3 py-2">
+                          <label className="flex items-center gap-2 text-xs cursor-pointer">
+                            <Checkbox checked={allSelected} onCheckedChange={() => toggleSelectAll(dayIds)} />
+                            <span className="font-medium">Manutenção (superadmin) — selecionar todas</span>
+                          </label>
+                          {selectedIds.size > 0 && (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{selectedIds.size} selecionada(s)</Badge>
+                              <Button size="sm" variant="outline" onClick={() => setBulkConfirm({ includeFuture: false })}>
+                                <Trash2 className="h-3 w-3 mr-1" /> Apagar selecionadas
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => setBulkConfirm({ includeFuture: true })}>
+                                <Trash2 className="h-3 w-3 mr-1" /> Apagar selecionadas + futuras
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {dayRoutes.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-8">Nenhuma rota para este dia</p>
                       ) : dayRoutes.map((r: any) => (
-                        <Card key={r.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setViewRoute(r)}>
+                        <Card key={r.id} className={cn("hover:border-primary/50 transition-colors", selectedIds.has(r.id) && "border-primary ring-1 ring-primary/30")}>
                           <CardContent className="p-3">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="text-sm font-mono font-medium">{r.scheduled_time?.slice(0, 5) || '--:--'}</div>
-                                <div>
-                                  <div className="text-sm font-semibold">{r.pdv_name}</div>
-                                  <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                    <span className="flex items-center gap-1"><User className="h-3 w-3" />{r.promoter_name}</span>
-                                    <span>•</span>
-                                    <span>{r.brand_name}</span>
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                {isSuperadmin && (
+                                  <Checkbox
+                                    checked={selectedIds.has(r.id)}
+                                    onCheckedChange={() => toggleSelect(r.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                )}
+                                <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => setViewRoute(r)}>
+                                  <div className="text-sm font-mono font-medium">{r.scheduled_time?.slice(0, 5) || '--:--'}</div>
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold truncate">{r.pdv_name}</div>
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                      <span className="flex items-center gap-1"><User className="h-3 w-3" />{r.promoter_name}</span>
+                                      <span>•</span>
+                                      <span>{r.brand_name}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setViewRoute(r)}>
                                 {r.progress_pct > 0 && <span className="text-xs font-mono">{Math.round(r.progress_pct)}%</span>}
                                 <Badge className={STATUS_COLORS[r.status] || 'bg-muted'}>{STATUS_LABELS[r.status] || r.status}</Badge>
                               </div>
@@ -318,6 +388,7 @@ export default function MerchRotas() {
                     </div>
                   );
                 }
+
 
                 return (
                   <div key={dayStr}
@@ -532,8 +603,29 @@ export default function MerchRotas() {
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Bulk delete confirm (superadmin) */}
+        <AlertDialog open={!!bulkConfirm} onOpenChange={(o) => !o && setBulkConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+              <AlertDialogDescription>
+                {bulkConfirm?.includeFuture
+                  ? `Serão excluídas as ${selectedIds.size} rota(s) selecionada(s) e TODAS as rotas futuras agendadas/confirmadas com o mesmo promotor, PDV e marca. Esta ação não pode ser desfeita.`
+                  : `Serão excluídas as ${selectedIds.size} rota(s) selecionada(s). Esta ação não pode ser desfeita.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button variant="destructive" disabled={bulkDelete.isPending} onClick={() => runBulkDelete(!!bulkConfirm?.includeFuture)}>
+                {bulkDelete.isPending ? 'Excluindo...' : 'Confirmar exclusão'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* AI Route Planner */}
         <AIRoutePlanner open={showAIPlanner} onClose={() => setShowAIPlanner(false)} />
+
       </div>
     </MainLayout>
   );
