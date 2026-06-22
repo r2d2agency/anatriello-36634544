@@ -712,11 +712,12 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
       return;
     }
 
-    const payload = { 
+    const payload: any = { 
       ...form,
       brands: multiBrands.map(mb => ({
         brand_id: mb.brand_id,
-        checklist_id: mb.checklist_id || null
+        checklist_id: mb.checklist_id || null,
+        weekdays: Array.isArray(mb.weekdays) ? mb.weekdays : [],
       }))
     };
     
