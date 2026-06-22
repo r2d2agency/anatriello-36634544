@@ -542,7 +542,7 @@ export default function MerchRotas() {
 // Route Form Dialog
 function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDelete, onDuplicate }: any) {
   const [form, setForm] = useState<any>({});
-  const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string }[]>([]);
+  const [multiBrands, setMultiBrands] = useState<{ brand_id: string; checklist_id?: string; weekdays?: number[] }[]>([]);
   const [configuringBrandId, setConfiguringBrandId] = useState<string | null>(null);
   const [pdvOpen, setPdvOpen] = useState(false);
   const { data: brands = [] } = useBrands();
@@ -631,12 +631,14 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
         if (Array.isArray(rawBrands) && rawBrands.length > 0) {
           setMultiBrands(rawBrands.map((rb: any) => ({ 
             brand_id: rb.brand_id || rb.id || rb, 
-            checklist_id: rb.checklist_id || null
+            checklist_id: rb.checklist_id || null,
+            weekdays: Array.isArray(rb.weekdays) ? rb.weekdays : [],
           })));
         } else if (route.brand_id) {
           setMultiBrands([{ 
             brand_id: route.brand_id, 
-            checklist_id: route.checklist_id || null
+            checklist_id: route.checklist_id || null,
+            weekdays: [],
           }]);
         } else {
           setMultiBrands([]);
@@ -710,11 +712,12 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
       return;
     }
 
-    const payload = { 
+    const payload: any = { 
       ...form,
       brands: multiBrands.map(mb => ({
         brand_id: mb.brand_id,
-        checklist_id: mb.checklist_id || null
+        checklist_id: mb.checklist_id || null,
+        weekdays: Array.isArray(mb.weekdays) ? mb.weekdays : [],
       }))
     };
     
@@ -851,6 +854,41 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                   checklistId={multiBrands.find(b => b.brand_id === configuringBrandId)?.checklist_id}
                   onChange={(v) => setMultiBrands(prev => prev.map(b => b.brand_id === configuringBrandId ? { ...b, checklist_id: v } : b))}
                 />
+
+                {!route && form.recurrence_type === 'weekly' && (
+                  <div className="space-y-1 border-t pt-2">
+                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Dias da semana desta marca</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEKDAY_LABELS.map((lbl, idx) => {
+                        const wd = idx === 6 ? 0 : idx + 1;
+                        const brandCfg = multiBrands.find(b => b.brand_id === configuringBrandId);
+                        const active = (brandCfg?.weekdays || []).includes(wd);
+                        return (
+                          <button
+                            key={wd}
+                            type="button"
+                            onClick={() => {
+                              setMultiBrands(prev => prev.map(b => {
+                                if (b.brand_id !== configuringBrandId) return b;
+                                const cur = b.weekdays || [];
+                                return { ...b, weekdays: cur.includes(wd) ? cur.filter(d => d !== wd) : [...cur, wd] };
+                              }));
+                            }}
+                            className={cn(
+                              'h-7 px-2.5 rounded-md border text-[11px] font-medium transition-colors',
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                            )}
+                          >{lbl}</button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Vazio = usa os dias gerais da rota. Ex: Marca A seg/qua/sex, Marca B ter/qui.
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-2 border-t pt-2">
                   <div className="flex items-center justify-between">
