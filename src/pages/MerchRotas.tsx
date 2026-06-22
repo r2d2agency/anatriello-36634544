@@ -75,6 +75,45 @@ export default function MerchRotas() {
   const updateRoute = useUpdateMerchRoute();
   const deleteRoute = useDeleteMerchRoute();
   const duplicateRoute = useDuplicateMerchRoute();
+  const bulkDelete = useBulkDeleteMerchRoutes();
+
+  // Superadmin check for bulk maintenance
+  const { checkSuperadmin } = useSuperadmin();
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState<null | { includeFuture: boolean }>(null);
+  useEffect(() => { checkSuperadmin().then(setIsSuperadmin); }, [checkSuperadmin]);
+  useEffect(() => { setSelectedIds(new Set()); }, [viewMode, currentDate, filterPromoter, filterBrand, filterStatus]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (ids: string[]) => {
+    setSelectedIds(prev => {
+      const allSelected = ids.every(id => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) ids.forEach(id => next.delete(id));
+      else ids.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const runBulkDelete = (includeFuture: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    bulkDelete.mutate({ ids, include_future: includeFuture }, {
+      onSuccess: (res: any) => {
+        toast.success(`${res?.deleted || ids.length} rota(s) excluída(s)${includeFuture && res?.future_deleted ? ` + ${res.future_deleted} futura(s)` : ''}`);
+        setSelectedIds(new Set());
+        setBulkConfirm(null);
+      },
+      onError: () => { toast.error('Erro ao excluir em massa'); setBulkConfirm(null); },
+    });
+  };
 
   // Check if route has future siblings (recurrence)
   const hasFutureSiblings = (route: any) => {
