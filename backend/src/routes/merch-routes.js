@@ -18,6 +18,11 @@ async function hasColumn(tableName, columnName) {
   return result.rows.length > 0;
 }
 
+async function hasTable(tableName) {
+  const result = await query(`SELECT to_regclass($1) AS table_ref`, [`public.${tableName}`]);
+  return Boolean(result.rows[0]?.table_ref);
+}
+
 // ===== ADMIN ROUTES =====
 
 // List routes with filters
@@ -39,19 +44,35 @@ router.get('/routes', async (req, res) => {
       if (colCheck2.rows.length) checkoutCol = 'checkout_photo';
     } catch {}
 
+    const hasProductExecutions = await hasTable('route_product_executions').catch(() => false);
+    const productCountSelect = hasProductExecutions
+      ? `COALESCE(pc.total_products, 0) as total_products,
+                COALESCE(pc.completed_products, 0) as completed_products`
+      : `0 as total_products,
+                0 as completed_products`;
+    const productCountJoin = hasProductExecutions
+      ? `LEFT JOIN (
+                 SELECT route_id,
+                        COUNT(*)::int as total_products,
+                        COUNT(*) FILTER (WHERE status = 'completed')::int as completed_products
+                 FROM route_product_executions
+                 GROUP BY route_id
+               ) pc ON pc.route_id = r.id`
+      : '';
+
     let sql = `SELECT r.*, e.full_name as promoter_name, p.name as pdv_name, p.city as pdv_city, b.name as brand_name,
                sv.full_name as supervisor_name, bc.name as checklist_name,
                r.checkin_at, r.checkout_at, r.completed_at, COALESCE(r.progress_pct, 0) as progress_pct,
                r.${checkinCol} as checkin_photo,
                r.${checkoutCol} as checkout_photo,
-               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id) as total_products,
-               (SELECT COUNT(*) FROM route_product_executions rpe WHERE rpe.route_id = r.id AND rpe.status = 'completed') as completed_products
+                ${productCountSelect}
                FROM merch_routes r
                LEFT JOIN employees e ON e.id = r.promoter_id
                LEFT JOIN pdvs p ON p.id = r.pdv_id
                LEFT JOIN merch_brands b ON b.id = r.brand_id
                LEFT JOIN employees sv ON sv.id = r.supervisor_id
                LEFT JOIN brand_checklists bc ON bc.id = r.checklist_id
+                ${productCountJoin}
                WHERE r.organization_id = $1`;
     const params = [orgId];
     let idx = 2;
