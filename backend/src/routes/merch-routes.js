@@ -1676,6 +1676,10 @@ async function ensureRouteBrandsTables() {
     await query(`ALTER TABLE route_photos ADD COLUMN IF NOT EXISTS route_brand_id UUID`);
     await query(`ALTER TABLE merch_routes ALTER COLUMN brand_id DROP NOT NULL`);
     try { await query(`ALTER TABLE merch_execution_categories ADD COLUMN IF NOT EXISTS route_brand_id UUID`); } catch {}
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_brands_route ON route_brands(route_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_brands_brand ON route_brands(brand_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_product_exec_route_status ON route_product_executions(route_id, status)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_route_product_exec_route_brand ON route_product_executions(route_brand_id)`);
   } catch (e) { logWarn('ensureRouteBrandsTables.failed', { error: e?.message }); }
 }
 ensureRouteBrandsTables().catch(() => {});
