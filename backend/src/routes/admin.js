@@ -8,6 +8,16 @@ import * as wapiProvider from '../lib/wapi-provider.js';
 
 const router = Router();
 
+const DEFAULT_BRANDING = {
+  logo_login: null,
+  logo_sidebar: null,
+  logo_topbar: null,
+  favicon: null,
+  company_name: null,
+  theme_preset: null,
+  theme_custom_colors: null,
+};
+
 // Ensure has_projects column exists on plans table
 (async () => {
   try {
@@ -20,22 +30,18 @@ const router = Router();
 // NOTE: Must be defined before router.use(authenticate)
 router.get('/branding', async (req, res) => {
   try {
-    const result = await query(
-      `SELECT key, value FROM system_settings 
-       WHERE key IN ('logo_login', 'logo_sidebar', 'logo_topbar', 'favicon', 'company_name', 'theme_preset', 'theme_custom_colors')`
-    );
+    const branding = { ...DEFAULT_BRANDING };
+    const tableCheck = await query(`SELECT to_regclass('public.system_settings') AS table_name`);
 
-    const branding = {
-      logo_login: null,
-      logo_sidebar: null,
-      logo_topbar: null,
-      favicon: null,
-      company_name: null,
-      theme_preset: null,
-      theme_custom_colors: null,
-    };
-    for (const row of result.rows) {
-      branding[row.key] = row.value;
+    if (tableCheck.rows[0]?.table_name) {
+      const result = await query(
+        `SELECT key, value FROM system_settings 
+         WHERE key IN ('logo_login', 'logo_sidebar', 'logo_topbar', 'favicon', 'company_name', 'theme_preset', 'theme_custom_colors')`
+      );
+
+      for (const row of result.rows) {
+        branding[row.key] = row.value;
+      }
     }
 
     // Fallback: use logo_sidebar as logo_topbar if not set
@@ -66,7 +72,7 @@ router.get('/branding', async (req, res) => {
     res.json(branding);
   } catch (error) {
     console.error('Get branding error:', error);
-    res.status(500).json({ error: 'Erro ao buscar branding' });
+    res.json({ ...DEFAULT_BRANDING });
   }
 });
 
