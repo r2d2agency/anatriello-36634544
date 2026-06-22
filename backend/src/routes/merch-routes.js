@@ -895,30 +895,6 @@ router.get('/brand-checklists', authenticate, async (req, res) => {
     const orgId = orgRes.rows[0].organization_id;
     const { brand_id } = req.query;
 
-    // Ensure table exists
-    await query(`CREATE TABLE IF NOT EXISTS brand_checklists (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      organization_id UUID NOT NULL,
-      brand_id UUID NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      require_checkin_photo BOOLEAN DEFAULT true,
-      require_checkout_photo BOOLEAN DEFAULT false,
-      require_stock_count BOOLEAN DEFAULT false,
-       require_validity_check BOOLEAN DEFAULT false,
-       require_extra_point BOOLEAN DEFAULT false,
-       require_category_photos BOOLEAN DEFAULT true,
-       stock_count_frequency VARCHAR(20) DEFAULT 'every_visit',
-      validity_check_frequency VARCHAR(20) DEFAULT 'every_visit',
-      active BOOLEAN DEFAULT true,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS require_category_photos BOOLEAN DEFAULT true`).catch(() => {});
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS category_photo_mode VARCHAR(20) DEFAULT 'both'`).catch(() => {});
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_before INT DEFAULT 1`).catch(() => {});
-    await query(`ALTER TABLE brand_checklists ADD COLUMN IF NOT EXISTS min_category_photos_after INT DEFAULT 1`).catch(() => {});
-
     let sql = 'SELECT bc.*, b.name as brand_name FROM brand_checklists bc LEFT JOIN merch_brands b ON b.id=bc.brand_id WHERE bc.organization_id=$1';
     const params = [orgId];
     if (brand_id) { sql += ' AND bc.brand_id=$2'; params.push(brand_id); }
