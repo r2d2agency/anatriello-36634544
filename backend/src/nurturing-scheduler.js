@@ -37,6 +37,15 @@ function replaceVariables(content, variables) {
   return result;
 }
 
+async function hasTables(tableNames) {
+  const placeholders = tableNames.map((_, index) => `$${index + 1}`).join(', ');
+  const result = await query(
+    `SELECT COUNT(*)::int AS count FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname IN (${placeholders})`,
+    tableNames
+  );
+  return Number(result.rows[0]?.count || 0) === tableNames.length;
+}
+
 // Send WhatsApp message
 async function sendWhatsAppStep(enrollment, step, connection) {
   const content = replaceVariables(step.whatsapp_content, {
@@ -133,6 +142,8 @@ async function getWhatsAppConnection(organizationId) {
 async function hasContactReplied(enrollmentId, conversationId, enrolledAt) {
   if (!conversationId) return false;
 
+  if (!(await hasTables(['chat_messages']))) return false;
+
   const result = await query(
     `SELECT COUNT(*) as count
      FROM chat_messages
@@ -159,6 +170,17 @@ export async function executeNurturingSteps() {
   };
 
   try {
+    const schemaReady = await hasTables([
+      'nurturing_enrollments',
+      'nurturing_sequences',
+      'nurturing_sequence_steps',
+      'nurturing_step_logs',
+    ]);
+    if (!schemaReady) {
+      log('info', 'nurturing.scheduler.schema_not_ready');
+      return stats;
+    }
+
     // Get all active enrollments that are due for next step
     const pendingEnrollments = await query(`
       SELECT 
@@ -455,6 +477,16 @@ export async function executeNurturingSteps() {
 // Check for new enrollments that need their first step scheduled
 export async function scheduleNewEnrollments() {
   try {
+    const schemaReady = await hasTables([
+      'nurturing_enrollments',
+      'nurturing_sequences',
+      'nurturing_sequence_steps',
+    ]);
+    if (!schemaReady) {
+      log('info', 'nurturing.schedule_new.schema_not_ready');
+      return;
+    }
+
     // Find enrollments that have current_step = 0 and no next_step_at
     const newEnrollments = await query(`
       SELECT e.id, e.sequence_id
