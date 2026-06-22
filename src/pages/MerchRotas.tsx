@@ -747,11 +747,6 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
     }
   }, [route, open]);
 
-  const toggleWeekday = (wd: number) => {
-    const current = form.recurrence_weekdays || [];
-    setForm({ ...form, recurrence_weekdays: current.includes(wd) ? current.filter((d: number) => d !== wd) : [...current, wd] });
-  };
-
   const handleAddMixProduct = (product: any) => {
     if (route?.id) {
       addProduct.mutate({ routeId: route.id, product_id: product.product_id, category_id: product.category_id }, {
@@ -977,7 +972,7 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                       })}
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      Vazio = usa os dias gerais da rota. Ex: Marca A seg/qua/sex, Marca B ter/qui.
+                      Vazio = repete no dia da data de início. Ex: Marca A seg/qua/sex, Marca B ter/qui.
                     </p>
                   </div>
                 )}
@@ -1044,42 +1039,6 @@ function RouteFormDialog({ open, route, onClose, pdvs, employees, onSave, onDele
                     </div>
                   </div>
 
-                  {form.recurrence_type === 'weekly' && (
-                    <div>
-                      <Label className="text-xs">Dias da semana</Label>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {WEEKDAY_LABELS.map((lbl, idx) => {
-                          // WEEKDAY_LABELS: Seg..Dom. ISO weekday: Dom=0, Seg=1..Sab=6
-                          const wd = idx === 6 ? 0 : idx + 1;
-                          const active = (form.recurrence_weekdays || []).includes(wd);
-                          return (
-                            <button
-                              key={wd}
-                              type="button"
-                              onClick={() => {
-                                const cur: number[] = form.recurrence_weekdays || [];
-                                setForm({
-                                  ...form,
-                                  recurrence_weekdays: cur.includes(wd) ? cur.filter(d => d !== wd) : [...cur, wd],
-                                });
-                              }}
-                              className={cn(
-                                'h-8 px-3 rounded-md border text-xs font-medium transition-colors',
-                                active
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                              )}
-                            >
-                              {lbl}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Selecione os dias em que a rota se repete. Sem seleção, usa o dia da data de início.
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
