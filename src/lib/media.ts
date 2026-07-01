@@ -15,7 +15,14 @@ export function resolveMediaUrl(url?: string | null): string | null {
   // Returning null prevents "Not allowed to load local resource" errors.
   if (/^blob:/i.test(u) || /^local-file:/i.test(u)) return null;
   
-  if (/^(https?:|data:)/i.test(u)) return u;
+  if (/^https?:/i.test(u)) {
+    // Force HTTPS to avoid mixed-content blocks when page is served over HTTPS
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && u.startsWith('http://')) {
+      return 'https://' + u.slice('http://'.length);
+    }
+    return u;
+  }
+  if (/^data:/i.test(u)) return u;
   if (u.startsWith("//")) return `https:${u}`;
 
   if (u.startsWith("/")) return `${API_URL}${u}`;
