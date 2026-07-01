@@ -11,6 +11,10 @@ export interface Company {
   logo_url?: string | null;
   color?: string;
   address?: string | null;
+  cep?: string | null;
+  address_number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
   phone?: string | null;

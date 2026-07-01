@@ -4812,6 +4812,11 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_companies_org ON companies(organization_id);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_org_cnpj ON companies(organization_id, cnpj) WHERE cnpj IS NOT NULL;
 
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS cep VARCHAR(15);
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS address_number VARCHAR(20);
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS complement VARCHAR(120);
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(120);
+
       ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE SET NULL;
       CREATE INDEX IF NOT EXISTS idx_employees_company ON employees(company_id);
 
