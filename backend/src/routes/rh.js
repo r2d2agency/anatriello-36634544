@@ -608,11 +608,14 @@ router.put('/employees/:id', async (req, res) => {
     // Normalize only sent fields
     const d = {};
     const jsonbFields = ['salary_items', 'benefits'];
+    const extSet = new Set(EXTENDED_EMPLOYEE_COLS);
     for (const k of sentKeys) {
       if (k === 'work_schedule') {
         d[k] = typeof req.body[k] === 'object' ? JSON.stringify(req.body[k]) : String(req.body[k] || '08:00-17:00');
       } else if (jsonbFields.includes(k)) {
         d[k] = JSON.stringify(Array.isArray(req.body[k]) ? req.body[k] : []);
+      } else if (extSet.has(k)) {
+        d[k] = coerceEmployeeExtValue(k, req.body[k]);
       } else {
         d[k] = emptyToNull(req.body[k]);
       }
