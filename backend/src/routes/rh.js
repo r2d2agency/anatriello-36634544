@@ -256,6 +256,16 @@ let employeeExtraColsReady = false;
 async function ensureEmployeeExtraColumns() {
   if (employeeExtraColsReady) return;
   try {
+    // Colunas usadas diretamente pelo INSERT/UPDATE principal do cadastro/importação.
+    // Mantém compatibilidade com bancos antigos/remixados antes das migrations completas.
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE SET NULL`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS address_number VARCHAR(10)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS pix_key VARCHAR(255)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS pix_key_type VARCHAR(20)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_items JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS benefits JSONB NOT NULL DEFAULT '[]'::jsonb`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS home_latitude NUMERIC(10,7)`);
+    await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS home_longitude NUMERIC(10,7)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_zone VARCHAR(20)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS voter_section VARCHAR(20)`);
     await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS skin_color VARCHAR(50)`);
@@ -278,6 +288,93 @@ function emptyToNull(value) {
   return value;
 }
 
+function stripAccents(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizeKey(value) {
+  return stripAccents(value).trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function parseBrazilianNumber(value, fallback = null) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+  const raw = String(value).trim();
+  if (!raw) return fallback;
+  let s = raw.replace(/[^\d,.-]/g, '');
+  if (!s || s === '-' || s === ',' || s === '.') return fallback;
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    s = s.replace(',', '.');
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeDateValue(value) {
+  const v = emptyToNull(value);
+  if (!v) return null;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  const s = String(v).trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
+  if (br) {
+    const year = br[3].length === 2 ? `20${br[3]}` : br[3];
+    return `${year}-${br[2].padStart(2, '0')}-${br[1].padStart(2, '0')}`;
+  }
+  const serial = Number(s);
+  if (Number.isFinite(serial) && serial > 10000 && serial < 100000) {
+    const d = new Date((serial - 25569) * 86400000);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+function normalizeEmploymentType(value) {
+  const key = normalizeKey(value);
+  if (!key) return 'clt';
+  if (['clt','pj','freelancer','temporario','estagiario','aprendiz'].includes(key)) return key;
+  if (key.includes('estag')) return 'estagiario';
+  if (key.includes('aprendiz')) return 'aprendiz';
+  if (key.includes('temp')) return 'temporario';
+  if (key.includes('freela')) return 'freelancer';
+  if (key.includes('pj') || key.includes('pessoa_juridica')) return 'pj';
+  return 'clt';
+}
+
+function normalizeWorkerProfile(value) {
+  const key = normalizeKey(value);
+  if (!key) return 'operacional';
+  if (['administrativo','supervisor','promotor','operacional'].includes(key)) return key;
+  if (key.includes('admin')) return 'administrativo';
+  if (key.includes('super')) return 'supervisor';
+  if (key.includes('promotor')) return 'promotor';
+  return 'operacional';
+}
+
+function normalizeEmployeeStatus(value) {
+  const key = normalizeKey(value);
+  if (!key) return 'ativo';
+  if (['ativo','afastado','ferias','desligado','suspenso'].includes(key)) return key;
+  if (['ativa','admitido','admitida','trabalhando','normal'].includes(key)) return 'ativo';
+  if (key.includes('feria')) return 'ferias';
+  if (key.includes('afast')) return 'afastado';
+  if (key.includes('suspens')) return 'suspenso';
+  if (key.includes('deslig') || key.includes('demit')) return 'desligado';
+  return 'ativo';
+}
+
 function normalizeEmployeePayload(body = {}) {
   const workSchedule = body.work_schedule
     ? (typeof body.work_schedule === 'object' ? JSON.stringify(body.work_schedule) : String(body.work_schedule))
@@ -290,7 +387,7 @@ function normalizeEmployeePayload(body = {}) {
     cpf: emptyToNull(body.cpf),
     rg: emptyToNull(body.rg),
     rg_issuer: emptyToNull(body.rg_issuer),
-    birth_date: emptyToNull(body.birth_date),
+    birth_date: normalizeDateValue(body.birth_date),
     gender: emptyToNull(body.gender),
     marital_status: emptyToNull(body.marital_status),
     email: emptyToNull(body.email),
@@ -321,8 +418,8 @@ function normalizeEmployeePayload(body = {}) {
     })(),
     zip_code: emptyToNull(body.zip_code),
     registration_number: emptyToNull(body.registration_number),
-    worker_profile: emptyToNull(body.worker_profile) || 'operacional',
-    employment_type: emptyToNull(body.employment_type) || 'clt',
+    worker_profile: normalizeWorkerProfile(body.worker_profile),
+    employment_type: normalizeEmploymentType(body.employment_type),
     position: emptyToNull(body.position),
     role_level: emptyToNull(body.role_level),
     branch_id: emptyToNull(body.branch_id),
@@ -330,9 +427,9 @@ function normalizeEmployeePayload(body = {}) {
     department_id: emptyToNull(body.department_id),
     cost_center_id: emptyToNull(body.cost_center_id),
     direct_manager_id: emptyToNull(body.direct_manager_id),
-    admission_date: emptyToNull(body.admission_date),
-    contract_end_date: emptyToNull(body.contract_end_date),
-    salary: emptyToNull(body.salary) ?? 0,
+    admission_date: normalizeDateValue(body.admission_date),
+    contract_end_date: normalizeDateValue(body.contract_end_date),
+    salary: parseBrazilianNumber(body.salary, 0),
     work_schedule: workSchedule,
     bank_name: emptyToNull(body.bank_name),
     bank_agency: emptyToNull(body.bank_agency),
@@ -349,7 +446,7 @@ function normalizeEmployeePayload(body = {}) {
     skin_color: emptyToNull(body.skin_color),
     cnpj: emptyToNull(body.cnpj),
     company_name: emptyToNull(body.company_name),
-    status: emptyToNull(body.status) || 'ativo',
+    status: normalizeEmployeeStatus(body.status),
     photo_url: emptyToNull(body.photo_url),
     salary_items: Array.isArray(body.salary_items) ? body.salary_items : [],
     benefits: Array.isArray(body.benefits) ? body.benefits : [],
