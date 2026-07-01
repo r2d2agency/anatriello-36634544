@@ -255,6 +255,7 @@ export function EmployeeImportExportDialog({ open, onOpenChange, employees, depa
         if (!emp.status) emp.status = "ativo";
         if (!emp.worker_profile) emp.worker_profile = "operacional";
         if (!emp.employment_type) emp.employment_type = "clt";
+        if (importCompanyId) emp.company_id = importCompanyId;
         batch.push(emp);
       }
 
