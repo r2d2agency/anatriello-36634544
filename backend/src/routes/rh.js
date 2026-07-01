@@ -571,8 +571,10 @@ router.post('/employees', async (req, res) => {
       await query(`UPDATE employees SET facial_required = $1 WHERE id = $2`, [req.body.facial_required, result.rows[0].id]);
       result.rows[0].facial_required = req.body.facial_required;
     }
+    await applyExtendedEmployeeCols(result.rows[0].id, req.body);
     await auditLog(orgId, 'employee', result.rows[0].id, 'create', [{ field: 'full_name', oldVal: null, newVal: d.full_name }], req.userId);
-    res.json(result.rows[0]);
+    const fresh = await query(`SELECT * FROM employees WHERE id = $1`, [result.rows[0].id]);
+    res.json(fresh.rows[0] || result.rows[0]);
   } catch (err) {
     logError('rh.employees.create', err, { body: req.body });
     const message = err?.detail || err?.message || 'Erro ao criar colaborador';
