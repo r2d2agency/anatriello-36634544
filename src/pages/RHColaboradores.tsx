@@ -771,18 +771,61 @@ export default function RHColaboradores() {
                           {" · "}Folga: {Object.entries(sched.days).filter(([,v]) => !v).map(([k]) => WEEKDAYS.find(w => w.key === k)?.label).join(", ") || "Nenhuma"}
                         </p>
 
-                        {/* Time inputs */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <div><Label className="text-xs">Entrada</Label><Input type="time" value={sched.entry} onChange={e => updateSched({ entry: e.target.value })} /></div>
-                          <div><Label className="text-xs">Saída</Label><Input type="time" value={sched.exit} onChange={e => updateSched({ exit: e.target.value })} /></div>
-                          <div><Label className="text-xs">Início Almoço</Label><Input type="time" value={sched.lunch_start} onChange={e => updateSched({ lunch_start: e.target.value })} /></div>
-                          <div><Label className="text-xs">Fim Almoço</Label><Input type="time" value={sched.lunch_end} onChange={e => updateSched({ lunch_end: e.target.value })} /></div>
+                        {/* Toggle padrão / por dia */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            id="per-day-toggle"
+                            type="checkbox"
+                            checked={!!sched.per_day_enabled}
+                            onChange={e => {
+                              const enabled = e.target.checked;
+                              const per_day = { ...(sched.per_day || {}) };
+                              if (enabled) {
+                                Object.entries(sched.days).forEach(([d, active]) => {
+                                  if (active && !per_day[d]) {
+                                    per_day[d] = { entry: sched.entry, exit: sched.exit, lunch_start: sched.lunch_start, lunch_end: sched.lunch_end };
+                                  }
+                                });
+                              }
+                              updateSched({ per_day_enabled: enabled, per_day });
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor="per-day-toggle" className="text-xs cursor-pointer">Horário diferente por dia</Label>
                         </div>
+
+                        {!sched.per_day_enabled ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div><Label className="text-xs">Entrada</Label><Input type="time" value={sched.entry} onChange={e => updateSched({ entry: e.target.value })} /></div>
+                            <div><Label className="text-xs">Saída</Label><Input type="time" value={sched.exit} onChange={e => updateSched({ exit: e.target.value })} /></div>
+                            <div><Label className="text-xs">Início Almoço</Label><Input type="time" value={sched.lunch_start} onChange={e => updateSched({ lunch_start: e.target.value })} /></div>
+                            <div><Label className="text-xs">Fim Almoço</Label><Input type="time" value={sched.lunch_end} onChange={e => updateSched({ lunch_end: e.target.value })} /></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {WEEKDAYS.filter(wd => sched.days[wd.key]).map(wd => {
+                              const t = sched.per_day?.[wd.key] || { entry: sched.entry, exit: sched.exit, lunch_start: sched.lunch_start, lunch_end: sched.lunch_end };
+                              const setT = (patch: any) => updateSched({ per_day: { ...(sched.per_day || {}), [wd.key]: { ...t, ...patch } } });
+                              return (
+                                <div key={wd.key} className="grid grid-cols-[50px_1fr_1fr_1fr_1fr] gap-2 items-center p-2 rounded border bg-background">
+                                  <span className="text-xs font-semibold text-primary">{wd.label}</span>
+                                  <div><Label className="text-[10px] text-muted-foreground">Entrada</Label><Input type="time" value={t.entry} onChange={e => setT({ entry: e.target.value })} className="h-8" /></div>
+                                  <div><Label className="text-[10px] text-muted-foreground">Saída</Label><Input type="time" value={t.exit} onChange={e => setT({ exit: e.target.value })} className="h-8" /></div>
+                                  <div><Label className="text-[10px] text-muted-foreground">Ini. Almoço</Label><Input type="time" value={t.lunch_start} onChange={e => setT({ lunch_start: e.target.value })} className="h-8" /></div>
+                                  <div><Label className="text-[10px] text-muted-foreground">Fim Almoço</Label><Input type="time" value={t.lunch_end} onChange={e => setT({ lunch_end: e.target.value })} className="h-8" /></div>
+                                </div>
+                              );
+                            })}
+                            {Object.values(sched.days).every(v => !v) && (
+                              <p className="text-xs text-muted-foreground italic">Selecione ao menos um dia trabalhado acima.</p>
+                            )}
+                          </div>
+                        )}
 
                         {/* Calculated stats */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-lg bg-background border">
                           <div className="text-center">
-                            <p className="text-xs text-muted-foreground">Horas/Dia</p>
+                            <p className="text-xs text-muted-foreground">Horas/Dia (méd.)</p>
                             <p className="text-sm font-semibold">{stats.dailyHours.toFixed(1)}h</p>
                           </div>
                           <div className="text-center">
