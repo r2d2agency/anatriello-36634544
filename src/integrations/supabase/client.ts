@@ -2,9 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -15,31 +14,43 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
-
     if (init?.headers) {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
-
-    // New Supabase API keys are opaque strings, not bearer JWTs.
     if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
       headers.delete('Authorization');
     }
-
     headers.set('apikey', supabaseKey);
     return fetch(input, { ...init, headers });
   };
 }
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// Fallback stub to avoid "supabaseUrl is required" crashes when env vars are
+// missing (e.g. custom domain deployments that use the local Postgres backend).
+function createStub(): any {
+  const err = () => Promise.resolve({ data: null, error: new Error('Supabase client not configured') });
+  const chain: any = new Proxy(function () {}, {
+    get: () => chain,
+    apply: () => err(),
+  });
+  return {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signInWithPassword: err,
+      signOut: () => Promise.resolve({ error: null }),
+    },
+    from: () => chain,
+    rpc: err,
+    storage: { from: () => chain },
+    functions: { invoke: err },
+  };
+}
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  global: {
-    fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
-  },
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+export const supabase: any = (SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY)
+  ? createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
+      auth: { storage: localStorage, persistSession: true, autoRefreshToken: true },
+    })
+  : createStub();
