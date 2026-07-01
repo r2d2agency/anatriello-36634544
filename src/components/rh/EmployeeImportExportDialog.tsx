@@ -302,30 +302,60 @@ export function EmployeeImportExportDialog({ open, onOpenChange, employees, depa
         )}
 
         {mode === "choose" && (
-          <div className="grid grid-cols-2 gap-4 py-6">
-            <button onClick={() => setMode("import-upload")} className="flex flex-col items-center gap-3 p-8 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all">
-              <Upload className="h-10 w-10 text-primary" />
-              <span className="font-semibold text-lg">Importar</span>
-              <span className="text-sm text-muted-foreground text-center">Envie uma planilha XLSX/CSV com os dados dos colaboradores</span>
-            </button>
-            <button onClick={handleExport} className="flex flex-col items-center gap-3 p-8 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all">
-              <Download className="h-10 w-10 text-primary" />
-              <span className="font-semibold text-lg">Exportar</span>
-              <span className="text-sm text-muted-foreground text-center">Baixe todos os colaboradores em formato XLSX</span>
-            </button>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setMode("import-upload")} className="flex flex-col items-center gap-3 p-8 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all">
+                <Upload className="h-10 w-10 text-primary" />
+                <span className="font-semibold text-lg">Importar</span>
+                <span className="text-sm text-muted-foreground text-center">Envie uma planilha XLSX/CSV com os dados dos colaboradores</span>
+              </button>
+              <button onClick={handleExport} className="flex flex-col items-center gap-3 p-8 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all">
+                <Download className="h-10 w-10 text-primary" />
+                <span className="font-semibold text-lg">Exportar</span>
+                <span className="text-sm text-muted-foreground text-center">Baixe todos os colaboradores em formato XLSX</span>
+              </button>
+            </div>
+            <div className="flex justify-center">
+              <Button variant="ghost" size="sm" onClick={handleDownloadTemplate}>
+                <Download className="h-4 w-4 mr-1" /> Baixar modelo de planilha
+              </Button>
+            </div>
           </div>
         )}
 
         {mode === "import-upload" && (
-          <div
-            className="flex flex-col items-center gap-4 p-12 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary transition-all cursor-pointer"
-            onClick={() => fileRef.current?.click()}
-            onDragOver={e => e.preventDefault()}
-            onDrop={handleDrop}
-          >
-            <FileSpreadsheet className="h-16 w-16 text-muted-foreground" />
-            <p className="text-lg font-medium">Arraste a planilha aqui ou clique para selecionar</p>
-            <p className="text-sm text-muted-foreground">Formatos aceitos: .xlsx, .xls, .csv</p>
+          <div className="space-y-4">
+            {companies.length > 0 && (
+              <div className="rounded-lg border p-3 space-y-2">
+                <Label className="text-sm font-medium">Empresa dos colaboradores importados *</Label>
+                <Select value={importCompanyId} onValueChange={setImportCompanyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Todos os colaboradores da planilha serão vinculados a esta empresa.</p>
+              </div>
+            )}
+            <div
+              className={cn(
+                "flex flex-col items-center gap-4 p-12 rounded-xl border-2 border-dashed transition-all",
+                companies.length > 0 && !importCompanyId
+                  ? "border-muted-foreground/20 opacity-50 pointer-events-none"
+                  : "border-muted-foreground/30 hover:border-primary cursor-pointer"
+              )}
+              onClick={() => { if (companies.length === 0 || importCompanyId) fileRef.current?.click(); }}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { if (companies.length === 0 || importCompanyId) handleDrop(e); else e.preventDefault(); }}
+            >
+              <FileSpreadsheet className="h-16 w-16 text-muted-foreground" />
+              <p className="text-lg font-medium">Arraste a planilha aqui ou clique para selecionar</p>
+              <p className="text-sm text-muted-foreground">Formatos aceitos: .xlsx, .xls, .csv</p>
+            </div>
           </div>
         )}
 
