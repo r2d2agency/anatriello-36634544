@@ -326,6 +326,7 @@ function normalizeEmployeePayload(body = {}) {
     position: emptyToNull(body.position),
     role_level: emptyToNull(body.role_level),
     branch_id: emptyToNull(body.branch_id),
+    company_id: emptyToNull(body.company_id),
     department_id: emptyToNull(body.department_id),
     cost_center_id: emptyToNull(body.cost_center_id),
     direct_manager_id: emptyToNull(body.direct_manager_id),
