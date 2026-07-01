@@ -164,8 +164,14 @@ router.post('/', authenticate, (req, res) => {
         return res.status(400).json({ error: 'Nenhum arquivo enviado' });
       }
 
-      // Build the public URL - use backend domain, not frontend
-      const baseUrl = String(process.env.API_BASE_URL || '').trim().replace(/\/+$/, '');
+      // Build the public URL - always absolute so it works across domains/apps
+      const envBase = String(process.env.API_BASE_URL || '').trim().replace(/\/+$/, '');
+      const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+      const forwardedHost = String(req.headers['x-forwarded-host'] || req.headers['host'] || '').split(',')[0].trim();
+      const inferredBase = forwardedHost
+        ? `${forwardedProto || req.protocol || 'https'}://${forwardedHost}`
+        : '';
+      const baseUrl = envBase || inferredBase;
       const fileUrl = baseUrl
         ? `${baseUrl}/uploads/${req.file.filename}`
         : `/uploads/${req.file.filename}`;
