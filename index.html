@@ -55,8 +55,7 @@
         if(isPromotor && isMobile && splash){
           splash.style.display = 'flex';
           root.style.visibility = 'hidden';
-          var vid = document.getElementById('splash-video');
-          if(vid) vid.play().catch(function(){});
+          setTimeout(function(){ if(splash){ splash.style.opacity='0'; setTimeout(function(){ splash.remove(); if(root) root.style.visibility=''; },500); } }, 1200);
         } else if(splash){
           splash.remove();
         }
