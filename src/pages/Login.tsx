@@ -170,8 +170,9 @@ const Login = () => {
       <footer className="py-4 px-4 border-t">
         <div className="max-w-md mx-auto text-center space-y-2">
           <p className="text-xs text-muted-foreground">
-            {branding.company_name || 'Anatriello Gestão'} - Gestão de Promotores e Merchandising
+            {branding.company_name || 'Anatriello Gestão'} — Plataforma corporativa
           </p>
+
           <div className="flex items-center justify-center gap-4 text-xs">
             <Link 
               to="/politica-privacidade" 
