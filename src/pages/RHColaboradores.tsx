@@ -64,28 +64,43 @@ const DEFAULT_SCHEDULE = {
   exit: "17:00",
   lunch_start: "12:00",
   lunch_end: "13:00",
+  per_day_enabled: false,
+  per_day: {} as Record<string, { entry: string; exit: string; lunch_start: string; lunch_end: string }>,
 };
 
 function parseSchedule(ws: any) {
-  if (!ws) return { ...DEFAULT_SCHEDULE, days: { ...DEFAULT_SCHEDULE.days } };
-  if (typeof ws === "object" && ws.days) return ws;
-  // Legacy "08:00-17:00" format
+  const base = { ...DEFAULT_SCHEDULE, days: { ...DEFAULT_SCHEDULE.days }, per_day: {} };
+  if (!ws) return base;
+  if (typeof ws === "object" && ws.days) return { ...base, ...ws, days: { ...base.days, ...ws.days }, per_day: { ...(ws.per_day || {}) } };
   const match = typeof ws === "string" && ws.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
-  if (match) return { ...DEFAULT_SCHEDULE, days: { ...DEFAULT_SCHEDULE.days }, entry: match[1], exit: match[2] };
-  try { return JSON.parse(ws); } catch { return { ...DEFAULT_SCHEDULE, days: { ...DEFAULT_SCHEDULE.days } }; }
+  if (match) return { ...base, entry: match[1], exit: match[2] };
+  try { const p = JSON.parse(ws); return { ...base, ...p, days: { ...base.days, ...(p.days || {}) }, per_day: { ...(p.per_day || {}) } }; } catch { return base; }
+}
+
+function getDayTimes(sched: any, day: string) {
+  if (sched.per_day_enabled && sched.per_day?.[day]) return sched.per_day[day];
+  return { entry: sched.entry, exit: sched.exit, lunch_start: sched.lunch_start, lunch_end: sched.lunch_end };
+}
+
+function dayHours(t: { entry: string; exit: string; lunch_start: string; lunch_end: string }) {
+  const [eh, em] = t.entry.split(":").map(Number);
+  const [xh, xm] = t.exit.split(":").map(Number);
+  const [lsh, lsm] = t.lunch_start.split(":").map(Number);
+  const [leh, lem] = t.lunch_end.split(":").map(Number);
+  const totalMin = (xh * 60 + xm) - (eh * 60 + em);
+  const lunchMin = (leh * 60 + lem) - (lsh * 60 + lsm);
+  return Math.max(0, totalMin - lunchMin) / 60;
 }
 
 function calcScheduleHours(sched: any) {
-  const [eh, em] = sched.entry.split(":").map(Number);
-  const [xh, xm] = sched.exit.split(":").map(Number);
-  const [lsh, lsm] = sched.lunch_start.split(":").map(Number);
-  const [leh, lem] = sched.lunch_end.split(":").map(Number);
-  const totalMin = (xh * 60 + xm) - (eh * 60 + em);
-  const lunchMin = (leh * 60 + lem) - (lsh * 60 + lsm);
-  const dailyHours = Math.max(0, totalMin - lunchMin) / 60;
-  const workDays = Object.values(sched.days).filter(Boolean).length;
-  const monthlyWorkDays = Math.round(workDays * 4.33);
-  return { dailyHours, workDays, monthlyWorkDays, monthlyHours: dailyHours * monthlyWorkDays };
+  const activeDays = Object.entries(sched.days).filter(([, v]) => v).map(([k]) => k);
+  const workDays = activeDays.length;
+  const weeklyHours = activeDays.reduce((sum, d) => sum + dayHours(getDayTimes(sched, d)), 0);
+  const dailyHours = workDays > 0 ? weeklyHours / workDays : 0;
+  const weeksPerMonth = 4.33;
+  const monthlyWorkDays = Math.round(workDays * weeksPerMonth);
+  const monthlyHours = weeklyHours * weeksPerMonth;
+  return { dailyHours, workDays, monthlyWorkDays, monthlyHours };
 }
 
 const EMPTY_FORM = {
