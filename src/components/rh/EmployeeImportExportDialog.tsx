@@ -87,10 +87,13 @@ interface Props {
   employees: any[];
   departments: any[];
   branches: any[];
+  companies?: { id: string; name: string }[];
+  defaultCompanyId?: string;
   onImport: (rows: Record<string, any>[]) => Promise<void>;
 }
 
-export function EmployeeImportExportDialog({ open, onOpenChange, employees, departments, branches, onImport }: Props) {
+export function EmployeeImportExportDialog({ open, onOpenChange, employees, departments, branches, companies = [], defaultCompanyId, onImport }: Props) {
+  const [importCompanyId, setImportCompanyId] = useState<string>(defaultCompanyId || "");
   const [mode, setMode] = useState<"choose" | "import-upload" | "import-mapping" | "import-preview" | "importing">("choose");
   const [columns, setColumns] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
