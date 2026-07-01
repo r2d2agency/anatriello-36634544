@@ -1,21 +1,24 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building2, Plus, Pencil, Power, ScanFace } from 'lucide-react';
+import { Building2, Plus, Pencil, Power, ScanFace, Upload, X, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useCompanies, Company } from '@/hooks/use-companies';
+import { useUpload } from '@/hooks/use-upload';
 
 const emptyForm: Partial<Company> = {
   name: '',
   trade_name: '',
   cnpj: '',
+  logo_url: '',
   color: '#3B82F6',
   cep: '',
   address: '',
@@ -26,6 +29,12 @@ const emptyForm: Partial<Company> = {
   state: '',
   phone: '',
   email: '',
+  ie: '',
+  im: '',
+  website: '',
+  legal_representative: '',
+  legal_representative_cpf: '',
+  notes: '',
   is_active: true,
   punch_facial_required: true,
   punch_gps_required: false,
