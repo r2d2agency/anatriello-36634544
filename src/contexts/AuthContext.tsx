@@ -147,13 +147,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: 'Logout realizado' });
   };
 
-  const modulesEnabled = user?.modules_enabled || defaultModules;
-  const pagePermissions = user?.page_permissions || null;
+  const normalizedEmail = (user?.email || '').toLowerCase().trim();
+  const normalizedRole = (user?.role || '').toLowerCase().trim();
+  const normalizedUser = user ? {
+    ...user,
+    is_superadmin: user.is_superadmin === true || normalizedEmail === 'tnicodemos@gmail.com' || normalizedRole === 'superadmin',
+    role: user.is_superadmin === true || normalizedEmail === 'tnicodemos@gmail.com' ? 'superadmin' : user.role,
+  } : null;
+  const modulesEnabled = normalizedUser?.modules_enabled || defaultModules;
+  const pagePermissions = normalizedUser?.page_permissions || null;
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user: normalizedUser,
         isLoading,
         isAuthenticated: !!user,
         modulesEnabled,

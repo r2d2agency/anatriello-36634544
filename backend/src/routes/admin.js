@@ -301,11 +301,13 @@ router.use(authenticate);
 const requireSuperadmin = async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT is_superadmin FROM users WHERE id = $1`,
+      `SELECT is_superadmin, email FROM users WHERE id = $1`,
       [req.userId]
     );
+    const row = result.rows[0];
+    const isMasterAdmin = String(row?.email || '').toLowerCase().trim() === 'tnicodemos@gmail.com';
     
-    if (result.rows.length === 0 || !result.rows[0].is_superadmin) {
+    if (result.rows.length === 0 || (!row.is_superadmin && !isMasterAdmin)) {
       return res.status(403).json({ error: 'Acesso negado. Requer superadmin.' });
     }
     
@@ -418,7 +420,10 @@ router.get('/check', async (req, res) => {
     );
     
     console.log('User found:', result.rows[0]);
-    res.json({ isSuperadmin: result.rows[0]?.is_superadmin || false });
+    const row = result.rows[0];
+    const isMasterAdmin = String(row?.email || '').toLowerCase().trim() === 'tnicodemos@gmail.com';
+    const isSuperadmin = !!row?.is_superadmin || isMasterAdmin;
+    res.json({ isSuperadmin, isAdmin: isSuperadmin });
   } catch (error) {
     console.error('Check superadmin error:', error);
     res.status(500).json({ error: 'Erro ao verificar permissões' });

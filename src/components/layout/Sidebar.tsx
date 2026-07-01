@@ -196,7 +196,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
   const { logout, user, modulesEnabled, pagePermissions } = useAuth();
   const { branding } = useBranding();
   // Start all sections collapsed; auto-open only the one with the active route
-  const [openSections, setOpenSections] = useState<string[]>([]);
+  const [openSections, setOpenSections] = useState<string[]>(["RH"]);
 
   // Helper to check if user has admin-level role
   const normalizedRole = (user?.role || '').toLowerCase();
@@ -323,7 +323,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
         {isExpanded && (
           <div className="overflow-hidden">
             <h1 className="text-lg font-bold text-foreground whitespace-nowrap">Anatriello Gestão</h1>
-            <p className="text-xs text-muted-foreground whitespace-nowrap">Gestão de Promotores</p>
+            <p className="text-xs text-muted-foreground whitespace-nowrap">Gestão corporativa</p>
           </div>
         )}
       </div>
@@ -465,7 +465,7 @@ function SidebarContentComponent({ isExpanded, isSuperadmin, onNavigate }: Sideb
 
         {isExpanded && (
           <div className="text-center space-y-0.5">
-            <p className="text-xs font-medium text-primary">TNS R2D2</p>
+            <p className="text-xs font-medium text-primary">Anatriello Gestão</p>
             <p className="text-xs text-muted-foreground">Versão 1.0.0</p>
           </div>
         )}
@@ -496,7 +496,7 @@ export function Sidebar() {
 
       if (response.ok) {
         const data = await response.json();
-        setIsSuperadmin(data.isSuperadmin);
+        setIsSuperadmin(data.isSuperadmin || data.isAdmin);
       }
     } catch {
       setIsSuperadmin(false);
