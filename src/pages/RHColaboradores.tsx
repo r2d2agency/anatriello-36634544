@@ -369,7 +369,7 @@ export default function RHColaboradores() {
             <SelectTrigger className="w-48"><SelectValue placeholder="Empresa" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas Empresas</SelectItem>
-              {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.legal_name || c.name}</SelectItem>)}
+              {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -683,7 +683,7 @@ export default function RHColaboradores() {
                   <Select value={form.company_id || ""} onValueChange={v => setField("company_id", v)}>
                     <SelectTrigger><SelectValue placeholder="Selecionar empresa" /></SelectTrigger>
                     <SelectContent>
-                      {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.legal_name || c.name}</SelectItem>)}
+                      {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.name}</SelectItem>)}
                       {companies.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhuma empresa cadastrada</p>}
                     </SelectContent>
                   </Select>
