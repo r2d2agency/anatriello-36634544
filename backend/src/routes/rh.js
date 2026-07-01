@@ -520,7 +520,7 @@ router.put('/employees/:id', async (req, res) => {
       'full_name','social_name','cpf','rg','rg_issuer','birth_date','gender','marital_status',
       'email','phone','phone2','address','address_number','complement','neighborhood','city',
       'state','zip_code','registration_number','worker_profile','employment_type','position',
-      'role_level','branch_id','department_id','cost_center_id','direct_manager_id',
+      'role_level','branch_id','company_id','department_id','cost_center_id','direct_manager_id',
       'admission_date','contract_end_date','salary','work_schedule','bank_name','bank_agency',
       'bank_account','bank_account_type','pix_key','pix_key_type','ctps_number','ctps_series','pis_pasep',
       'voter_id','voter_zone','voter_section','skin_color','cnpj',
