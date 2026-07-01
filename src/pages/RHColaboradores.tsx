@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee, useRhDepartments, useBranches, useCreateBranch, useDeleteBranch, useCreateRhDepartment, useDeleteRhDepartment, useRhPositions, useCreateRhPosition, useDeleteRhPosition, useWorkerProfiles, useCreateWorkerProfile, useDeleteWorkerProfile, useRhDocuments, useCreateRhDocument, useDeleteRhDocument } from "@/hooks/use-rh";
+import { useCompanies } from "@/hooks/use-companies";
 import { useAppAccess, useGrantAppAccess, useBlockAppAccess, useResetAppPassword } from "@/hooks/use-promotor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +93,7 @@ const EMPTY_FORM = {
   address: "", address_number: "", complement: "", neighborhood: "", city: "", state: "", zip_code: "",
   registration_number: "",
   worker_profile: "operacional", employment_type: "clt", position: "", salary: "",
-  admission_date: "", department_id: "", branch_id: "", direct_manager_id: "",
+  admission_date: "", company_id: "", department_id: "", branch_id: "", direct_manager_id: "",
   work_schedule: { ...DEFAULT_SCHEDULE, days: { ...DEFAULT_SCHEDULE.days } },
   bank_name: "", bank_agency: "", bank_account: "", bank_account_type: "", pix_key: "", pix_key_type: "",
   ctps_number: "", pis_pasep: "", cnpj: "", company_name: "", status: "ativo",
@@ -148,6 +149,7 @@ function calcAge(birthDate: string): string {
 export default function RHColaboradores() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [profileFilter, setProfileFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -162,7 +164,9 @@ export default function RHColaboradores() {
   const { data: rawEmployees = [], isLoading } = useEmployees({
     search: search || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
+    company_id: companyFilter !== "all" ? companyFilter : undefined,
   });
+  const { companies } = useCompanies();
 
   const employees = useMemo(() => {
     if (profileFilter === "all") return rawEmployees;
@@ -361,6 +365,13 @@ export default function RHColaboradores() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar por nome, CPF ou e-mail..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Empresa" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas Empresas</SelectItem>
+              {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -666,6 +677,16 @@ export default function RHColaboradores() {
                       </div>
                     </div>
                   )}
+                </div>
+                <div>
+                  <Label>Empresa (Holding)</Label>
+                  <Select value={form.company_id || ""} onValueChange={v => setField("company_id", v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar empresa" /></SelectTrigger>
+                    <SelectContent>
+                      {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.name}</SelectItem>)}
+                      {companies.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">Nenhuma empresa cadastrada</p>}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
