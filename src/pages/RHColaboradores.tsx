@@ -1090,6 +1090,8 @@ export default function RHColaboradores() {
         employees={rawEmployees}
         departments={departments}
         branches={branches}
+        companies={companies}
+        defaultCompanyId={companyFilter !== "all" ? companyFilter : undefined}
         onImport={async (rows) => {
           for (const row of rows) {
             await createMut.mutateAsync(row);
