@@ -209,8 +209,7 @@ function SmartRedirect() {
   }
   
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  if (isPWA) return <Navigate to="/login" replace />;
-  return <LandingPage />;
+  return <Navigate to="/login" replace />;
 }
 
 const App = () => (
