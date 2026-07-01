@@ -478,7 +478,7 @@ router.post('/employees', async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO employees (organization_id, full_name, social_name, cpf, rg, rg_issuer, birth_date, gender, marital_status, email, phone, phone2,
+      `INSERT INTO employees (organization_id, company_id, full_name, social_name, cpf, rg, rg_issuer, birth_date, gender, marital_status, email, phone, phone2,
         address, address_number, complement, neighborhood, city, state, zip_code,
         registration_number, worker_profile, employment_type, position, role_level,
         branch_id, department_id, cost_center_id, direct_manager_id,
@@ -487,9 +487,9 @@ router.post('/employees', async (req, res) => {
         ctps_number, ctps_series, pis_pasep, voter_id, voter_zone, voter_section, skin_color,
         cnpj, company_name, status, photo_url, created_by,
         salary_items, benefits, home_latitude, home_longitude)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55)
        RETURNING *`,
-      [orgId, d.full_name, d.social_name, d.cpf, d.rg, d.rg_issuer, d.birth_date, d.gender, d.marital_status, d.email, d.phone, d.phone2,
+      [orgId, d.company_id, d.full_name, d.social_name, d.cpf, d.rg, d.rg_issuer, d.birth_date, d.gender, d.marital_status, d.email, d.phone, d.phone2,
         d.address, d.address_number, d.complement, d.neighborhood, d.city, d.state, d.zip_code,
         d.registration_number, d.worker_profile, d.employment_type, d.position, d.role_level,
         d.branch_id, d.department_id, d.cost_center_id, d.direct_manager_id,
