@@ -157,7 +157,7 @@ export default function RHEmpresas() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? 'Editar empresa' : 'Nova empresa'}</DialogTitle></DialogHeader>
 
           {/* Logo + identidade visual */}
