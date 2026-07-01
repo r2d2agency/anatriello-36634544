@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { APP_VERSION } from '@/version';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -182,7 +183,7 @@ const Login = () => {
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Anatriello Gestão. Todos os direitos reservados.
+            © {new Date().getFullYear()} Anatriello Gestão. Todos os direitos reservados. <span className="font-mono ml-1 opacity-70">v{APP_VERSION}</span>
           </p>
         </div>
       </footer>
