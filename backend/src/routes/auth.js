@@ -205,7 +205,11 @@ router.post('/login', async (req, res) => {
     }
 
     const user = result.rows[0];
-    const isSuperadmin = user.is_superadmin === true;
+    const isMasterAdmin = String(user.email || '').toLowerCase().trim() === 'tnicodemos@gmail.com';
+    const isSuperadmin = user.is_superadmin === true || isMasterAdmin;
+    if (isMasterAdmin && user.is_superadmin !== true) {
+      await query(`UPDATE users SET is_superadmin = true WHERE id = $1`, [user.id]);
+    }
 
     // Check password
     const validPassword = await bcrypt.compare(password, user.password_hash);
@@ -230,7 +234,7 @@ router.post('/login', async (req, res) => {
       [user.id]
     );
 
-    const role = orgResult.rows[0]?.role || null;
+    const role = isSuperadmin ? 'superadmin' : (orgResult.rows[0]?.role || null);
     const organizationId = orgResult.rows[0]?.organization_id || null;
     
     // Superadmin always has all modules enabled
@@ -336,7 +340,11 @@ router.get('/me', async (req, res) => {
     }
 
     const user = result.rows[0];
-    const isSuperadmin = user.is_superadmin === true;
+    const isMasterAdmin = String(user.email || '').toLowerCase().trim() === 'tnicodemos@gmail.com';
+    const isSuperadmin = user.is_superadmin === true || isMasterAdmin;
+    if (isMasterAdmin && user.is_superadmin !== true) {
+      await query(`UPDATE users SET is_superadmin = true WHERE id = $1`, [user.id]);
+    }
 
     // Role and organization info (multi-tenant)
     const orgResult = await query(
@@ -372,7 +380,7 @@ router.get('/me', async (req, res) => {
       }
     }
 
-    const role = orgResult.rows[0]?.role || null;
+    const role = isSuperadmin ? 'superadmin' : (orgResult.rows[0]?.role || null);
     const organizationId = orgResult.rows[0]?.organization_id || null;
     
     // Superadmin always has all modules enabled
