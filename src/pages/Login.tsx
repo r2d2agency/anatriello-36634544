@@ -98,8 +98,9 @@ const Login = () => {
               </div>
               
               <CardDescription>
-                Plataforma completa de gestão de promotores, merchandising e comunicação via WhatsApp
+                Plataforma de gestão corporativa Anatriello
               </CardDescription>
+
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4">
@@ -169,8 +170,9 @@ const Login = () => {
       <footer className="py-4 px-4 border-t">
         <div className="max-w-md mx-auto text-center space-y-2">
           <p className="text-xs text-muted-foreground">
-            {branding.company_name || 'Anatriello Gestão'} - Gestão de Promotores e Merchandising
+            {branding.company_name || 'Anatriello Gestão'} — Plataforma corporativa
           </p>
+
           <div className="flex items-center justify-center gap-4 text-xs">
             <Link 
               to="/politica-privacidade" 
