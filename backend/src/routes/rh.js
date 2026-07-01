@@ -358,6 +358,73 @@ function normalizeEmployeePayload(body = {}) {
   };
 }
 
+// Colunas estendidas suportadas via UPDATE após INSERT/UPDATE principal
+const EXTENDED_EMPLOYEE_COLS = [
+  'mother_name','father_name','spouse_name','birth_city','birth_country','nationality_country',
+  'foreigner_registry','residence_time',
+  'rg_uf','rg_issue_date','ctps_digit','ctps_uf','ctps_issue_date',
+  'cnh','cnh_category','cnh_expiry','cnh_uf','cnh_first_date','cnh_issue_date',
+  'reservist_cert','pis_issue_date',
+  'civil_registry','civil_registry_term','civil_registry_office','civil_registry_book',
+  'civil_registry_folio','civil_registry_city','civil_registry_date',
+  'ric_number','ric_issuer','ric_issue_date',
+  'class_body_number','class_body_org','class_body_issue_date','class_body_expiry',
+  'education_level','cbo_code','current_position','current_cbo','current_salary','current_schedule_desc',
+  'registration_date','admission_type','contract_type','occupation_nature','previous_employer_cnpj',
+  'transfer_with_onus','transfer_date','service_time_start_date','retirement_date',
+  'probation_extension_end','reinstatement_date','previous_registration',
+  'work_regime','shift_type','weekly_rest','journey_type','journey_description',
+  'work_schedule_desc','night_shift','monthly_hours','weekly_hours','daily_hours',
+  'punch_card_number','record_sheet','record_book','record_folio',
+  'insalubrity_percent','insalubrity_incidence','periculosity_percent','periculosity_incidence',
+  'night_shift_percent','night_shift_incidence','private_pension_value','private_pension_13',
+  'syndicate','syndicalized','syndicate_discount','fgts_category','fgts_occurrence','fgts_account',
+  'social_security_regime','worker_class','collaborator_type',
+  'payment_method','payment_mode','commission_percent','bank_digit','salary_card',
+  'vr_card','vt_card','va_card','receives_vr','receives_va','receives_vt','receives_advance',
+  'advance_percent','partial_time_regime','unemployment_benefit',
+  'observation','import_extra','esocial_receipt','esocial_integration_date',
+  'contract_end_date','probation_end_date','termination_date','termination_reason',
+  'ctps_number','ctps_series','military_cert',
+];
+
+const BOOLEAN_EMP_COLS = new Set(['transfer_with_onus','syndicalized','syndicate_discount','receives_vr','receives_va','receives_vt','receives_advance','partial_time_regime','unemployment_benefit']);
+const NUMERIC_EMP_COLS = new Set(['insalubrity_percent','periculosity_percent','night_shift_percent','private_pension_value','private_pension_13','commission_percent','advance_percent','current_salary','monthly_hours','weekly_hours','daily_hours']);
+
+function coerceEmployeeExtValue(col, v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (BOOLEAN_EMP_COLS.has(col)) {
+    if (typeof v === 'boolean') return v;
+    const s = String(v).trim().toLowerCase();
+    if (['1','true','sim','yes','y','s','on'].includes(s)) return true;
+    if (['0','false','nao','não','no','n','off'].includes(s)) return false;
+    return null;
+  }
+  if (NUMERIC_EMP_COLS.has(col)) {
+    const n = Number(String(v).replace(/[^\d.,-]/g,'').replace(',', '.'));
+    return isFinite(n) ? n : null;
+  }
+  if (col === 'import_extra') {
+    if (typeof v === 'string') { try { return JSON.stringify(JSON.parse(v)); } catch { return JSON.stringify({ raw: v }); } }
+    return JSON.stringify(v);
+  }
+  return v;
+}
+
+async function applyExtendedEmployeeCols(employeeId, body) {
+  const sets = []; const vals = []; let i = 1;
+  for (const col of EXTENDED_EMPLOYEE_COLS) {
+    if (!(col in body)) continue;
+    const v = coerceEmployeeExtValue(col, body[col]);
+    sets.push(`${col} = $${i++}`);
+    vals.push(v);
+  }
+  if (!sets.length) return;
+  vals.push(employeeId);
+  await query(`UPDATE employees SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${i}`, vals);
+}
+
+
 // Helper: get user org_id
 async function getUserOrgId(userId) {
   const r = await query(
@@ -465,6 +532,7 @@ router.post('/employees', async (req, res) => {
             updateValues.push(empId);
             await query(`UPDATE employees SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${pi}`, updateValues);
           }
+          await applyExtendedEmployeeCols(empId, req.body);
           const updated = await query(`SELECT * FROM employees WHERE id = $1`, [empId]);
           return res.json(updated.rows[0]);
         }
@@ -503,8 +571,10 @@ router.post('/employees', async (req, res) => {
       await query(`UPDATE employees SET facial_required = $1 WHERE id = $2`, [req.body.facial_required, result.rows[0].id]);
       result.rows[0].facial_required = req.body.facial_required;
     }
+    await applyExtendedEmployeeCols(result.rows[0].id, req.body);
     await auditLog(orgId, 'employee', result.rows[0].id, 'create', [{ field: 'full_name', oldVal: null, newVal: d.full_name }], req.userId);
-    res.json(result.rows[0]);
+    const fresh = await query(`SELECT * FROM employees WHERE id = $1`, [result.rows[0].id]);
+    res.json(fresh.rows[0] || result.rows[0]);
   } catch (err) {
     logError('rh.employees.create', err, { body: req.body });
     const message = err?.detail || err?.message || 'Erro ao criar colaborador';
@@ -525,7 +595,8 @@ router.put('/employees/:id', async (req, res) => {
       'bank_account','bank_account_type','pix_key','pix_key_type','ctps_number','ctps_series','pis_pasep',
       'voter_id','voter_zone','voter_section','skin_color','cnpj',
       'company_name','status','photo_url','salary_items','benefits',
-      'home_latitude','home_longitude','facial_required'
+      'home_latitude','home_longitude','facial_required',
+      ...EXTENDED_EMPLOYEE_COLS,
     ]);
 
     const sentKeys = Object.keys(req.body).filter(k => allowedCols.has(k));
@@ -537,11 +608,14 @@ router.put('/employees/:id', async (req, res) => {
     // Normalize only sent fields
     const d = {};
     const jsonbFields = ['salary_items', 'benefits'];
+    const extSet = new Set(EXTENDED_EMPLOYEE_COLS);
     for (const k of sentKeys) {
       if (k === 'work_schedule') {
         d[k] = typeof req.body[k] === 'object' ? JSON.stringify(req.body[k]) : String(req.body[k] || '08:00-17:00');
       } else if (jsonbFields.includes(k)) {
         d[k] = JSON.stringify(Array.isArray(req.body[k]) ? req.body[k] : []);
+      } else if (extSet.has(k)) {
+        d[k] = coerceEmployeeExtValue(k, req.body[k]);
       } else {
         d[k] = emptyToNull(req.body[k]);
       }

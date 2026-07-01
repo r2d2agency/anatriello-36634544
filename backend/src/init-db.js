@@ -4887,6 +4887,121 @@ export async function initDatabase() {
       WHERE e.company_id IS NULL
     `);
 
+    // ===== Colunas estendidas de employees (importação eSocial/folha) =====
+    await pool.query(`
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS mother_name VARCHAR(255);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS father_name VARCHAR(255);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS spouse_name VARCHAR(255);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS birth_city VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS birth_country VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality_country VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS foreigner_registry VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS residence_time VARCHAR(50);
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS rg_uf VARCHAR(2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS rg_issue_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS ctps_digit VARCHAR(4);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS ctps_uf VARCHAR(2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS ctps_issue_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS cnh_uf VARCHAR(2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS cnh_first_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS cnh_issue_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS reservist_cert VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS pis_issue_date DATE;
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry_term VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry_office VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry_book VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry_folio VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry_city VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS civil_registry_date DATE;
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS ric_number VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS ric_issuer VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS ric_issue_date DATE;
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS class_body_number VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS class_body_org VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS class_body_issue_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS class_body_expiry DATE;
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS education_level VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS cbo_code VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS current_position VARCHAR(255);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS current_cbo VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS current_salary NUMERIC(12,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS current_schedule_desc TEXT;
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS registration_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS admission_type VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS contract_type VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS occupation_nature VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS previous_employer_cnpj VARCHAR(20);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS transfer_with_onus BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS transfer_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS service_time_start_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS retirement_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS probation_extension_end DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS reinstatement_date DATE;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS previous_registration VARCHAR(50);
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_regime VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS shift_type VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS weekly_rest VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS journey_type VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS journey_description TEXT;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_schedule_desc TEXT;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS night_shift VARCHAR(20);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS monthly_hours NUMERIC(6,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS weekly_hours NUMERIC(5,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS daily_hours NUMERIC(4,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS punch_card_number VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS record_sheet VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS record_book VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS record_folio VARCHAR(30);
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS insalubrity_percent NUMERIC(5,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS insalubrity_incidence VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS periculosity_percent NUMERIC(5,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS periculosity_incidence VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS night_shift_percent NUMERIC(5,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS night_shift_incidence VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS private_pension_value NUMERIC(12,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS private_pension_13 NUMERIC(12,2);
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS syndicate VARCHAR(255);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS syndicalized BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS syndicate_discount BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS fgts_category VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS fgts_occurrence VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS fgts_account VARCHAR(30);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS social_security_regime VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS worker_class VARCHAR(150);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS collaborator_type VARCHAR(80);
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS payment_method VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS commission_percent NUMERIC(5,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_digit VARCHAR(4);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS salary_card VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS vr_card VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS vt_card VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS va_card VARCHAR(50);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS receives_vr BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS receives_va BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS receives_vt BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS receives_advance BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS advance_percent NUMERIC(5,2);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS partial_time_regime BOOLEAN;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS unemployment_benefit BOOLEAN;
+
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS observation TEXT;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS import_extra JSONB DEFAULT '{}'::jsonb;
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS esocial_receipt VARCHAR(80);
+      ALTER TABLE employees ADD COLUMN IF NOT EXISTS esocial_integration_date TIMESTAMPTZ;
+    `);
+
     console.log('  🏢 Holding/companies schema ready');
   } catch (e) {
     console.error('  ⚠️ Failed to ensure holding schema:', e.message);

@@ -31,21 +31,79 @@ function normalizeUF(val: string): string {
 }
 
 const EMPLOYEE_FIELDS = [
+  // Identificação
   { key: "full_name", label: "Nome Completo", required: true, aliases: ["nome", "nome completo", "colaborador"] },
   { key: "social_name", label: "Nome Social", aliases: ["nome social"] },
   { key: "cpf", label: "CPF", aliases: ["cpf"] },
   { key: "rg", label: "RG", aliases: ["rg", "identidade"] },
+  { key: "rg_issuer", label: "Órgão Emissor RG", aliases: ["orgao emissor do rg", "órgão emissor do rg", "orgao emissor rg"] },
+  { key: "rg_uf", label: "UF do RG", aliases: ["uf do rg", "uf rg"] },
+  { key: "rg_issue_date", label: "Data Emissão RG", aliases: ["data de emissao do rg", "data de emissão do rg", "emissao rg"] },
   { key: "pis_pasep", label: "PIS/PASEP", aliases: ["pis", "pasep", "pis pasep", "pis/pasep", "nis"] },
-  { key: "birth_date", label: "Data Nascimento", aliases: ["data nascimento", "data_nascimento", "dt nascimento", "nascimento"] },
+  { key: "pis_issue_date", label: "Emissão do PIS", aliases: ["emissao do pis", "emissão do pis"] },
+  { key: "birth_date", label: "Data Nascimento", aliases: ["data nascimento", "data_nascimento", "dt nascimento", "nascimento", "data de nascimento"] },
   { key: "gender", label: "Gênero", aliases: ["genero", "gênero", "sexo"] },
   { key: "marital_status", label: "Estado Civil", aliases: ["estado civil", "estado_civil"] },
   { key: "skin_color", label: "Cor / Raça", aliases: ["cor", "raca", "raça", "cor raca", "etnia"] },
-  { key: "voter_id", label: "Título Eleitoral", aliases: ["titulo eleitoral", "titulo_eleitoral", "título eleitoral", "titulo de eleitor", "titulo"] },
+  { key: "education_level", label: "Escolaridade", aliases: ["grau de instrucao", "grau de instrução", "escolaridade"] },
+  { key: "birth_city", label: "Cidade de Nascimento", aliases: ["cidade de nascimento", "naturalidade"] },
+  { key: "birth_country", label: "País de Nascimento", aliases: ["pais de nascimento", "país de nascimento"] },
+  { key: "nationality_country", label: "País Nacionalidade", aliases: ["pais de nacionalidade", "país de nacionalidade", "nacionalidade"] },
+  { key: "foreigner_registry", label: "Registro Estrangeiro", aliases: ["registro nacional de estrangeiro numero", "rne"] },
+  { key: "residence_time", label: "Tempo de Residência", aliases: ["tempo de residencia", "tempo de residência"] },
+
+  // Filiação
+  { key: "mother_name", label: "Nome da Mãe", aliases: ["nome da mae", "nome da mãe", "mae"] },
+  { key: "father_name", label: "Nome do Pai", aliases: ["nome do pai", "pai"] },
+  { key: "spouse_name", label: "Nome do Cônjuge", aliases: ["nome do conjuge", "nome do cônjuge", "conjuge", "cônjuge"] },
+
+  // Título eleitoral
+  { key: "voter_id", label: "Título Eleitoral", aliases: ["titulo eleitoral", "titulo_eleitoral", "título eleitoral", "titulo de eleitor", "titulo", "título de eleitor"] },
   { key: "voter_zone", label: "Zona Eleitoral", aliases: ["zona", "zona eleitoral"] },
   { key: "voter_section", label: "Seção Eleitoral", aliases: ["secao", "seção", "secao eleitoral", "seção eleitoral"] },
+
+  // Reservista
+  { key: "reservist_cert", label: "Certificado Reservista", aliases: ["certificado de reservista", "reservista"] },
+
+  // Registro Civil
+  { key: "civil_registry", label: "Registro Civil", aliases: ["registro civil"] },
+  { key: "civil_registry_term", label: "Termo/Matrícula", aliases: ["termo/matricula", "termo/matrícula", "termo matricula"] },
+  { key: "civil_registry_office", label: "Cartório", aliases: ["cartorio", "cartório"] },
+  { key: "civil_registry_book", label: "Livro (RC)", aliases: ["livro"] },
+  { key: "civil_registry_folio", label: "Folha (RC)", aliases: ["folha"] },
+  { key: "civil_registry_city", label: "Cidade Emissão RC", aliases: ["cidade de emissao", "cidade de emissão"] },
+  { key: "civil_registry_date", label: "Data Emissão RC", aliases: ["registro civil data de emissao", "registro civil data de emissão"] },
+
+  // CTPS
+  { key: "ctps_number", label: "CTPS Número", aliases: ["numero da ctps", "número da ctps", "ctps", "carteira trabalho"] },
+  { key: "ctps_series", label: "CTPS Série", aliases: ["serie", "série"] },
+  { key: "ctps_digit", label: "CTPS Dígito", aliases: ["digito", "dígito"] },
+  { key: "ctps_issue_date", label: "Emissão CTPS", aliases: ["emissao da ctps", "emissão da ctps"] },
+  { key: "ctps_uf", label: "UF CTPS", aliases: ["uf da ctps"] },
+
+  // CNH
+  { key: "cnh", label: "CNH Número", aliases: ["numero cnh", "número cnh", "cnh"] },
+  { key: "cnh_issue_date", label: "Emissão CNH", aliases: ["emissao da cnh", "emissão da cnh"] },
+  { key: "cnh_category", label: "Categoria CNH", aliases: ["categoria cnh"] },
+  { key: "cnh_expiry", label: "Validade CNH", aliases: ["validade cnh"] },
+  { key: "cnh_uf", label: "UF CNH", aliases: ["uf da cnh"] },
+  { key: "cnh_first_date", label: "1ª Habilitação CNH", aliases: ["primeira habilitacao cnh", "primeira habilitação cnh"] },
+
+  // RIC
+  { key: "ric_number", label: "RIC Número", aliases: ["numero do registro de identificacao civil", "número do registro de identificação civil"] },
+  { key: "ric_issuer", label: "RIC Órgão Emissor", aliases: ["orgao emissor do registro de identificacao civil", "órgão emissor do registro de identificação civil"] },
+  { key: "ric_issue_date", label: "RIC Data Emissão", aliases: ["data da emissao do registro de identificacao civil", "data da emissão do registro de identificação civil"] },
+
+  // Órgão de Classe
+  { key: "class_body_number", label: "Órgão Classe Nº", aliases: ["orgao de classe numero", "órgão de classe numero"] },
+  { key: "class_body_org", label: "Órgão Classe", aliases: ["orgao de classe orgao", "órgão de classe orgão"] },
+  { key: "class_body_issue_date", label: "Órgão Classe Emissão", aliases: ["orgao de classe emissao", "órgão de classe emissão"] },
+  { key: "class_body_expiry", label: "Órgão Classe Validade", aliases: ["orgao de classe validade", "órgão de classe validade"] },
+
+  // Contato / endereço
   { key: "email", label: "E-mail", aliases: ["email", "e-mail", "e_mail"] },
-  { key: "phone", label: "Telefone", aliases: ["telefone", "celular", "fone", "whatsapp", "tel"] },
-  { key: "phone2", label: "Telefone 2", aliases: ["telefone 2", "telefone2", "celular 2"] },
+  { key: "phone", label: "Telefone", aliases: ["telefone", "fone", "tel"] },
+  { key: "phone2", label: "Celular", aliases: ["celular", "whatsapp", "telefone 2", "telefone2", "celular 2"] },
   { key: "address", label: "Endereço (Rua)", aliases: ["endereco", "endereço", "rua", "logradouro"] },
   { key: "address_number", label: "Número", aliases: ["numero", "número", "nº", "no"] },
   { key: "complement", label: "Complemento", aliases: ["complemento", "compl"] },
@@ -53,19 +111,101 @@ const EMPLOYEE_FIELDS = [
   { key: "city", label: "Cidade", aliases: ["cidade", "municipio", "município"] },
   { key: "state", label: "UF", aliases: ["uf", "estado"] },
   { key: "zip_code", label: "CEP", aliases: ["cep"] },
-  { key: "registration_number", label: "Matrícula", aliases: ["matricula", "matrícula"] },
+
+  // Contrato / admissão
+  { key: "registration_number", label: "Matrícula", aliases: ["matricula", "matrícula", "matricula esocial", "matrícula esocial"] },
+  { key: "previous_registration", label: "Matrícula Anterior", aliases: ["numero de matricula anterior", "número de matrícula anterior"] },
   { key: "worker_profile", label: "Perfil (administrativo/supervisor/promotor/operacional)", aliases: ["perfil"] },
   { key: "employment_type", label: "Vínculo (clt/pj/freelancer/temporario/estagiario/aprendiz)", aliases: ["vinculo", "vínculo", "tipo contrato"] },
-  { key: "position", label: "Cargo", aliases: ["cargo", "funcao", "função"] },
-  { key: "salary", label: "Salário", aliases: ["salario", "salário", "salario mensal", "salario_mensal", "salário mensal"] },
-  { key: "admission_date", label: "Data Admissão", aliases: ["data admissao", "data_admissao", "data admissão", "admissao", "admissão", "dt admissao"] },
-  { key: "bank_name", label: "Banco", aliases: ["banco"] },
+  { key: "collaborator_type", label: "Tipo Colaborador", aliases: ["tipo de colaborador"] },
+  { key: "worker_class", label: "Classe Trabalhador", aliases: ["classe"] },
+  { key: "admission_type", label: "Tipo Admissão", aliases: ["tipo de admissao", "tipo de admissão"] },
+  { key: "contract_type", label: "Tipo Contrato", aliases: ["tipo de contrato"] },
+  { key: "occupation_nature", label: "Natureza Ocupação", aliases: ["natureza da ocupacao", "natureza da ocupação"] },
+  { key: "previous_employer_cnpj", label: "CNPJ Empresa Anterior", aliases: ["cpnj empresa anterior", "cnpj empresa anterior"] },
+  { key: "transfer_with_onus", label: "Transferência c/ Ônus", aliases: ["transferencia com onus", "transferência com ônus"] },
+  { key: "transfer_date", label: "Data Transferência", aliases: ["data de transferencia", "data de transferência"] },
+  { key: "position", label: "Cargo Inicial", aliases: ["cargo", "funcao", "função", "cargo inicial"] },
+  { key: "cbo_code", label: "CBO Cargo Inicial", aliases: ["cbo cargo inicial", "cbo"] },
+  { key: "current_position", label: "Cargo Atual", aliases: ["cargo atual"] },
+  { key: "current_cbo", label: "CBO Atual", aliases: ["cbo cargo atual"] },
+  { key: "salary", label: "Salário Inicial", aliases: ["salario", "salário", "salario inicial", "salário inicial", "salario mensal"] },
+  { key: "current_salary", label: "Salário Atual", aliases: ["salario atual", "salário atual"] },
+  { key: "admission_date", label: "Data Admissão", aliases: ["data admissao", "data_admissao", "data admissão", "admissao", "admissão", "dt admissao", "data de admissao", "data de admissão"] },
+  { key: "registration_date", label: "Data Cadastro", aliases: ["data de cadastro"] },
+  { key: "service_time_start_date", label: "Início Adic. Tempo Serviço", aliases: ["data de inicio adicional de tempo de servico", "data de início adicional de tempo de serviço"] },
+  { key: "probation_end_date", label: "Fim Prazo Experiência", aliases: ["prazo experiencia", "prazo experiência", "fim do prazo"] },
+  { key: "probation_extension_end", label: "Fim Prorrogação", aliases: ["prorrogacao", "prorrogação", "fim da prorrogacao", "fim da prorrogação"] },
+  { key: "contract_end_date", label: "Fim de Contrato", aliases: ["fim de contrato", "data fim contrato"] },
+  { key: "retirement_date", label: "Data Aposentadoria", aliases: ["data da aposentadoria"] },
+  { key: "termination_date", label: "Data Desligamento", aliases: ["data de desligamento"] },
+  { key: "reinstatement_date", label: "Data Reintegração", aliases: ["data de reintegracoes", "data de reintegrações"] },
+
+  // Jornada
+  { key: "work_regime", label: "Regime Jornada", aliases: ["regime jornada de trabalho"] },
+  { key: "shift_type", label: "Tipo Escala", aliases: ["tipo de escala"] },
+  { key: "weekly_rest", label: "Descanso Semanal", aliases: ["descanso semanal"] },
+  { key: "work_schedule_desc", label: "Quadro Horário Inicial", aliases: ["quadro de horario inicial", "quadro de horário inicial"] },
+  { key: "current_schedule_desc", label: "Quadro Horário Atual", aliases: ["quadro de horario atual", "quadro de horário atual"] },
+  { key: "journey_type", label: "Tipo Jornada", aliases: ["tipo de jornada"] },
+  { key: "journey_description", label: "Descrição Tipo Jornada", aliases: ["descricao tipo de jornada", "descrição tipo de jornada"] },
+  { key: "night_shift", label: "Horário Noturno", aliases: ["horario noturno", "horário noturno"] },
+  { key: "monthly_hours", label: "Horas Mensais", aliases: ["horas mensais"] },
+  { key: "weekly_hours", label: "Horas Semanais", aliases: ["horas semanais"] },
+  { key: "daily_hours", label: "Horas Diárias", aliases: ["horas diarias", "horas diárias"] },
+  { key: "punch_card_number", label: "Nº Cartão Ponto", aliases: ["numero cartao ponto", "número cartão ponto"] },
+  { key: "record_sheet", label: "Ficha Registro", aliases: ["ficha registro"] },
+
+  // Adicionais
+  { key: "insalubrity_percent", label: "Adic. Insalubridade (%)", aliases: ["adicional insalubridade(%)", "adicional insalubridade"] },
+  { key: "insalubrity_incidence", label: "Incid. Insalubridade", aliases: ["incidencia insalubridade", "incidência insalubridade"] },
+  { key: "periculosity_percent", label: "Adic. Periculosidade (%)", aliases: ["adicional periculosidade(%)", "adicional periculosidade"] },
+  { key: "periculosity_incidence", label: "Incid. Periculosidade", aliases: ["incidencia periculosidade", "incidência periculosidade"] },
+  { key: "night_shift_percent", label: "Adic. Noturno (%)", aliases: ["adicional noturno(%)", "adicional noturno"] },
+  { key: "night_shift_incidence", label: "Incid. Noturno", aliases: ["incidencia noturno", "incidência noturno"] },
+  { key: "private_pension_value", label: "Prev. Privada", aliases: ["valor previdencia privada", "valor previdência privada"] },
+  { key: "private_pension_13", label: "Prev. Privada 13º", aliases: ["valor previdencia privada 13", "valor previdência privada 13º"] },
+
+  // Sindicato / FGTS / Previdência
+  { key: "syndicate", label: "Sindicato", aliases: ["sindicato"] },
+  { key: "syndicalized", label: "Sindicalizado", aliases: ["sindicalizado"] },
+  { key: "syndicate_discount", label: "Desc. Contrib. Sindical", aliases: ["descontar contribuicao sindical", "descontar contribuição sindical"] },
+  { key: "fgts_category", label: "Categoria FGTS", aliases: ["categoria fgts"] },
+  { key: "fgts_occurrence", label: "Ocorrência FGTS", aliases: ["ocorrencia fgts", "ocorrência fgts"] },
+  { key: "fgts_account", label: "Conta FGTS", aliases: ["conta fgts"] },
+  { key: "social_security_regime", label: "Regime Previdenciário", aliases: ["regime previdenciario", "regime previdênciario", "regime previdenciário"] },
+
+  // Bancário / pagamento
+  { key: "payment_method", label: "Forma de Pagamento", aliases: ["forma de pagamento"] },
+  { key: "payment_mode", label: "Modo de Pagamento", aliases: ["modo de pagamento"] },
+  { key: "bank_name", label: "Banco/Agência", aliases: ["banco", "banco/agencia", "banco/agência"] },
   { key: "bank_agency", label: "Agência", aliases: ["agencia", "agência"] },
   { key: "bank_account", label: "Conta", aliases: ["conta"] },
-  { key: "bank_account_type", label: "Tipo Conta", aliases: ["tipo conta", "tipo_conta"] },
-  { key: "ctps_number", label: "CTPS", aliases: ["ctps", "carteira trabalho"] },
+  { key: "bank_digit", label: "Dígito Conta", aliases: ["digito", "dígito"] },
+  { key: "bank_account_type", label: "Tipo Conta", aliases: ["tipo de conta", "tipo conta", "tipo_conta"] },
+  { key: "pix_key", label: "Chave PIX", aliases: ["pix", "chave pix"] },
+  { key: "pix_key_type", label: "Tipo Chave PIX", aliases: ["tipo chave pix", "tipo pix"] },
+  { key: "salary_card", label: "Cartão Salário", aliases: ["cartao salario", "cartão salário"] },
+  { key: "vr_card", label: "Cartão VR", aliases: ["cartao vr", "cartão vr"] },
+  { key: "vt_card", label: "Cartão VT", aliases: ["cartao vt", "cartão vt"] },
+  { key: "va_card", label: "Cartão VA", aliases: ["cartao va", "cartão va"] },
+  { key: "receives_vr", label: "Recebe VR", aliases: ["recebe vale refeicao", "recebe vale refeição"] },
+  { key: "receives_va", label: "Recebe VA", aliases: ["recebe vale alimentacao", "recebe vale alimentação"] },
+  { key: "receives_vt", label: "Recebe VT", aliases: ["recebe vale transporte"] },
+  { key: "receives_advance", label: "Recebe Adiantamento", aliases: ["recebe adiantamento"] },
+  { key: "advance_percent", label: "% Adiantamento", aliases: ["percentual adiantamento"] },
+  { key: "commission_percent", label: "% Comissão", aliases: ["percentual de comissao", "percentual de comissão"] },
+  { key: "partial_time_regime", label: "Regime Tempo Parcial", aliases: ["regime tempo parcial"] },
+  { key: "unemployment_benefit", label: "Seguro Desemprego", aliases: ["esta em beneficio de seguro desemprego", "está em beneficio de seguro desemprego"] },
+
+  // PJ
   { key: "cnpj", label: "CNPJ (PJ)", aliases: ["cnpj"] },
   { key: "company_name", label: "Razão Social (PJ)", aliases: ["razao social", "razão social"] },
+
+  // eSocial / observação / status
+  { key: "esocial_receipt", label: "Recibo eSocial", aliases: ["numero recibo esocial", "número recibo esocial"] },
+  { key: "esocial_integration_date", label: "Data Integração eSocial", aliases: ["data integracao esocial", "data integração esocial"] },
+  { key: "observation", label: "Observação", aliases: ["observacao", "observação", "obs"] },
   { key: "status", label: "Status (ativo/afastado/ferias/desligado/suspenso)", aliases: ["status", "situacao", "situação"] },
 ];
 
@@ -242,14 +382,48 @@ export function EmployeeImportExportDialog({ open, onOpenChange, employees, depa
       const batch: Record<string, any>[] = [];
       for (const row of selected) {
         const emp: Record<string, any> = { ...row.mapped };
-        ["birth_date", "admission_date"].forEach(dk => {
+        const DATE_KEYS = [
+          "birth_date","admission_date","rg_issue_date","pis_issue_date",
+          "ctps_issue_date","cnh_issue_date","cnh_expiry","cnh_first_date",
+          "ric_issue_date","class_body_issue_date","class_body_expiry",
+          "civil_registry_date","registration_date","service_time_start_date",
+          "probation_end_date","probation_extension_end","contract_end_date",
+          "retirement_date","termination_date","reinstatement_date",
+          "transfer_date","esocial_integration_date",
+        ];
+        DATE_KEYS.forEach(dk => {
           if (emp[dk]) {
             const parsed = parseFlexDate(emp[dk]);
             emp[dk] = parsed || "";
           }
         });
-        if (emp.salary) emp.salary = String(emp.salary).replace(/[^\d.,]/g, "").replace(",", ".");
+        const NUM_KEYS = [
+          "salary","current_salary","monthly_hours","weekly_hours","daily_hours",
+          "insalubrity_percent","periculosity_percent","night_shift_percent",
+          "private_pension_value","private_pension_13","commission_percent","advance_percent",
+        ];
+        NUM_KEYS.forEach(nk => {
+          if (emp[nk]) emp[nk] = String(emp[nk]).replace(/[^\d.,-]/g, "").replace(",", ".");
+        });
+        const BOOL_KEYS = [
+          "transfer_with_onus","syndicalized","syndicate_discount",
+          "receives_vr","receives_va","receives_vt","receives_advance",
+          "partial_time_regime","unemployment_benefit",
+        ];
+        BOOL_KEYS.forEach(bk => {
+          if (emp[bk] !== undefined && emp[bk] !== "") {
+            const s = String(emp[bk]).trim().toLowerCase();
+            if (["sim","yes","1","true","s","y"].includes(s)) emp[bk] = true;
+            else if (["nao","não","no","0","false","n"].includes(s)) emp[bk] = false;
+            else delete emp[bk];
+          } else {
+            delete emp[bk];
+          }
+        });
         if (emp.state) emp.state = normalizeUF(emp.state);
+        if (emp.rg_uf) emp.rg_uf = normalizeUF(emp.rg_uf);
+        if (emp.ctps_uf) emp.ctps_uf = normalizeUF(emp.ctps_uf);
+        if (emp.cnh_uf) emp.cnh_uf = normalizeUF(emp.cnh_uf);
         if (emp.gender) emp.gender = emp.gender.substring(0, 20);
         if (emp.zip_code) emp.zip_code = String(emp.zip_code).replace(/[^\d-]/g, "").substring(0, 10);
         if (!emp.status) emp.status = "ativo";
