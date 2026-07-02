@@ -448,6 +448,7 @@ app.use('/api/meta', metaTemplatesRoutes);
 app.use('/api/doc-signatures', docSignaturesRoutes);
 app.use('/api/rh', rhRoutes);
 app.use('/api/timeclock', timeclockRoutes);
+app.use('/api/manager', managerRoutes);
 app.use('/api/companies', companiesRoutes);
 app.use('/api/holding', holdingRoutes);
 app.use('/api/promotor', promotorRoutes);
