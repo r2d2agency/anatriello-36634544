@@ -229,6 +229,7 @@ export default function RHAcessos() {
                       <TableHead>CPF</TableHead>
                       <TableHead>Status RH</TableHead>
                       <TableHead>Status App</TableHead>
+                      <TableHead>Perfil do App</TableHead>
                       <TableHead>Acesso Gestor</TableHead>
                       <TableHead>Último Login</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
