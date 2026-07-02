@@ -332,6 +332,11 @@ router.put('/cartao-ponto', async (req, res) => {
     const { employee_id, date, times = [], reason } = req.body || {};
     if (!orgId || !employee_id || !date) return res.status(400).json({ error: 'Dados obrigatórios' });
 
+    // Bloqueio por fechamento
+    if (await isPeriodClosed(orgId, employee_id, date)) {
+      return res.status(423).json({ error: 'Período fechado. Reabra o fechamento para editar.', code: 'PERIOD_CLOSED' });
+    }
+
     // Buscar batidas atuais do dia
     const current = await query(
       `SELECT id, punched_at FROM time_punches WHERE employee_id = $1 AND punched_at::date = $2 ORDER BY punched_at`,
@@ -364,6 +369,12 @@ router.put('/cartao-ponto', async (req, res) => {
 
     // Recalcular
     await recalcEmployeePeriod({ organizationId: orgId, employeeId: employee_id, startDate: date, endDate: date });
+
+    // Notificar colaborador
+    await notifyEmployee(orgId, employee_id, 'Ponto ajustado pelo RH',
+      `Suas batidas de ${date} foram alteradas para: ${cleanTimes.join(' · ') || '(sem batidas)'}${reason ? '. Motivo: ' + reason : ''}`,
+      'ponto_ajuste', 'punch_date', null);
+
     res.json({ ok: true });
   } catch (err) {
     logError('timeclock.cartao-ponto.put', err);
