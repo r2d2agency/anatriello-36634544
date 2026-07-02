@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, FileText, Umbrella, Gift, FolderOpen, Edit3, Clock, MessageSquare, ChevronRight, Megaphone, Loader2, Camera, MapPin } from "lucide-react";
+import { Bell, FileText, Umbrella, Gift, FolderOpen, Edit3, Clock, MessageSquare, ChevronRight, Megaphone, Loader2, Camera, MapPin, ShieldOff } from "lucide-react";
 import { ColaboradorLayout } from "./ColaboradorLayout";
 import { usePromotorHome, usePromotorPunch, usePromotorNotifications, usePromotorMarkRead } from "@/hooks/use-promotor";
 import { useColabAnnouncements, useColabMeFull } from "@/hooks/use-promotor";
+import { useCaps } from "@/hooks/use-colab-capabilities";
 import { FaceVerifyDialog } from "@/components/facial-recognition/FaceVerifyDialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
