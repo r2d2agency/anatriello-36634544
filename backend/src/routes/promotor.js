@@ -471,33 +471,78 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
       if (e.code !== '42P01' && e.code !== '42703') throw e;
     }
 
-    // ===== GEO VALIDATION =====
+    // ===== GEO VALIDATION (Fase 2 – Geofence configurável) =====
     let distance = null;
     let geo_status = 'sem_gps';
+    let geo_source = null; // 'pdv' | 'company'
+    let effective_radius = null;
+
+    // Carrega política de geofence da empresa do colaborador
+    let companyPolicy = { punch_gps_required: false, geofence_strict: false, geofence_require_photo: false, default_radius: 200, lat: null, lng: null };
+    try {
+      const cp = await query(
+        `SELECT c.punch_gps_required, c.geofence_strict, c.geofence_require_photo,
+                COALESCE(c.default_radius_meters, 200) AS default_radius,
+                c.latitude AS lat, c.longitude AS lng
+         FROM employees e LEFT JOIN companies c ON c.id = e.company_id
+         WHERE e.id = $1`, [req.employeeId]
+      );
+      if (cp.rows[0]) companyPolicy = { ...companyPolicy, ...cp.rows[0] };
+    } catch (e) { if (e.code !== '42P01' && e.code !== '42703') throw e; }
+
+    if (companyPolicy.punch_gps_required && (!latitude || !longitude)) {
+      return res.status(400).json({ error: 'GPS obrigatório para esta empresa. Habilite a localização.', code: 'GPS_REQUIRED' });
+    }
+
+    const haversine = (aLat, aLng, bLat, bLng) => {
+      const R = 6371000;
+      const dLat = (bLat - aLat) * Math.PI / 180;
+      const dLng = (bLng - aLng) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(aLat*Math.PI/180)*Math.cos(bLat*Math.PI/180)*Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    };
 
     if (latitude && longitude && pdv_id) {
       const pdv = await query(`SELECT latitude, longitude, radius_meters FROM pdvs WHERE id = $1`, [pdv_id]);
       if (pdv.rows[0] && pdv.rows[0].latitude) {
-        const R = 6371000;
-        const dLat = (pdv.rows[0].latitude - latitude) * Math.PI / 180;
-        const dLng = (pdv.rows[0].longitude - longitude) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-          Math.cos(latitude * Math.PI / 180) * Math.cos(pdv.rows[0].latitude * Math.PI / 180) *
-          Math.sin(dLng/2) * Math.sin(dLng/2);
-        distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        geo_status = distance <= pdv.rows[0].radius_meters ? 'dentro_area' : 'fora_area';
+        effective_radius = pdv.rows[0].radius_meters || companyPolicy.default_radius;
+        distance = haversine(latitude, longitude, pdv.rows[0].latitude, pdv.rows[0].longitude);
+        geo_source = 'pdv';
+        geo_status = distance <= effective_radius ? 'dentro_area' : 'fora_area';
       }
-    } else if (latitude && longitude) {
-      geo_status = 'sem_pdv';
     }
 
+    // Fallback: sem PDV georreferenciado, usa coordenadas da empresa
+    if (latitude && longitude && geo_status === 'sem_gps' && companyPolicy.lat && companyPolicy.lng) {
+      effective_radius = companyPolicy.default_radius;
+      distance = haversine(latitude, longitude, companyPolicy.lat, companyPolicy.lng);
+      geo_source = 'company';
+      geo_status = distance <= effective_radius ? 'dentro_area' : 'fora_area';
+    }
+
+    if (latitude && longitude && geo_status === 'sem_gps') geo_status = 'sem_pdv';
+
     if (geo_status === 'fora_area') {
+      // Modo estrito da empresa: bloqueia mesmo com justificativa
+      if (companyPolicy.geofence_strict) {
+        return res.status(400).json({
+          error: `Fora da área permitida (${Math.round(distance)}m). Modo estrito da empresa bloqueia este ponto.`,
+          code: 'GEOFENCE_STRICT', geo_status, distance, radius: effective_radius, source: geo_source,
+        });
+      }
+      // Exige foto quando configurado
+      if (companyPolicy.geofence_require_photo && !selfie_url) {
+        return res.status(400).json({
+          error: 'Fora da área. É obrigatório enviar uma selfie para justificar.',
+          code: 'GEOFENCE_PHOTO_REQUIRED', geo_status, distance,
+        });
+      }
       const rules = await query(
         `SELECT allow_exception_punch FROM time_rules WHERE organization_id = $1 AND (employee_id = $2 OR employee_id IS NULL) ORDER BY employee_id NULLS LAST LIMIT 1`,
         [req.organizationId, req.employeeId]
       );
       if (rules.rows[0] && !rules.rows[0].allow_exception_punch && !justification) {
-        return res.status(400).json({ error: 'Você está fora da área permitida. Forneça justificativa para registrar.', geo_status, distance });
+        return res.status(400).json({ error: 'Você está fora da área permitida. Forneça justificativa para registrar.', geo_status, distance, radius: effective_radius });
       }
       if (justification) geo_status = 'excecao';
     }
