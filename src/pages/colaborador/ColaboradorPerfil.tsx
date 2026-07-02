@@ -1,14 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { ColaboradorLayout } from "./ColaboradorLayout";
 import { useColabMeFull } from "@/hooks/use-promotor";
-import { User, Phone, Users, CreditCard, MapPin, Settings, Shield, ChevronRight, Camera, LogOut } from "lucide-react";
+import { User, Phone, Users, CreditCard, MapPin, Settings, Shield, ChevronRight, Camera, LogOut, KeyRound } from "lucide-react";
 
-const ITEMS = [
+const ITEMS: { icon: any; label: string; to?: string }[] = [
   { icon: User, label: "Dados pessoais" },
   { icon: Phone, label: "Contato" },
   { icon: Users, label: "Dependentes" },
   { icon: CreditCard, label: "Dados bancários" },
   { icon: MapPin, label: "Endereço" },
+  { icon: KeyRound, label: "Trocar senha", to: "/promotor/trocar-senha" },
   { icon: Settings, label: "Configurações" },
   { icon: Shield, label: "Privacidade e segurança" },
 ];
@@ -20,7 +21,8 @@ export default function ColaboradorPerfil() {
 
   function logout() {
     localStorage.removeItem("promotor_token");
-    nav("/promotor/login");
+    localStorage.removeItem("promotor_employee");
+    nav("/app/login");
   }
 
   return (
@@ -44,7 +46,11 @@ export default function ColaboradorPerfil() {
 
         <div className="mt-6 bg-white rounded-2xl shadow-sm overflow-hidden">
           {ITEMS.map((it, i) => (
-            <button key={it.label} className={`w-full flex items-center gap-3 px-4 py-3.5 text-left ${i > 0 ? "border-t border-slate-100" : ""}`}>
+            <button
+              key={it.label}
+              onClick={() => it.to && nav(it.to)}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 text-left ${i > 0 ? "border-t border-slate-100" : ""}`}
+            >
               <it.icon className="h-5 w-5 text-slate-500" />
               <span className="flex-1 text-sm">{it.label}</span>
               <ChevronRight className="h-4 w-4 text-slate-300" />
