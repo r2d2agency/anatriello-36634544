@@ -168,6 +168,8 @@ export default function RHColaboradores() {
   const [companyFilter, setCompanyFilter] = useState("all");
   const [profileFilter, setProfileFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifEmployee, setNotifEmployee] = useState<{ id: string; name: string } | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({ ...EMPTY_FORM });
   const [showSensitive, setShowSensitive] = useState(false);
