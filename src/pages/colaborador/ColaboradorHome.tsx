@@ -174,7 +174,7 @@ export default function ColaboradorHome() {
           open={showFace}
           onOpenChange={setShowFace}
           storedDescriptor={employee.face_descriptor}
-          onResult={(r) => { setShowFace(false); if (r.match) doPunch(true); else toast({ title: "Falha na validação facial", variant: "destructive" }); }}
+          onResult={(r) => { setShowFace(false); if (r.match) doPunch(true, r.imageDataUrl); else toast({ title: "Falha na validação facial", variant: "destructive" }); }}
         />
       )}
     </ColaboradorLayout>
