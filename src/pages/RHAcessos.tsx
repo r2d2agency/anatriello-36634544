@@ -143,6 +143,17 @@ export default function RHAcessos() {
           <p className="text-sm text-muted-foreground">Controle de acesso ao App do Colaborador</p>
         </div>
 
+        <Tabs defaultValue="colaboradores">
+          <TabsList>
+            <TabsTrigger value="colaboradores">Colaboradores</TabsTrigger>
+            <TabsTrigger value="perfis">Perfis do App</TabsTrigger>
+          </TabsList>
+          <TabsContent value="perfis" className="mt-4">
+            <AppAccessTemplatesTab />
+          </TabsContent>
+          <TabsContent value="colaboradores" className="mt-4 space-y-6">
+
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
