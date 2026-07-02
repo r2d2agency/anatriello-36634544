@@ -77,6 +77,7 @@ import RHRastreamento from "./pages/RHRastreamento";
 import RHBiometria from "./pages/RHBiometria";
 import RHMapaOperacional from "./pages/RHMapaOperacional";
 import RHLogs from "./pages/RHLogs";
+import ManagerApp from "./pages/ManagerApp";
 import LiveMaps from "./pages/LiveMaps";
   import MerchDashboard from "./pages/MerchDashboard";
 import MerchMarcas from "./pages/MerchMarcas";
