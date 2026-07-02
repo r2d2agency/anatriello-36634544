@@ -113,10 +113,124 @@ async function ensureSchema() {
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(employee_id, record_date)
     );
+
+    -- ==== FASE 3: Jornadas reutilizáveis ====
+    CREATE TABLE IF NOT EXISTS work_schedules (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+      name VARCHAR(120) NOT NULL,
+      kind VARCHAR(30) NOT NULL DEFAULT 'fixa',
+      -- schedule_json: { sun:"folga", mon:"08:00-12:00,13:00-17:00", ... }
+      schedule_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      -- Escalas rotativas: cycle_days_json = [{d:1,h:"07:00-19:00"},{d:2,h:"folga"},...]
+      cycle_pattern JSONB,
+      cycle_start_date DATE,
+      -- Regras
+      tolerance_minutes INTEGER DEFAULT 10,
+      night_bonus_pct INTEGER DEFAULT 20,
+      sunday_bonus_pct INTEGER DEFAULT 100,
+      holiday_bonus_pct INTEGER DEFAULT 100,
+      overtime_weekday_pct INTEGER DEFAULT 50,
+      dsr_enabled BOOLEAN DEFAULT TRUE,
+      night_reduced_hour BOOLEAN DEFAULT TRUE,
+      active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_ws_org ON work_schedules(organization_id);
+    ALTER TABLE employees ADD COLUMN IF NOT EXISTS work_schedule_id UUID REFERENCES work_schedules(id) ON DELETE SET NULL;
   `).catch(err => logError('timeclock.ensureSchema', err));
   schemaReady = true;
 }
 router.use(async (_req, _res, next) => { await ensureSchema(); next(); });
+
+// ============================================
+// JORNADAS DE TRABALHO (Fase 3)
+// ============================================
+router.get('/work-schedules', async (req, res) => {
+  try {
+    const orgId = await resolveOrgId(req);
+    const r = await query(
+      `SELECT ws.*, c.trade_name AS company_name,
+              (SELECT COUNT(*)::int FROM employees WHERE work_schedule_id = ws.id) AS employees_count
+       FROM work_schedules ws
+       LEFT JOIN companies c ON c.id = ws.company_id
+       WHERE ws.organization_id = $1
+       ORDER BY ws.name`, [orgId]);
+    res.json(r.rows);
+  } catch (err) { logError('timeclock.ws.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.post('/work-schedules', async (req, res) => {
+  try {
+    const orgId = await resolveOrgId(req);
+    const b = req.body || {};
+    if (!b.name) return res.status(400).json({ error: 'Nome obrigatório' });
+    const r = await query(
+      `INSERT INTO work_schedules
+       (organization_id, company_id, name, kind, schedule_json, cycle_pattern, cycle_start_date,
+        tolerance_minutes, night_bonus_pct, sunday_bonus_pct, holiday_bonus_pct,
+        overtime_weekday_pct, dsr_enabled, night_reduced_hour, active)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [orgId, b.company_id || null, b.name, b.kind || 'fixa',
+        JSON.stringify(b.schedule_json || {}),
+        b.cycle_pattern ? JSON.stringify(b.cycle_pattern) : null,
+        b.cycle_start_date || null,
+        b.tolerance_minutes ?? 10, b.night_bonus_pct ?? 20,
+        b.sunday_bonus_pct ?? 100, b.holiday_bonus_pct ?? 100,
+        b.overtime_weekday_pct ?? 50, b.dsr_enabled !== false,
+        b.night_reduced_hour !== false, b.active !== false]);
+    res.json(r.rows[0]);
+  } catch (err) { logError('timeclock.ws.post', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.put('/work-schedules/:id', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const r = await query(
+      `UPDATE work_schedules SET
+         name=COALESCE($2,name), kind=COALESCE($3,kind),
+         schedule_json=COALESCE($4::jsonb,schedule_json),
+         cycle_pattern=$5::jsonb, cycle_start_date=$6,
+         tolerance_minutes=COALESCE($7,tolerance_minutes),
+         night_bonus_pct=COALESCE($8,night_bonus_pct),
+         sunday_bonus_pct=COALESCE($9,sunday_bonus_pct),
+         holiday_bonus_pct=COALESCE($10,holiday_bonus_pct),
+         overtime_weekday_pct=COALESCE($11,overtime_weekday_pct),
+         dsr_enabled=COALESCE($12,dsr_enabled),
+         night_reduced_hour=COALESCE($13,night_reduced_hour),
+         active=COALESCE($14,active), company_id=$15,
+         updated_at=NOW()
+       WHERE id=$1 RETURNING *`,
+      [req.params.id, b.name, b.kind,
+        b.schedule_json ? JSON.stringify(b.schedule_json) : null,
+        b.cycle_pattern ? JSON.stringify(b.cycle_pattern) : null,
+        b.cycle_start_date || null,
+        b.tolerance_minutes, b.night_bonus_pct, b.sunday_bonus_pct, b.holiday_bonus_pct,
+        b.overtime_weekday_pct, b.dsr_enabled, b.night_reduced_hour, b.active,
+        b.company_id || null]);
+    res.json(r.rows[0]);
+  } catch (err) { logError('timeclock.ws.put', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.delete('/work-schedules/:id', async (req, res) => {
+  try {
+    await query(`UPDATE employees SET work_schedule_id = NULL WHERE work_schedule_id = $1`, [req.params.id]);
+    await query(`DELETE FROM work_schedules WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
+
+// Vincular colaboradores em massa
+router.post('/work-schedules/:id/assign', async (req, res) => {
+  try {
+    const { employee_ids = [] } = req.body || {};
+    if (!Array.isArray(employee_ids) || !employee_ids.length) return res.status(400).json({ error: 'employee_ids obrigatório' });
+    await query(`UPDATE employees SET work_schedule_id = $1 WHERE id = ANY($2::uuid[])`, [req.params.id, employee_ids]);
+    res.json({ ok: true, count: employee_ids.length });
+  } catch (err) { res.status(500).json({ error: 'Erro' }); }
+});
 
 // ============================================
 // CARTÃO PONTO (grade estilo Secullum)
