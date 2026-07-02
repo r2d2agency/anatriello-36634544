@@ -85,7 +85,7 @@ router.put('/:id', async (req, res) => {
     if (!['owner', 'admin', 'superadmin'].includes(role)) {
       return res.status(403).json({ error: 'Sem permissão' });
     }
-    const fields = ['name','trade_name','cnpj','logo_url','color','address','city','state','phone','email','is_active','punch_facial_required','punch_gps_required','cep','address_number','complement','neighborhood','ie','im','website','legal_representative','legal_representative_cpf','notes'];
+    const fields = ['name','trade_name','cnpj','logo_url','color','address','city','state','phone','email','is_active','punch_facial_required','punch_gps_required','cep','address_number','complement','neighborhood','ie','im','website','legal_representative','legal_representative_cpf','notes','latitude','longitude','default_radius_meters','geofence_strict','geofence_require_photo'];
     const sets = [];
     const values = [];
     let i = 1;
