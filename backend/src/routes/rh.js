@@ -1615,6 +1615,30 @@ router.get('/audit-log', async (req, res) => {
   }
 });
 
+// ===== NOTIFICATIONS HISTORY (per employee) =====
+router.get('/employees/:id/notifications', async (req, res) => {
+  try {
+    const orgId = await getUserOrgId(req.userId);
+    const emp = await query(`SELECT id FROM employees WHERE id = $1 AND organization_id = $2`, [req.params.id, orgId]);
+    if (!emp.rowCount) return res.status(404).json({ error: 'Colaborador não encontrado' });
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+    const r = await query(
+      `SELECT id, title, message, type, reference_type, reference_id,
+              read, read_at, created_at,
+              CASE WHEN read THEN 'lido' ELSE 'entregue' END AS delivery_status
+         FROM collaborator_notifications
+        WHERE employee_id = $1 AND organization_id = $2
+        ORDER BY created_at DESC
+        LIMIT $3`,
+      [req.params.id, orgId, limit]
+    );
+    res.json(r.rows);
+  } catch (err) {
+    logError('rh.employees.notifications', err);
+    res.status(500).json({ error: 'Erro' });
+  }
+});
+
 // ===== AI CERTIFICATE ANALYSIS =====
 async function getAIConfig(userId) {
   const orgResult = await query(
