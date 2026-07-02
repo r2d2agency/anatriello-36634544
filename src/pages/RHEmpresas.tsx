@@ -38,6 +38,11 @@ const emptyForm: Partial<Company> = {
   is_active: true,
   punch_facial_required: true,
   punch_gps_required: false,
+  latitude: null,
+  longitude: null,
+  default_radius_meters: 200,
+  geofence_strict: false,
+  geofence_require_photo: false,
 };
 
 export default function RHEmpresas() {
@@ -313,6 +318,32 @@ export default function RHEmpresas() {
                   <p className="text-xs text-muted-foreground">Bloqueia a batida se localização não estiver disponível.</p>
                 </div>
                 <Switch checked={!!form.punch_gps_required} onCheckedChange={v => setForm({ ...form, punch_gps_required: v })} />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 border-t pt-3 space-y-3">
+              <div>
+                <Label className="text-base">Geofence (Fase 2)</Label>
+                <p className="text-xs text-muted-foreground">Configure a área permitida para bater ponto. Se o PDV não tiver coordenadas, usa-se as da empresa como fallback.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><Label>Latitude</Label><Input type="number" step="any" value={form.latitude ?? ''} onChange={e => setForm({ ...form, latitude: e.target.value ? Number(e.target.value) : null })} /></div>
+                <div><Label>Longitude</Label><Input type="number" step="any" value={form.longitude ?? ''} onChange={e => setForm({ ...form, longitude: e.target.value ? Number(e.target.value) : null })} /></div>
+                <div><Label>Raio padrão (m)</Label><Input type="number" value={form.default_radius_meters ?? 200} onChange={e => setForm({ ...form, default_radius_meters: Number(e.target.value) })} /></div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Modo estrito</Label>
+                  <p className="text-xs text-muted-foreground">Bloqueia o ponto fora da área, mesmo com justificativa.</p>
+                </div>
+                <Switch checked={!!form.geofence_strict} onCheckedChange={v => setForm({ ...form, geofence_strict: v })} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Exigir selfie fora da área</Label>
+                  <p className="text-xs text-muted-foreground">Quando fora do raio, obriga o envio de foto para registrar o ponto.</p>
+                </div>
+                <Switch checked={!!form.geofence_require_photo} onCheckedChange={v => setForm({ ...form, geofence_require_photo: v })} />
               </div>
             </div>
           </div>
