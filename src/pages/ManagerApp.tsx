@@ -49,7 +49,7 @@ export default function ManagerApp() {
     try {
       await api('/api/auth/password', {
         method: 'PUT',
-        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+        body: { currentPassword: pwCurrent, newPassword: pwNew },
         auth: true,
       });
       toast.success('Senha alterada com sucesso');
