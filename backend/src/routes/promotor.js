@@ -366,7 +366,7 @@ router.get('/home', authenticatePromotor, async (req, res) => {
 // =============================================
 router.post('/punch', authenticatePromotor, async (req, res) => {
   try {
-    const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified } = req.body;
+    const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified, selfie_url } = req.body;
 
     // ===== WORK SCHEDULE VALIDATION =====
     const empRes = await query(`SELECT work_schedule, face_descriptor, facial_required FROM employees WHERE id = $1`, [req.employeeId]);
@@ -502,13 +502,16 @@ router.post('/punch', authenticatePromotor, async (req, res) => {
       if (justification) geo_status = 'excecao';
     }
 
+    // Garante coluna selfie_url (idempotente)
+    try { await query(`ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS selfie_url TEXT`); } catch {}
+
     const result = await query(
-      `INSERT INTO time_punches (organization_id, employee_id, punch_type, punched_at, latitude, longitude, accuracy_meters, pdv_id, distance_from_pdv, geo_status, device_info, ip_address, is_offline, offline_local_time, sync_status, justification)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      `INSERT INTO time_punches (organization_id, employee_id, punch_type, punched_at, latitude, longitude, accuracy_meters, pdv_id, distance_from_pdv, geo_status, device_info, ip_address, is_offline, offline_local_time, sync_status, justification, selfie_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [req.organizationId, req.employeeId, punch_type, is_offline ? offline_local_time : new Date(),
         latitude, longitude, accuracy_meters, pdv_id || null, distance, geo_status,
         req.headers['user-agent'], req.ip, is_offline || false, offline_local_time || null,
-        is_offline ? 'synced' : 'synced', justification || null]
+        is_offline ? 'synced' : 'synced', justification || null, selfie_url || null]
     );
 
     if (geo_status === 'fora_area' || geo_status === 'excecao') {
@@ -2181,7 +2184,16 @@ router.post('/punch-adjustment-requests', authenticatePromotor, async (req, res)
   try {
     const { punch_date, requested_times, justification, attachment_url } = req.body || {};
     if (!punch_date || !justification) return res.status(400).json({ error: 'Data e justificativa obrigatórios' });
-    const emp = await query(`SELECT company_id FROM employees WHERE id = $1`, [req.employeeId]);
+
+    // Bloqueio se período está fechado
+    try {
+      const { isPeriodClosed } = await import('./timeclock.js');
+      if (await isPeriodClosed(req.organizationId, req.employeeId, punch_date)) {
+        return res.status(423).json({ error: 'Período fechado — solicite reabertura ao RH.' });
+      }
+    } catch {}
+
+    const emp = await query(`SELECT company_id, full_name FROM employees WHERE id = $1`, [req.employeeId]);
     const r = await query(
       `INSERT INTO punch_adjustment_requests (organization_id, company_id, employee_id, punch_date, requested_times, justification, attachment_url)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
@@ -2189,6 +2201,19 @@ router.post('/punch-adjustment-requests', authenticatePromotor, async (req, res)
        Array.isArray(requested_times) ? requested_times.join(',') : (requested_times || null),
        justification, attachment_url || null]
     );
+
+    // Notificar RH
+    try {
+      await query(
+        `INSERT INTO collaborator_notifications (organization_id, employee_id, title, message, type, reference_type, reference_id)
+         SELECT $1, e.id, 'Novo ajuste de ponto', $2, 'ponto_ajuste', 'adjustment', $3
+           FROM employees e
+          WHERE e.organization_id = $1 AND e.status = 'ativo'
+            AND e.worker_profile IN ('administrativo','supervisor') LIMIT 20`,
+        [req.organizationId, `${emp.rows[0]?.full_name || 'Colaborador'} solicitou ajuste em ${punch_date}`, r.rows[0].id]
+      );
+    } catch {}
+
     res.json(r.rows[0]);
   } catch (e) { logError('promotor.punch-adj.post', e); res.status(500).json({ error: 'Erro ao enviar solicitação' }); }
 });

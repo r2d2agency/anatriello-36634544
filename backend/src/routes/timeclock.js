@@ -100,6 +100,7 @@ async function ensureSchema() {
     ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS original_time TIMESTAMPTZ;
     ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS nsr BIGINT;
     ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS signature_hash VARCHAR(128);
+    ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS selfie_url TEXT;
     CREATE INDEX IF NOT EXISTS idx_tp_org_nsr ON time_punches(organization_id, nsr);
 
     CREATE TABLE IF NOT EXISTS time_records (
@@ -147,6 +148,49 @@ async function ensureSchema() {
   schemaReady = true;
 }
 router.use(async (_req, _res, next) => { await ensureSchema(); next(); });
+
+// ---- helpers: closing lock & notifications ----
+export async function isPeriodClosed(orgId, employeeId, dateStr) {
+  try {
+    const emp = await query(`SELECT company_id FROM employees WHERE id = $1`, [employeeId]);
+    const compId = emp.rows[0]?.company_id || null;
+    const r = await query(
+      `SELECT 1 FROM time_period_closings
+        WHERE organization_id = $1
+          AND (company_id = $2 OR company_id IS NULL)
+          AND $3::date BETWEEN period_start AND period_end
+        LIMIT 1`,
+      [orgId, compId, dateStr]
+    );
+    return r.rowCount > 0;
+  } catch { return false; }
+}
+
+async function notifyEmployee(orgId, employeeId, title, message, type = 'ponto', refType = null, refId = null) {
+  try {
+    await query(
+      `INSERT INTO collaborator_notifications
+       (organization_id, employee_id, title, message, type, reference_type, reference_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [orgId, employeeId, title, message, type, refType, refId]
+    );
+  } catch (e) { logError('timeclock.notifyEmployee', e); }
+}
+
+async function notifyRhStaff(orgId, title, message, type = 'ponto', refType = null, refId = null) {
+  try {
+    await query(
+      `INSERT INTO collaborator_notifications (organization_id, employee_id, title, message, type, reference_type, reference_id)
+       SELECT $1, e.id, $2, $3, $4, $5, $6
+         FROM employees e
+        WHERE e.organization_id = $1
+          AND e.status = 'ativo'
+          AND e.worker_profile IN ('administrativo','supervisor')
+        LIMIT 20`,
+      [orgId, title, message, type, refType, refId]
+    );
+  } catch (e) { logError('timeclock.notifyRhStaff', e); }
+}
 
 // ============================================
 // JORNADAS DE TRABALHO (Fase 3)
@@ -288,6 +332,11 @@ router.put('/cartao-ponto', async (req, res) => {
     const { employee_id, date, times = [], reason } = req.body || {};
     if (!orgId || !employee_id || !date) return res.status(400).json({ error: 'Dados obrigatórios' });
 
+    // Bloqueio por fechamento
+    if (await isPeriodClosed(orgId, employee_id, date)) {
+      return res.status(423).json({ error: 'Período fechado. Reabra o fechamento para editar.', code: 'PERIOD_CLOSED' });
+    }
+
     // Buscar batidas atuais do dia
     const current = await query(
       `SELECT id, punched_at FROM time_punches WHERE employee_id = $1 AND punched_at::date = $2 ORDER BY punched_at`,
@@ -320,6 +369,12 @@ router.put('/cartao-ponto', async (req, res) => {
 
     // Recalcular
     await recalcEmployeePeriod({ organizationId: orgId, employeeId: employee_id, startDate: date, endDate: date });
+
+    // Notificar colaborador
+    await notifyEmployee(orgId, employee_id, 'Ponto ajustado pelo RH',
+      `Suas batidas de ${date} foram alteradas para: ${cleanTimes.join(' · ') || '(sem batidas)'}${reason ? '. Motivo: ' + reason : ''}`,
+      'ponto_ajuste', 'punch_date', null);
+
     res.json({ ok: true });
   } catch (err) {
     logError('timeclock.cartao-ponto.put', err);
@@ -530,6 +585,11 @@ router.patch('/adjustment-requests/:id', async (req, res) => {
     const cur = await query(`SELECT * FROM punch_adjustment_requests WHERE id = $1 AND organization_id = $2`, [req.params.id, orgId]);
     if (!cur.rows[0]) return res.status(404).json({ error: 'Solicitação não encontrada' });
     const reqRow = cur.rows[0];
+    const dateStr = new Date(reqRow.punch_date).toISOString().slice(0, 10);
+
+    if (status === 'approved' && await isPeriodClosed(orgId, reqRow.employee_id, dateStr)) {
+      return res.status(423).json({ error: 'Período fechado — reabra para aprovar.', code: 'PERIOD_CLOSED' });
+    }
 
     await query(
       `UPDATE punch_adjustment_requests SET status = $1, review_note = $2, reviewed_by = $3, reviewed_at = NOW() WHERE id = $4`,
@@ -539,7 +599,6 @@ router.patch('/adjustment-requests/:id', async (req, res) => {
     // Se aprovado, aplicar batidas
     if (status === 'approved' && reqRow.requested_times) {
       const times = String(reqRow.requested_times).split(',').map(s => s.trim()).filter(t => /^\d{1,2}:\d{2}$/.test(t)).slice(0, 8);
-      const dateStr = new Date(reqRow.punch_date).toISOString().slice(0, 10);
       await query(`DELETE FROM time_punches WHERE employee_id = $1 AND punched_at::date = $2`, [reqRow.employee_id, dateStr]);
       for (let idx = 0; idx < times.length; idx++) {
         const t = times[idx];
@@ -557,6 +616,12 @@ router.patch('/adjustment-requests/:id', async (req, res) => {
       );
       await recalcEmployeePeriod({ organizationId: orgId, employeeId: reqRow.employee_id, startDate: dateStr, endDate: dateStr });
     }
+
+    // Notificar colaborador
+    await notifyEmployee(orgId, reqRow.employee_id,
+      status === 'approved' ? 'Ajuste de ponto aprovado' : 'Ajuste de ponto reprovado',
+      `Data ${dateStr}${review_note ? ' — ' + review_note : ''}`,
+      'ponto_ajuste', 'adjustment', req.params.id);
 
     res.json({ ok: true });
   } catch (err) { logError('timeclock.adj.patch', err); res.status(500).json({ error: 'Erro ao processar solicitação' }); }
@@ -589,8 +654,29 @@ router.post('/closings', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [orgId, company_id || null, period_start, period_end, req.userId, notes || null]
     );
+
+    // Notifica colaboradores afetados
+    try {
+      const empQ = company_id
+        ? await query(`SELECT id FROM employees WHERE organization_id = $1 AND company_id = $2 AND status = 'ativo'`, [orgId, company_id])
+        : await query(`SELECT id FROM employees WHERE organization_id = $1 AND status = 'ativo'`, [orgId]);
+      for (const e of empQ.rows) {
+        await notifyEmployee(orgId, e.id, 'Período de ponto fechado',
+          `Espelho de ${period_start} a ${period_end} foi encerrado pelo RH.`,
+          'ponto_fechamento', 'closing', r.rows[0].id);
+      }
+    } catch (e) { logError('timeclock.closings.notify', e); }
+
     res.json(r.rows[0]);
   } catch (err) { logError('timeclock.closings.post', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+router.delete('/closings/:id', async (req, res) => {
+  try {
+    const orgId = await resolveOrgId(req);
+    await query(`DELETE FROM time_period_closings WHERE id = $1 AND organization_id = $2`, [req.params.id, orgId]);
+    res.json({ ok: true });
+  } catch (err) { logError('timeclock.closings.delete', err); res.status(500).json({ error: 'Erro' }); }
 });
 
 // ============================================

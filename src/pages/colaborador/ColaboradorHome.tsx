@@ -57,13 +57,14 @@ export default function ColaboradorHome() {
   const unreadCount = (notifications || []).filter((n: any) => !n.read).length;
   const facialRequired = employee?.facial_required === true;
 
-  async function doPunch(facialVerified = false) {
+  async function doPunch(facialVerified = false, selfieDataUrl?: string) {
     if (!gps) { toast({ title: "Aguardando GPS", variant: "destructive" }); return; }
     try {
       await punch.mutateAsync({
         punch_type: nextType,
         latitude: gps.lat, longitude: gps.lng, accuracy_meters: gps.acc,
         facial_verified: facialVerified,
+        selfie_url: selfieDataUrl,
       });
       toast({ title: `${PUNCH_LABEL[nextType] || "Ponto"} registrada` });
     } catch (e: any) { toast({ title: e.message || "Erro ao registrar", variant: "destructive" }); }
@@ -173,7 +174,7 @@ export default function ColaboradorHome() {
           open={showFace}
           onOpenChange={setShowFace}
           storedDescriptor={employee.face_descriptor}
-          onResult={(r) => { setShowFace(false); if (r.match) doPunch(true); else toast({ title: "Falha na validação facial", variant: "destructive" }); }}
+          onResult={(r) => { setShowFace(false); if (r.match) doPunch(true, r.imageDataUrl); else toast({ title: "Falha na validação facial", variant: "destructive" }); }}
         />
       )}
     </ColaboradorLayout>
