@@ -304,7 +304,11 @@ export default function RHAcessos() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+
 
       {/* Grant Access Dialog */}
       <Dialog open={!!grantDialog} onOpenChange={v => !v && setGrantDialog(null)}>
