@@ -366,7 +366,7 @@ router.get('/home', authenticatePromotor, async (req, res) => {
 // =============================================
 router.post('/punch', authenticatePromotor, async (req, res) => {
   try {
-    const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified } = req.body;
+    const { punch_type, latitude, longitude, accuracy_meters, pdv_id, is_offline, offline_local_time, justification, local_id, facial_verified, selfie_url } = req.body;
 
     // ===== WORK SCHEDULE VALIDATION =====
     const empRes = await query(`SELECT work_schedule, face_descriptor, facial_required FROM employees WHERE id = $1`, [req.employeeId]);
