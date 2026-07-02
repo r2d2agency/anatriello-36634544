@@ -98,6 +98,9 @@ async function ensureSchema() {
     ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS edited_by UUID;
     ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
     ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS original_time TIMESTAMPTZ;
+    ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS nsr BIGINT;
+    ALTER TABLE time_punches ADD COLUMN IF NOT EXISTS signature_hash VARCHAR(128);
+    CREATE INDEX IF NOT EXISTS idx_tp_org_nsr ON time_punches(organization_id, nsr);
 
     CREATE TABLE IF NOT EXISTS time_records (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
