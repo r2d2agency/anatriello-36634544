@@ -17,6 +17,7 @@ export default function PromotorLogin() {
   const navigate = useNavigate();
   const location = useLocation();
   const isColabContext =
+    location.pathname.startsWith("/colaborador") ||
     location.pathname.startsWith("/app") ||
     (typeof window !== "undefined" && window.location.hostname.startsWith("colaborador."));
   const { branding } = useBranding() as any;
@@ -44,7 +45,7 @@ export default function PromotorLogin() {
       if (data.employee.force_password_change) {
         navigate('/promotor/trocar-senha');
       } else if (isColabContext) {
-        navigate('/app/home');
+        navigate('/colaborador/home');
       } else if (data.employee?.agency?.uses_merchandising === false || data.employee?.is_access_only) {
         navigate('/acesso/promotor/home');
       } else {
