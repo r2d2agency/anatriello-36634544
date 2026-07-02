@@ -135,11 +135,24 @@ export default function ColaboradorSolicitacoes() {
                 </SelectContent>
               </Select>
             </div>
-            {["ferias", "afastamento", "atestado", "horas_extras", "ajuste_ponto"].includes(kind) && (
+            {["ferias", "afastamento", "atestado", "horas_extras"].includes(kind) && (
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>Data início</Label><Input type="date" value={form.start_date || ""} onChange={e => setForm({ ...form, start_date: e.target.value })} /></div>
                 <div><Label>Data fim</Label><Input type="date" value={form.end_date || ""} onChange={e => setForm({ ...form, end_date: e.target.value })} /></div>
               </div>
+            )}
+            {kind === "ajuste_ponto" && (
+              <>
+                <div>
+                  <Label>Data do ponto</Label>
+                  <Input type="date" value={form.start_date || ""} onChange={e => setForm({ ...form, start_date: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Horários corretos (separe por vírgula)</Label>
+                  <Input placeholder="08:00, 12:00, 13:00, 17:00" value={form.times || ""} onChange={e => setForm({ ...form, times: e.target.value })} />
+                  <p className="text-[10px] text-slate-400 mt-1">Ex: entrada, saída almoço, retorno, saída</p>
+                </div>
+              </>
             )}
             <div>
               <Label>Motivo / observações</Label>
