@@ -835,10 +835,16 @@ router.post('/employees/:id/manager-access', async (req, res) => {
     if (password.length < 6) return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
 
     const passwordHash = await bcrypt.hash(password, 10);
+
+    // Ensure the flag column exists (idempotent)
+    try {
+      await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`);
+    } catch (_) { /* ignore */ }
+
     let userId = employee.user_id;
     if (userId) {
       await query(
-        `UPDATE users SET email = $1, name = $2, password_hash = $3, updated_at = NOW() WHERE id = $4`,
+        `UPDATE users SET email = $1, name = $2, password_hash = $3, must_change_password = true, updated_at = NOW() WHERE id = $4`,
         [email, employee.full_name, passwordHash, userId]
       );
     } else {
@@ -846,12 +852,12 @@ router.post('/employees/:id/manager-access', async (req, res) => {
       if (existingUser.rows[0]) {
         userId = existingUser.rows[0].id;
         await query(
-          `UPDATE users SET name = COALESCE(NULLIF($1, ''), name), password_hash = $2, updated_at = NOW() WHERE id = $3`,
+          `UPDATE users SET name = COALESCE(NULLIF($1, ''), name), password_hash = $2, must_change_password = true, updated_at = NOW() WHERE id = $3`,
           [employee.full_name, passwordHash, userId]
         );
       } else {
         const created = await query(
-          `INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id`,
+          `INSERT INTO users (email, name, password_hash, must_change_password) VALUES ($1, $2, $3, true) RETURNING id`,
           [email, employee.full_name, passwordHash]
         );
         userId = created.rows[0].id;
