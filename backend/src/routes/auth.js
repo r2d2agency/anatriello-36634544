@@ -469,6 +469,7 @@ router.get('/me', async (req, res) => {
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
         page_permissions: pagePermissions,
+        must_change_password: !!user.must_change_password,
       } 
     });
   } catch (error) {
