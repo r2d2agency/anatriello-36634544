@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle2, XCircle, Clock, Plane, Stethoscope, PencilLine, Loader2, RefreshCw, Building2, LogOut } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CheckCircle2, XCircle, Clock, Plane, Stethoscope, PencilLine, Loader2, RefreshCw, Building2, LogOut, KeyRound } from 'lucide-react';
 
 type Pending = {
   overtime: any[]; vacations: any[]; medical: any[]; adjustments: any[]; total: number;
@@ -24,7 +26,7 @@ const KIND_META: Record<string, { label: string; icon: any; endpoint: string }> 
 };
 
 export default function ManagerApp() {
-  const { logout } = useAuth();
+  const { logout, user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<Pending | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,33 @@ export default function ManagerApp() {
   const [action, setAction] = useState<null | { kind: string; id: string; type: 'approve' | 'reject'; label: string }>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Forced password change on first login (temporary password)
+  const mustChange = !!user?.must_change_password;
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+
+  const submitPasswordChange = async () => {
+    if (pwNew.length < 6) { toast.error('A nova senha precisa ter pelo menos 6 caracteres'); return; }
+    if (pwNew !== pwConfirm) { toast.error('A confirmação não confere'); return; }
+    setPwBusy(true);
+    try {
+      await api('/api/auth/password', {
+        method: 'PUT',
+        body: { currentPassword: pwCurrent, newPassword: pwNew },
+        auth: true,
+      });
+      toast.success('Senha alterada com sucesso');
+      setPwCurrent(''); setPwNew(''); setPwConfirm('');
+      await refreshUser();
+    } catch (e: any) {
+      toast.error(e?.message || 'Não foi possível alterar a senha');
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -42,7 +71,7 @@ export default function ManagerApp() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (!mustChange) load(); }, [mustChange]);
 
   const submit = async () => {
     if (!action) return;
@@ -154,6 +183,38 @@ export default function ManagerApp() {
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAction(null)}>Cancelar</Button>
             <Button onClick={submit} disabled={busy}>{busy ? 'Enviando…' : 'Confirmar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mustChange} onOpenChange={() => { /* bloqueado até trocar */ }}>
+        <DialogContent className="max-w-sm" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary" /> Defina sua nova senha</DialogTitle>
+            <DialogDescription>
+              Você entrou com uma <b>senha temporária</b>. Para continuar, cadastre uma senha pessoal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="pw-current">Senha temporária</Label>
+              <Input id="pw-current" type="password" autoComplete="current-password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="pw-new">Nova senha</Label>
+              <Input id="pw-new" type="password" autoComplete="new-password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="pw-confirm">Confirmar nova senha</Label>
+              <Input id="pw-confirm" type="password" autoComplete="new-password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { logout(); navigate('/gestor/login', { replace: true }); }}>Sair</Button>
+            <Button onClick={submitPasswordChange} disabled={pwBusy || !pwCurrent || !pwNew || !pwConfirm}>
+              {pwBusy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Salvar nova senha
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

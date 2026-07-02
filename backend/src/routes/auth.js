@@ -194,11 +194,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
-    // Find user
-    const result = await query(
-      'SELECT id, email, name, password_hash, is_superadmin FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
-      [email]
-    );
+    // Find user (must_change_password column may not exist yet — fall back)
+    let result;
+    try {
+      result = await query(
+        'SELECT id, email, name, password_hash, is_superadmin, COALESCE(must_change_password, false) AS must_change_password FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
+        [email]
+      );
+    } catch (_) {
+      result = await query(
+        'SELECT id, email, name, password_hash, is_superadmin, false AS must_change_password FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
+        [email]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
@@ -309,6 +317,7 @@ router.post('/login', async (req, res) => {
         organization_id: organizationId,
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
+        must_change_password: !!user.must_change_password,
       },
       token
     });
@@ -330,10 +339,18 @@ router.get('/me', async (req, res) => {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const result = await query(
-      'SELECT id, email, name, is_superadmin, created_at FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+    let result;
+    try {
+      result = await query(
+        'SELECT id, email, name, is_superadmin, created_at, COALESCE(must_change_password, false) AS must_change_password FROM users WHERE id = $1',
+        [decoded.userId]
+      );
+    } catch (_) {
+      result = await query(
+        'SELECT id, email, name, is_superadmin, created_at, false AS must_change_password FROM users WHERE id = $1',
+        [decoded.userId]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -452,6 +469,7 @@ router.get('/me', async (req, res) => {
         modules_enabled: modulesEnabled,
         has_connections: hasConnections,
         page_permissions: pagePermissions,
+        must_change_password: !!user.must_change_password,
       } 
     });
   } catch (error) {
@@ -543,11 +561,18 @@ router.put('/password', async (req, res) => {
     // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
     
-    // Update password
-    await query(
-      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-      [passwordHash, decoded.userId]
-    );
+    // Update password (and clear the temporary-password flag if present)
+    try {
+      await query(
+        'UPDATE users SET password_hash = $1, must_change_password = false, updated_at = NOW() WHERE id = $2',
+        [passwordHash, decoded.userId]
+      );
+    } catch (_) {
+      await query(
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        [passwordHash, decoded.userId]
+      );
+    }
 
     res.json({ message: 'Senha alterada com sucesso' });
   } catch (error) {
