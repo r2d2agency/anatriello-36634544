@@ -229,6 +229,7 @@ export default function RHAcessos() {
                       <TableHead>CPF</TableHead>
                       <TableHead>Status RH</TableHead>
                       <TableHead>Status App</TableHead>
+                      <TableHead>Perfil do App</TableHead>
                       <TableHead>Acesso Gestor</TableHead>
                       <TableHead>Último Login</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
@@ -258,6 +259,34 @@ export default function RHAcessos() {
                             <Badge variant="outline" className={`text-[10px] ${statusInfo.color}`}>
                               {statusInfo.label}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={emp.app_access_template_id || "__none__"}
+                              onValueChange={async (v) => {
+                                try {
+                                  await assignTemplate.mutateAsync({
+                                    employee_id: emp.id,
+                                    template_id: v === "__none__" ? null : v,
+                                  });
+                                  toast({ title: "Perfil atualizado", description: emp.full_name });
+                                } catch (err: any) {
+                                  toast({ title: "Erro", description: err.message, variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-7 text-xs min-w-[140px]">
+                                <SelectValue placeholder="Sem perfil" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">Sem perfil (padrão)</SelectItem>
+                                {templates.map((t: any) => (
+                                  <SelectItem key={t.id} value={t.id}>
+                                    {t.name}{t.is_default ? " (padrão)" : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`text-[10px] ${emp.user_id ? 'bg-green-500/10 text-green-700 border-green-200' : 'bg-muted text-muted-foreground'}`}>
@@ -293,7 +322,7 @@ export default function RHAcessos() {
                     })}
                     {filtered.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Nenhum colaborador encontrado
                         </TableCell>
                       </TableRow>
