@@ -334,6 +334,23 @@ export default function RHAcessos() {
               </div>
               <p className="text-xs text-muted-foreground">O colaborador será obrigado a trocar a senha no primeiro login.</p>
             </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Perfil do App</Label>
+              <Select value={grantTemplateId} onValueChange={setGrantTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar perfil…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}{t.is_default ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Define o que o colaborador pode fazer dentro do app (ponto, holerite, férias etc.).
+              </p>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setGrantDialog(null)}>Cancelar</Button>
               <Button onClick={confirmGrant} disabled={grantAccess.isPending}>
