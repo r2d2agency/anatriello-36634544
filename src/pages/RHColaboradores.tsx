@@ -1146,6 +1146,13 @@ export default function RHColaboradores() {
           </div>
         </DialogContent>
       </Dialog>
+      <EmployeeNotificationsDialog
+        open={notifOpen}
+        onOpenChange={setNotifOpen}
+        employeeId={notifEmployee?.id}
+        employeeName={notifEmployee?.name}
+      />
+
       <EmployeeImportExportDialog
         open={importExportOpen}
         onOpenChange={setImportExportOpen}
