@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { ColaboradorLayout } from "./ColaboradorLayout";
-import { usePromotorPunches } from "@/hooks/use-promotor";
+import { usePromotorPunches, useDownloadPunchReceipt, useDownloadMirror } from "@/hooks/use-promotor";
 import { format, subDays, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tab = "dia" | "semana" | "mes";
