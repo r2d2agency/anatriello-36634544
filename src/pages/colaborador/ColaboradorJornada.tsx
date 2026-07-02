@@ -100,9 +100,20 @@ export default function ColaboradorJornada() {
                       <p className={cn("text-sm font-semibold", done ? "text-slate-800" : "text-slate-400")}>{time}</p>
                       <p className="text-xs text-slate-500">{s.label}</p>
                     </div>
-                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", done ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-400")}>
-                      {done ? "No horário" : "Pendente"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {done && (
+                        <button
+                          onClick={() => dlReceipt.mutate(p.id)}
+                          className="text-[10px] px-2 py-1 rounded-full bg-orange-50 text-orange-600 font-medium flex items-center gap-1 hover:bg-orange-100"
+                          title="Baixar comprovante"
+                        >
+                          <Download className="h-3 w-3" /> Comprovante
+                        </button>
+                      )}
+                      <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", done ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-400")}>
+                        {done ? "No horário" : "Pendente"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
