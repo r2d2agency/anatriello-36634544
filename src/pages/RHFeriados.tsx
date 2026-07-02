@@ -162,9 +162,10 @@ export default function RHFeriados() {
               </Button>
               <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="hidden" />
             </label>
-            <Button onClick={() => { setForm({ ...EMPTY_FORM }); setDialogOpen(true); }} className="gap-2">
+            <Button onClick={openCreate} className="gap-2">
               <Plus className="h-4 w-4" /> Novo Feriado
             </Button>
+
           </div>
         </div>
 
