@@ -196,7 +196,9 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const result = await query(
-      'SELECT id, email, name, password_hash, is_superadmin FROM users WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1',
+      `SELECT id, email, name, password_hash, is_superadmin,
+              COALESCE((SELECT must_change_password FROM users WHERE id = u.id), false) AS must_change_password
+       FROM users u WHERE lower(trim(email)) = lower(trim($1)) LIMIT 1`,
       [email]
     );
 
