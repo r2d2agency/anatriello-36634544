@@ -39,6 +39,8 @@ export default function PromotorLogin() {
 
       if (data.employee.force_password_change) {
         navigate('/promotor/trocar-senha');
+      } else if (isColabContext) {
+        navigate('/app/home');
       } else if (data.employee?.agency?.uses_merchandising === false || data.employee?.is_access_only) {
         navigate('/acesso/promotor/home');
       } else {
