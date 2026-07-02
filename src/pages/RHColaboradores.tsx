@@ -434,7 +434,7 @@ export default function RHColaboradores() {
                   <TableHead className="hidden lg:table-cell">Vínculo</TableHead>
                   <TableHead className="hidden lg:table-cell">Departamento</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
+                  <TableHead className="w-32">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
