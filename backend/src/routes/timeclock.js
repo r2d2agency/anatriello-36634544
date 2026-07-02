@@ -585,6 +585,11 @@ router.patch('/adjustment-requests/:id', async (req, res) => {
     const cur = await query(`SELECT * FROM punch_adjustment_requests WHERE id = $1 AND organization_id = $2`, [req.params.id, orgId]);
     if (!cur.rows[0]) return res.status(404).json({ error: 'Solicitação não encontrada' });
     const reqRow = cur.rows[0];
+    const dateStr = new Date(reqRow.punch_date).toISOString().slice(0, 10);
+
+    if (status === 'approved' && await isPeriodClosed(orgId, reqRow.employee_id, dateStr)) {
+      return res.status(423).json({ error: 'Período fechado — reabra para aprovar.', code: 'PERIOD_CLOSED' });
+    }
 
     await query(
       `UPDATE punch_adjustment_requests SET status = $1, review_note = $2, reviewed_by = $3, reviewed_at = NOW() WHERE id = $4`,
@@ -594,7 +599,6 @@ router.patch('/adjustment-requests/:id', async (req, res) => {
     // Se aprovado, aplicar batidas
     if (status === 'approved' && reqRow.requested_times) {
       const times = String(reqRow.requested_times).split(',').map(s => s.trim()).filter(t => /^\d{1,2}:\d{2}$/.test(t)).slice(0, 8);
-      const dateStr = new Date(reqRow.punch_date).toISOString().slice(0, 10);
       await query(`DELETE FROM time_punches WHERE employee_id = $1 AND punched_at::date = $2`, [reqRow.employee_id, dateStr]);
       for (let idx = 0; idx < times.length; idx++) {
         const t = times[idx];
@@ -612,6 +616,12 @@ router.patch('/adjustment-requests/:id', async (req, res) => {
       );
       await recalcEmployeePeriod({ organizationId: orgId, employeeId: reqRow.employee_id, startDate: dateStr, endDate: dateStr });
     }
+
+    // Notificar colaborador
+    await notifyEmployee(orgId, reqRow.employee_id,
+      status === 'approved' ? 'Ajuste de ponto aprovado' : 'Ajuste de ponto reprovado',
+      `Data ${dateStr}${review_note ? ' — ' + review_note : ''}`,
+      'ponto_ajuste', 'adjustment', req.params.id);
 
     res.json({ ok: true });
   } catch (err) { logError('timeclock.adj.patch', err); res.status(500).json({ error: 'Erro ao processar solicitação' }); }
