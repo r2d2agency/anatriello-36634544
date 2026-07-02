@@ -72,8 +72,11 @@ export function ColaboradorLayout({ children, title, showBack, rightSlot, bg = "
       )}
       <main className="flex-1 pb-24 overflow-y-auto">{children}</main>
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(15,23,42,0.05)] pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-lg mx-auto grid grid-cols-4">
-          {tabs.map(t => (
+        <div
+          className="max-w-lg mx-auto grid"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {visibleTabs.map(t => (
             <NavLink
               key={t.to}
               to={t.to}
