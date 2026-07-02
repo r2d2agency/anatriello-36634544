@@ -18,6 +18,7 @@ import {
   useHolidays, useCreateHoliday, useDeleteHoliday, useImportNationalHolidays,
   useAdjustmentRequests, useReviewAdjustmentRequest,
   useReportSummary, useReportAbsencesLates, useTimeBankStatement, downloadTimeclockCsv,
+  useClosings, useCreateClosing, useDeleteClosing,
 } from '@/hooks/use-timeclock';
 import { useCompanies } from '@/hooks/use-companies';
 import { WorkSchedulesTab } from '@/components/rh/WorkSchedulesTab';
