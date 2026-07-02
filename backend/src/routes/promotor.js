@@ -23,6 +23,7 @@ router.use((req, res, next) => {
                           req.path.startsWith('/settings') ||
                           req.path.startsWith('/change-password') ||
                           req.path.startsWith('/face-enrollment') ||
+                          req.path.startsWith('/punch-adjustment') ||
                           req.path.startsWith('/sync');
 
   if (isPromotorRoute) {
