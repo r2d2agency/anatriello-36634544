@@ -15,8 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Search, UserCircle, Building2, FileText, Edit, Trash2, Eye, EyeOff, Users, Loader2, Calendar, Briefcase, X, MapPin, UserCog, DollarSign, Gift, Smartphone, KeyRound, Copy, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, UserCircle, Building2, FileText, Edit, Trash2, Eye, EyeOff, Users, Loader2, Calendar, Briefcase, X, MapPin, UserCog, DollarSign, Gift, Smartphone, KeyRound, Copy, RefreshCw, FileSpreadsheet, Bell } from "lucide-react";
 import { EmployeeImportExportDialog } from "@/components/rh/EmployeeImportExportDialog";
+import { EmployeeNotificationsDialog } from "@/components/rh/EmployeeNotificationsDialog";
 import { useUpload } from "@/hooks/use-upload";
 import { format, differenceInYears, differenceInMonths, differenceInDays, addYears, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -167,6 +168,8 @@ export default function RHColaboradores() {
   const [companyFilter, setCompanyFilter] = useState("all");
   const [profileFilter, setProfileFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifEmployee, setNotifEmployee] = useState<{ id: string; name: string } | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({ ...EMPTY_FORM });
   const [showSensitive, setShowSensitive] = useState(false);
@@ -431,7 +434,7 @@ export default function RHColaboradores() {
                   <TableHead className="hidden lg:table-cell">Vínculo</TableHead>
                   <TableHead className="hidden lg:table-cell">Departamento</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
+                  <TableHead className="w-32">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -463,6 +466,7 @@ export default function RHColaboradores() {
                     <TableCell><Badge className={STATUS_COLORS[emp.status] || ""}>{emp.status}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" title="Histórico de notificações" onClick={e => { e.stopPropagation(); setNotifEmployee({ id: emp.id, name: emp.full_name }); setNotifOpen(true); }}><Bell className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); openEdit(emp); }}><Edit className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); handleDelete(emp.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
@@ -1142,6 +1146,13 @@ export default function RHColaboradores() {
           </div>
         </DialogContent>
       </Dialog>
+      <EmployeeNotificationsDialog
+        open={notifOpen}
+        onOpenChange={setNotifOpen}
+        employeeId={notifEmployee?.id}
+        employeeName={notifEmployee?.name}
+      />
+
       <EmployeeImportExportDialog
         open={importExportOpen}
         onOpenChange={setImportExportOpen}
