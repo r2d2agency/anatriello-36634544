@@ -421,6 +421,15 @@ export function useBulkImportHolidays() {
   });
 }
 
+export function useUpdateHoliday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, any>) =>
+      api<any>(`/api/rh/holidays/${id}`, { method: 'PUT', body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-holidays'] }),
+  });
+}
+
 export function useDeleteHoliday() {
   const qc = useQueryClient();
   return useMutation({
@@ -428,6 +437,7 @@ export function useDeleteHoliday() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-holidays'] }),
   });
 }
+
 
 // ===== SERVICE REGIONS =====
 export function useServiceRegions() {

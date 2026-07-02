@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useHolidays, useCreateHoliday, useBulkImportHolidays, useDeleteHoliday } from "@/hooks/use-rh";
-import { CalendarDays, Plus, Upload, Trash2, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useHolidays, useCreateHoliday, useBulkImportHolidays, useDeleteHoliday, useUpdateHoliday } from "@/hooks/use-rh";
+import { CalendarDays, Plus, Upload, Trash2, FileSpreadsheet, Loader2, Pencil } from "lucide-react";
+
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 
@@ -31,15 +32,36 @@ export default function RHFeriados() {
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [typeFilter, setTypeFilter] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({ ...EMPTY_FORM });
   const { toast } = useToast();
 
   const { data: holidays = [], isLoading } = useHolidays({ year: year || undefined, type: typeFilter || undefined });
   const createHoliday = useCreateHoliday();
+  const updateHoliday = useUpdateHoliday();
   const bulkImport = useBulkImportHolidays();
   const deleteHoliday = useDeleteHoliday();
 
   const setField = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm({ ...EMPTY_FORM });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (h: any) => {
+    setEditingId(h.id);
+    setForm({
+      name: h.name || '',
+      holiday_date: h.holiday_date ? String(h.holiday_date).slice(0, 10) : '',
+      type: h.type || 'nacional',
+      state: h.state || '',
+      city: h.city || '',
+      recurring: h.recurring !== false,
+    });
+    setDialogOpen(true);
+  };
 
   const handleSave = async () => {
     if (!form.name || !form.holiday_date) {
@@ -47,9 +69,15 @@ export default function RHFeriados() {
       return;
     }
     try {
-      await createHoliday.mutateAsync(form);
-      toast({ title: 'Feriado adicionado!' });
+      if (editingId) {
+        await updateHoliday.mutateAsync({ id: editingId, ...form });
+        toast({ title: 'Feriado atualizado!' });
+      } else {
+        await createHoliday.mutateAsync(form);
+        toast({ title: 'Feriado adicionado!' });
+      }
       setDialogOpen(false);
+      setEditingId(null);
       setForm({ ...EMPTY_FORM });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -57,6 +85,7 @@ export default function RHFeriados() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Excluir este feriado?')) return;
     try {
       await deleteHoliday.mutateAsync(id);
       toast({ title: 'Feriado removido' });
@@ -64,6 +93,7 @@ export default function RHFeriados() {
       toast({ title: 'Erro ao remover', variant: 'destructive' });
     }
   };
+
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,9 +162,10 @@ export default function RHFeriados() {
               </Button>
               <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="hidden" />
             </label>
-            <Button onClick={() => { setForm({ ...EMPTY_FORM }); setDialogOpen(true); }} className="gap-2">
+            <Button onClick={openCreate} className="gap-2">
               <Plus className="h-4 w-4" /> Novo Feriado
             </Button>
+
           </div>
         </div>
 
@@ -196,8 +227,12 @@ export default function RHFeriados() {
                       <TableCell className="hidden md:table-cell">{h.city || '—'}</TableCell>
                       <TableCell className="hidden md:table-cell">{h.recurring ? '✓ Sim' : 'Não'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(h.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(h)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(h.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
                       </TableCell>
+
                     </TableRow>
                   );
                 })}
@@ -210,7 +245,7 @@ export default function RHFeriados() {
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Novo Feriado</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? 'Editar Feriado' : 'Novo Feriado'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Nome *</Label><Input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Ex: Natal" /></div>
             <div><Label>Data *</Label><Input type="date" value={form.holiday_date} onChange={e => setField('holiday_date', e.target.value)} /></div>
@@ -242,9 +277,10 @@ export default function RHFeriados() {
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={createHoliday.isPending}>
-              {createHoliday.isPending ? 'Salvando...' : 'Salvar'}
+            <Button onClick={handleSave} disabled={createHoliday.isPending || updateHoliday.isPending}>
+              {(createHoliday.isPending || updateHoliday.isPending) ? 'Salvando...' : 'Salvar'}
             </Button>
+
           </div>
         </DialogContent>
       </Dialog>
