@@ -825,7 +825,7 @@ function RelatoriosTab() {
 // ============ FECHAMENTO TAB ============
 function FechamentoTab() {
   const { data: closings = [], isLoading } = useClosings();
-  const { data: companies = [] } = useCompanies();
+  const { companies = [] } = useCompanies() as any;
   const createClosing = useCreateClosing();
   const deleteClosing = useDeleteClosing();
   const { toast } = useToast();
