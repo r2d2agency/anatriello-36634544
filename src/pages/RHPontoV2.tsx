@@ -822,6 +822,101 @@ function RelatoriosTab() {
   );
 }
 
+// ============ FECHAMENTO TAB ============
+function FechamentoTab() {
+  const { data: closings = [], isLoading } = useClosings();
+  const { data: companies = [] } = useCompanies();
+  const createClosing = useCreateClosing();
+  const deleteClosing = useDeleteClosing();
+  const { toast } = useToast();
+  const [periodStart, setPeriodStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [periodEnd, setPeriodEnd] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [companyId, setCompanyId] = useState<string>('all');
+  const [notes, setNotes] = useState('');
+
+  async function handleClose() {
+    try {
+      await createClosing.mutateAsync({
+        period_start: periodStart, period_end: periodEnd,
+        company_id: companyId === 'all' ? null : companyId,
+        notes: notes || null,
+      });
+      toast({ title: 'Período fechado. Batidas travadas para edição.' });
+      setNotes('');
+    } catch (e: any) { toast({ title: e.message || 'Erro', variant: 'destructive' }); }
+  }
+
+  async function handleReopen(id: string) {
+    if (!confirm('Reabrir este fechamento? Batidas voltam a ser editáveis.')) return;
+    try {
+      await deleteClosing.mutateAsync(id);
+      toast({ title: 'Fechamento reaberto' });
+    } catch (e: any) { toast({ title: e.message || 'Erro', variant: 'destructive' }); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader><CardTitle className="text-base">Fechar novo período</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div><Label>Início</Label><Input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} /></div>
+          <div><Label>Fim</Label><Input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} /></div>
+          <div>
+            <Label>Empresa</Label>
+            <Select value={companyId} onValueChange={setCompanyId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                {companies.map((c: any) => (<SelectItem key={c.id} value={c.id}>{c.trade_name}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="md:col-span-2"><Label>Observações</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ex.: fechamento folha 06/2026" /></div>
+          <div className="md:col-span-5">
+            <Button onClick={handleClose} disabled={createClosing.isPending}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />Fechar período
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">Após o fechamento, RH e colaboradores não conseguem editar/solicitar ajustes dentro do intervalo até a reabertura.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Fechamentos recentes</CardTitle></CardHeader>
+        <CardContent>
+          {isLoading ? <p className="text-sm text-muted-foreground">Carregando…</p> : closings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum fechamento registrado.</p>
+          ) : (
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Período</TableHead><TableHead>Empresa</TableHead>
+                <TableHead>Fechado em</TableHead><TableHead>Por</TableHead>
+                <TableHead>Observações</TableHead><TableHead className="text-right">Ações</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {closings.map((c: any) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">{format(new Date(c.period_start), 'dd/MM/yyyy')} – {format(new Date(c.period_end), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>{c.company_name || <span className="text-muted-foreground">Todas</span>}</TableCell>
+                    <TableCell>{format(new Date(c.closed_at), 'dd/MM/yyyy HH:mm')}</TableCell>
+                    <TableCell>{c.closed_by_name || '—'}</TableCell>
+                    <TableCell className="max-w-xs truncate">{c.notes || '—'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" onClick={() => handleReopen(c.id)}>
+                        <Trash2 className="h-4 w-4 mr-1" />Reabrir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ============ PÁGINA PRINCIPAL ============
 export default function RHPontoV2() {
   return (
@@ -829,17 +924,18 @@ export default function RHPontoV2() {
       <div className="p-4 md:p-6 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">Ponto Eletrônico</h1>
-          <p className="text-muted-foreground text-sm">Cartão ponto, banco de horas 1:1, feriados, ajustes e relatórios.</p>
+          <p className="text-muted-foreground text-sm">Cartão ponto, banco de horas 1:1, feriados, ajustes, relatórios e fechamento.</p>
         </div>
 
         <Tabs defaultValue="cartao">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="cartao">Cartão Ponto</TabsTrigger>
             <TabsTrigger value="banco">Banco de Horas</TabsTrigger>
             <TabsTrigger value="jornadas">Jornadas</TabsTrigger>
             <TabsTrigger value="feriados">Feriados</TabsTrigger>
             <TabsTrigger value="ajustes">Solicitações</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            <TabsTrigger value="fechamento">Fechamento</TabsTrigger>
           </TabsList>
           <TabsContent value="cartao" className="mt-4"><CartaoPontoTab /></TabsContent>
           <TabsContent value="banco" className="mt-4"><BancoHorasTab /></TabsContent>
@@ -847,6 +943,7 @@ export default function RHPontoV2() {
           <TabsContent value="feriados" className="mt-4"><FeriadosTab /></TabsContent>
           <TabsContent value="ajustes" className="mt-4"><SolicitacoesTab /></TabsContent>
           <TabsContent value="relatorios" className="mt-4"><RelatoriosTab /></TabsContent>
+          <TabsContent value="fechamento" className="mt-4"><FechamentoTab /></TabsContent>
         </Tabs>
       </div>
     </MainLayout>
