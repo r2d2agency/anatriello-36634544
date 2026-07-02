@@ -176,11 +176,12 @@ export async function generateAEJ({ organizationId, companyId, employeeId, start
 
   let daysCount = 0;
   for (const emp of emps.rows) {
-    const days = await recalcEmployeePeriod({
-      organizationId, employeeId: emp.id, startDate, endDate, persist: false,
-    }).catch(() => []);
+    const result = await recalcEmployeePeriod({
+      organizationId, employeeId: emp.id, startDate, endDate,
+    }).catch(() => ({ days: [] }));
+    const days = Array.isArray(result?.days) ? result.days : [];
     out.push(`EMPREGADO|${digits(emp.pis_number).padStart(12, '0').slice(-12)}|${digits(emp.cpf).padStart(11, '0').slice(-11)}|${(emp.full_name || '').replace(/\|/g, ' ')}`);
-    for (const d of days || []) {
+    for (const d of days) {
       daysCount++;
       const p = Array.isArray(d.punches) ? d.punches : [];
       const marks = p.map((x) => hhmmFromDate(new Date(x))).join(',');
