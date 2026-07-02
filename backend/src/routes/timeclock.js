@@ -890,5 +890,41 @@ router.get('/receipt/:punchId.pdf', async (req, res) => {
   } catch (err) { logError('timeclock.receipt.pdf', err); res.status(500).json({ error: err.message || 'Erro' }); }
 });
 
+// ============ AFD / AEJ (Portaria 671/2021 - Compliance) ============
+import { generateAFD, generateAEJ } from '../services/afd-generator.js';
+
+router.get('/afd.txt', async (req, res) => {
+  try {
+    const orgId = await resolveOrgId(req);
+    const { company_id, employee_id, start, end } = req.query;
+    if (!start || !end) return res.status(400).json({ error: 'start e end são obrigatórios' });
+    await ensureSchema();
+    const { content, filename } = await generateAFD({
+      organizationId: orgId, companyId: company_id || null,
+      employeeId: employee_id || null, startDate: start, endDate: end,
+    });
+    res.setHeader('Content-Type', 'text/plain; charset=us-ascii');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(content);
+  } catch (err) { logError('timeclock.afd', err); res.status(500).json({ error: err.message || 'Erro ao gerar AFD' }); }
+});
+
+router.get('/aej.txt', async (req, res) => {
+  try {
+    const orgId = await resolveOrgId(req);
+    const { company_id, employee_id, start, end } = req.query;
+    if (!start || !end) return res.status(400).json({ error: 'start e end são obrigatórios' });
+    await ensureSchema();
+    const { content, filename } = await generateAEJ({
+      organizationId: orgId, companyId: company_id || null,
+      employeeId: employee_id || null, startDate: start, endDate: end,
+    });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(content);
+  } catch (err) { logError('timeclock.aej', err); res.status(500).json({ error: err.message || 'Erro ao gerar AEJ' }); }
+});
+
 export default router;
+
 

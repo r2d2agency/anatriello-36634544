@@ -918,13 +918,133 @@ function FechamentoTab() {
 }
 
 // ============ PÁGINA PRINCIPAL ============
+// ============ COMPLIANCE TAB (AFD / AEJ - Portaria 671/2021) ============
+function ComplianceTab() {
+  const { toast } = useToast();
+  const { companies } = useCompanies();
+  const { data: employees = [] } = useEmployees({ status: 'ativo' });
+  const [companyId, setCompanyId] = useState<string>('all');
+  const [employeeId, setEmployeeId] = useState<string>('all');
+  const [start, setStart] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [end, setEnd] = useState(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [loading, setLoading] = useState<'afd' | 'aej' | null>(null);
+
+  const filteredEmployees = useMemo(
+    () => employees.filter((e: any) => companyId === 'all' || e.company_id === companyId),
+    [employees, companyId]
+  );
+
+  const download = async (kind: 'afd' | 'aej') => {
+    setLoading(kind);
+    try {
+      const token = localStorage.getItem('token');
+      const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const qs = new URLSearchParams({ start, end });
+      if (companyId !== 'all') qs.set('company_id', companyId);
+      if (employeeId !== 'all') qs.set('employee_id', employeeId);
+      const url = `${base}/api/timeclock/${kind}.txt?${qs}`;
+      const r = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!r.ok) throw new Error(await r.text().catch(() => 'Falha ao gerar'));
+      const blob = await r.blob();
+      const cd = r.headers.get('Content-Disposition') || '';
+      const fname = /filename="([^"]+)"/.exec(cd)?.[1] || `${kind.toUpperCase()}_${start}_${end}.txt`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast({ title: `${kind.toUpperCase()} gerado`, description: fname });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e?.message || 'Falha', variant: 'destructive' });
+    } finally { setLoading(null); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Compliance MTE — AFD & AEJ</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Arquivos oficiais conforme <strong>Portaria MTP 671/2021</strong>. AFD contém todas as marcações
+            com NSR sequencial e assinatura. AEJ consolida a jornada apurada por dia (previsto x realizado) com hash SHA-256.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <Label className="text-xs">Empresa</Label>
+              <Select value={companyId} onValueChange={(v) => { setCompanyId(v); setEmployeeId('all'); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.trade_name || c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Colaborador</Label>
+              <Select value={employeeId} onValueChange={setEmployeeId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {filteredEmployees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Início</Label>
+              <Input type="date" value={start} onChange={e => setStart(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Fim</Label>
+              <Input type="date" value={end} onChange={e => setEnd(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Card>
+              <CardContent className="pt-4 space-y-2">
+                <div className="font-semibold">AFD — Arquivo Fonte de Dados</div>
+                <p className="text-xs text-muted-foreground">
+                  Registros tipo 1 (cabeçalho), 3 (marcações), 4 (ajustes RH), 5 (empregados) e 9 (trailer).
+                  Formato ASCII fixo, CRLF, layout aceito por fiscalização MTE.
+                </p>
+                <Button className="w-full" onClick={() => download('afd')} disabled={loading !== null}>
+                  <Download className="h-4 w-4 mr-1" /> {loading === 'afd' ? 'Gerando...' : 'Baixar AFD (.txt)'}
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 space-y-2">
+                <div className="font-semibold">AEJ — Arquivo Eletrônico de Jornada</div>
+                <p className="text-xs text-muted-foreground">
+                  Consolidação diária: jornada prevista, realizada, extras, adicional noturno, faltas e atrasos por colaborador,
+                  com assinatura SHA-256 no fim do arquivo.
+                </p>
+                <Button className="w-full" variant="secondary" onClick={() => download('aej')} disabled={loading !== null}>
+                  <Download className="h-4 w-4 mr-1" /> {loading === 'aej' ? 'Gerando...' : 'Baixar AEJ (.txt)'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="rounded border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200">
+            <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+            Antes de gerar para fiscalização, execute o fechamento do período na aba <strong>Fechamento</strong> para congelar as batidas.
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function RHPontoV2() {
   return (
     <MainLayout>
       <div className="p-4 md:p-6 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">Ponto Eletrônico</h1>
-          <p className="text-muted-foreground text-sm">Cartão ponto, banco de horas 1:1, feriados, ajustes, relatórios e fechamento.</p>
+          <p className="text-muted-foreground text-sm">Cartão ponto, banco de horas 1:1, feriados, ajustes, relatórios, fechamento e compliance MTE.</p>
         </div>
 
         <Tabs defaultValue="cartao">
@@ -936,6 +1056,7 @@ export default function RHPontoV2() {
             <TabsTrigger value="ajustes">Solicitações</TabsTrigger>
             <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
             <TabsTrigger value="fechamento">Fechamento</TabsTrigger>
+            <TabsTrigger value="compliance">Compliance</TabsTrigger>
           </TabsList>
           <TabsContent value="cartao" className="mt-4"><CartaoPontoTab /></TabsContent>
           <TabsContent value="banco" className="mt-4"><BancoHorasTab /></TabsContent>
@@ -944,6 +1065,7 @@ export default function RHPontoV2() {
           <TabsContent value="ajustes" className="mt-4"><SolicitacoesTab /></TabsContent>
           <TabsContent value="relatorios" className="mt-4"><RelatoriosTab /></TabsContent>
           <TabsContent value="fechamento" className="mt-4"><FechamentoTab /></TabsContent>
+          <TabsContent value="compliance" className="mt-4"><ComplianceTab /></TabsContent>
         </Tabs>
       </div>
     </MainLayout>
