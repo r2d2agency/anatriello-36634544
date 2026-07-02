@@ -117,6 +117,7 @@ import ColaboradorHolerite from "./pages/colaborador/ColaboradorHolerite";
 import ColaboradorDocumentos from "./pages/colaborador/ColaboradorDocumentos";
 import ColaboradorBeneficios from "./pages/colaborador/ColaboradorBeneficios";
 import ColaboradorPerfil from "./pages/colaborador/ColaboradorPerfil";
+import ColabProtectedRoute from "./components/ColabProtectedRoute";
 import AccessLogin from "./pages/promotor/AccessLogin";
 import AccessOnlyHome from "./pages/promotor/AccessOnlyHome";
 import NotFound from "./pages/NotFound";
