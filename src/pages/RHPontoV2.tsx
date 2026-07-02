@@ -565,11 +565,13 @@ export default function RHPontoV2() {
           <TabsList>
             <TabsTrigger value="cartao">Cartão Ponto</TabsTrigger>
             <TabsTrigger value="banco">Banco de Horas</TabsTrigger>
+            <TabsTrigger value="jornadas">Jornadas</TabsTrigger>
             <TabsTrigger value="feriados">Feriados</TabsTrigger>
             <TabsTrigger value="ajustes">Solicitações</TabsTrigger>
           </TabsList>
           <TabsContent value="cartao" className="mt-4"><CartaoPontoTab /></TabsContent>
           <TabsContent value="banco" className="mt-4"><BancoHorasTab /></TabsContent>
+          <TabsContent value="jornadas" className="mt-4"><WorkSchedulesTab /></TabsContent>
           <TabsContent value="feriados" className="mt-4"><FeriadosTab /></TabsContent>
           <TabsContent value="ajustes" className="mt-4"><SolicitacoesTab /></TabsContent>
         </Tabs>
