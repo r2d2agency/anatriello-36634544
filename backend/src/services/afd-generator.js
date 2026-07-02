@@ -184,7 +184,7 @@ export async function generateAEJ({ organizationId, companyId, employeeId, start
     for (const d of days) {
       daysCount++;
       const p = Array.isArray(d.punches) ? d.punches : [];
-      const marks = p.map((x) => hhmmFromDate(new Date(x))).join(',');
+      const marks = p.map((x) => hhmmFromDate(new Date(x.punched_at || x))).join(',');
       out.push([
         `JORNADA`,
         d.date,
