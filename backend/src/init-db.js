@@ -4822,6 +4822,11 @@ export async function initDatabase() {
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS legal_representative VARCHAR(255);
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS legal_representative_cpf VARCHAR(20);
       ALTER TABLE companies ADD COLUMN IF NOT EXISTS notes TEXT;
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS default_radius_meters INTEGER DEFAULT 200;
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS geofence_strict BOOLEAN DEFAULT false;
+      ALTER TABLE companies ADD COLUMN IF NOT EXISTS geofence_require_photo BOOLEAN DEFAULT false;
 
       ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE SET NULL;
       CREATE INDEX IF NOT EXISTS idx_employees_company ON employees(company_id);
