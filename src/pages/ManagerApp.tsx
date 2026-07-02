@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle2, XCircle, Clock, Plane, Stethoscope, PencilLine, Loader2, RefreshCw, Building2, LogOut } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CheckCircle2, XCircle, Clock, Plane, Stethoscope, PencilLine, Loader2, RefreshCw, Building2, LogOut, KeyRound } from 'lucide-react';
 
 type Pending = {
   overtime: any[]; vacations: any[]; medical: any[]; adjustments: any[]; total: number;
