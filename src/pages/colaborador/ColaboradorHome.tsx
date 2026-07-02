@@ -159,28 +159,29 @@ export default function ColaboradorHome() {
         </div>
 
 
-        {/* Comunicados */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold">Comunicados</p>
-            <button className="text-xs text-[#f97316] font-semibold">Ver todos</button>
-          </div>
-          {(announcements || []).slice(0, 2).map((a: any) => (
-            <div key={a.id} className="flex items-start gap-3 py-2 border-t border-slate-100 first:border-0">
-              <div className="h-10 w-10 rounded-full bg-orange-100 text-[#f97316] flex items-center justify-center flex-shrink-0">
-                <Megaphone className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{a.title}</p>
-                <p className="text-xs text-slate-500 truncate">{a.body}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{format(new Date(a.published_at), "dd/MM 'às' HH:mm")}</p>
-              </div>
+        {can("announcements.view") && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold">Comunicados</p>
+              <button className="text-xs text-[#f97316] font-semibold">Ver todos</button>
             </div>
-          ))}
-          {!announcements?.length && (
-            <p className="text-xs text-slate-400 text-center py-6">Nenhum comunicado no momento</p>
-          )}
-        </div>
+            {(announcements || []).slice(0, 2).map((a: any) => (
+              <div key={a.id} className="flex items-start gap-3 py-2 border-t border-slate-100 first:border-0">
+                <div className="h-10 w-10 rounded-full bg-orange-100 text-[#f97316] flex items-center justify-center flex-shrink-0">
+                  <Megaphone className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{a.title}</p>
+                  <p className="text-xs text-slate-500 truncate">{a.body}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{format(new Date(a.published_at), "dd/MM 'às' HH:mm")}</p>
+                </div>
+              </div>
+            ))}
+            {!announcements?.length && (
+              <p className="text-xs text-slate-400 text-center py-6">Nenhum comunicado no momento</p>
+            )}
+          </div>
+        )}
 
         {isLoading && <Loader2 className="h-5 w-5 animate-spin mx-auto text-slate-400" />}
       </div>
