@@ -1,14 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { ColaboradorLayout } from "./ColaboradorLayout";
 import { useColabMeFull } from "@/hooks/use-promotor";
-import { User, Phone, Users, CreditCard, MapPin, Settings, Shield, ChevronRight, Camera, LogOut } from "lucide-react";
+import { User, Phone, Users, CreditCard, MapPin, Settings, Shield, ChevronRight, Camera, LogOut, KeyRound } from "lucide-react";
 
-const ITEMS = [
+const ITEMS: { icon: any; label: string; to?: string }[] = [
   { icon: User, label: "Dados pessoais" },
   { icon: Phone, label: "Contato" },
   { icon: Users, label: "Dependentes" },
   { icon: CreditCard, label: "Dados bancários" },
   { icon: MapPin, label: "Endereço" },
+  { icon: KeyRound, label: "Trocar senha", to: "/promotor/trocar-senha" },
   { icon: Settings, label: "Configurações" },
   { icon: Shield, label: "Privacidade e segurança" },
 ];
