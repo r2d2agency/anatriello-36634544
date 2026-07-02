@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ColaboradorLayout } from "./ColaboradorLayout";
-import { useColabRequests, useColabCreateRequest } from "@/hooks/use-promotor";
+import { useColabRequests, useColabCreateRequest, useColabAdjustmentRequests, useColabCreateAdjustmentRequest } from "@/hooks/use-promotor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,16 +34,37 @@ export default function ColaboradorSolicitacoes() {
   const [kind, setKind] = useState("ferias");
   const [form, setForm] = useState<any>({});
   const { data: requests, isLoading } = useColabRequests();
+  const { data: adjRequests = [] } = useColabAdjustmentRequests();
   const create = useColabCreateRequest();
+  const createAdj = useColabCreateAdjustmentRequest();
   const { toast } = useToast();
 
-  const list = (requests || []).filter((r: any) =>
+  const mergedRequests = [
+    ...(requests || []),
+    ...adjRequests.map((r: any) => ({
+      id: `adj_${r.id}`,
+      kind: 'ajuste_ponto',
+      status: r.status === 'approved' ? 'concluido' : r.status === 'rejected' ? 'recusado' : 'pendente',
+      created_at: r.created_at,
+      payload: { start_date: r.punch_date, reason: `${r.requested_times || ''} — ${r.justification}` },
+    })),
+  ];
+  const list = mergedRequests.filter((r: any) =>
     tab === "minhas" ? ["pendente", "aprovado"].includes(r.status) : ["concluido", "recusado"].includes(r.status)
   );
 
   async function submit() {
     try {
-      await create.mutateAsync({ kind, payload: form });
+      if (kind === 'ajuste_ponto') {
+        const times = (form.times || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        await createAdj.mutateAsync({
+          punch_date: form.start_date,
+          requested_times: times,
+          justification: form.reason || 'Ajuste solicitado',
+        });
+      } else {
+        await create.mutateAsync({ kind, payload: form });
+      }
       toast({ title: "Solicitação enviada" });
       setOpen(false); setForm({});
     } catch (e: any) { toast({ title: e.message, variant: "destructive" }); }
