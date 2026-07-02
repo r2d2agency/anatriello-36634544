@@ -17,6 +17,7 @@ export default function PromotorLogin() {
   const navigate = useNavigate();
   const location = useLocation();
   const isColabContext =
+    location.pathname.startsWith("/colaborador") ||
     location.pathname.startsWith("/app") ||
     (typeof window !== "undefined" && window.location.hostname.startsWith("colaborador."));
   const { branding } = useBranding() as any;
