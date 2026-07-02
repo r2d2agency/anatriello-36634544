@@ -245,7 +245,7 @@ export default function RHFeriados() {
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Novo Feriado</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? 'Editar Feriado' : 'Novo Feriado'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Nome *</Label><Input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Ex: Natal" /></div>
             <div><Label>Data *</Label><Input type="date" value={form.holiday_date} onChange={e => setField('holiday_date', e.target.value)} /></div>
