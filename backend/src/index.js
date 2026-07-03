@@ -47,6 +47,7 @@ import metaTemplatesRoutes from './routes/meta-templates.js';
 import docSignaturesRoutes from './routes/doc-signatures.js';
 import rhRoutes from './routes/rh.js';
 import appAccessTemplatesRoutes from './routes/app-access-templates.js';
+import rhKioskRoutes from './routes/rh-kiosk.js';
 import timeclockRoutes from './routes/timeclock.js';
 import companiesRoutes from './routes/companies.js';
 import holdingRoutes from './routes/holding.js';
