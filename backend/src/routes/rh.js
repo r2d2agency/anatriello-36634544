@@ -2344,14 +2344,16 @@ router.put('/facial-recognition/config', async (req, res) => {
       auto_verify_on_clock_in: !!req.body.auto_verify_on_clock_in,
       allow_manual_fallback: req.body.allow_manual_fallback !== false,
       photo_quality_check: req.body.photo_quality_check !== false,
+      allow_self_enrollment: !!req.body.allow_self_enrollment,
     };
 
     const result = await query(
       `INSERT INTO facial_recognition_config (
          organization_id, enabled, use_for_attendance, use_for_checkin, min_confidence,
-         require_photo_registration, auto_verify_on_clock_in, allow_manual_fallback, photo_quality_check
+         require_photo_registration, auto_verify_on_clock_in, allow_manual_fallback, photo_quality_check,
+         allow_self_enrollment
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (organization_id) DO UPDATE SET
          enabled = EXCLUDED.enabled,
          use_for_attendance = EXCLUDED.use_for_attendance,
@@ -2361,6 +2363,7 @@ router.put('/facial-recognition/config', async (req, res) => {
          auto_verify_on_clock_in = EXCLUDED.auto_verify_on_clock_in,
          allow_manual_fallback = EXCLUDED.allow_manual_fallback,
          photo_quality_check = EXCLUDED.photo_quality_check,
+         allow_self_enrollment = EXCLUDED.allow_self_enrollment,
          updated_at = NOW()
        RETURNING *`,
       [
@@ -2373,6 +2376,7 @@ router.put('/facial-recognition/config', async (req, res) => {
         d.auto_verify_on_clock_in,
         d.allow_manual_fallback,
         d.photo_quality_check,
+        d.allow_self_enrollment,
       ]
     );
     res.json(result.rows[0]);
