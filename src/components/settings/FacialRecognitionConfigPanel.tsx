@@ -22,6 +22,7 @@ interface FacialConfig {
   auto_verify_on_clock_in: boolean;
   allow_manual_fallback: boolean;
   photo_quality_check: boolean;
+  allow_self_enrollment: boolean;
 }
 
 const DEFAULT_CONFIG: FacialConfig = {
@@ -33,6 +34,7 @@ const DEFAULT_CONFIG: FacialConfig = {
   auto_verify_on_clock_in: false,
   allow_manual_fallback: true,
   photo_quality_check: true,
+  allow_self_enrollment: false,
 };
 
 export const FacialRecognitionConfigPanel = () => {
