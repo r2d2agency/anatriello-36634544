@@ -9,7 +9,7 @@ import { loadFaceModels, detectFace, captureVideoFrame, drawLandmarks, extractGe
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCapture: (data: { descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number> }) => void;
+  onCapture: (data: { descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number>; quality: number; confidence: number }) => void;
   title?: string;
   description?: string;
 }
@@ -173,11 +173,14 @@ export const FaceCaptureDialog = ({ open, onOpenChange, onCapture, title = "Capt
     if (!confirmedDetection || !capturedImage) return;
 
     const geometricProfile = extractGeometricProfile(confirmedDetection.landmarks);
+    const confidence = Number(confirmedDetection.confidence) || 0;
     onCapture({
       descriptor: confirmedDetection.descriptor,
       landmarks: confirmedDetection.landmarks,
       imageDataUrl: capturedImage,
       geometricProfile,
+      quality: confidence,
+      confidence,
     });
     onOpenChange(false);
   };

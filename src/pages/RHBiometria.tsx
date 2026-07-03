@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ScanFace, Search, Camera, CheckCircle2, AlertTriangle, Users, Loader2, Trash2, ShieldCheck, Play, ShieldX } from "lucide-react";
+import { ScanFace, Search, Camera, CheckCircle2, AlertTriangle, Users, Loader2, Trash2, ShieldCheck, Play, ShieldX, Send, Bell } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,8 @@ interface EmployeeFace {
   face_photo_url?: string;
   face_enrolled_at?: string;
   facial_verification_enabled: boolean;
+  face_collection_requested?: boolean;
+  face_collection_requested_at?: string;
 }
 
 interface FacialConfig {
@@ -89,6 +91,16 @@ const RHBiometria = () => {
       toast({ title: "Configuração atualizada" });
     },
     onError: () => toast({ title: "Erro ao atualizar configuração", variant: "destructive" }),
+  });
+
+  const requestCollectionMutation = useMutation({
+    mutationFn: (id: string) =>
+      api(`/api/rh/facial-recognition/request-collection/${id}`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rh-facial-employees"] });
+      toast({ title: "Nova coleta solicitada", description: "O colaborador poderá refazer a biometria pelo app." });
+    },
+    onError: () => toast({ title: "Erro ao solicitar coleta", variant: "destructive" }),
   });
 
   const filtered = employees.filter((e) =>
@@ -258,6 +270,17 @@ const RHBiometria = () => {
                             <Camera className="h-3.5 w-3.5" />
                             Recadastrar
                           </Button>
+                          <Button
+                            size="sm"
+                            variant={emp.face_collection_requested ? "secondary" : "outline"}
+                            className="gap-1"
+                            title="Solicita uma nova coleta ao colaborador pelo App"
+                            disabled={requestCollectionMutation.isPending || emp.face_collection_requested}
+                            onClick={() => requestCollectionMutation.mutate(emp.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {emp.face_collection_requested ? "Coleta solicitada" : "Solicitar nova coleta"}
+                          </Button>
                         </>
                       ) : (
                         <>
@@ -265,6 +288,12 @@ const RHBiometria = () => {
                             <AlertTriangle className="h-3 w-3" />
                             Pendente
                           </Badge>
+                          {emp.face_collection_requested && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Bell className="h-3 w-3" />
+                              Solicitada pelo app
+                            </Badge>
+                          )}
                           <Button
                             size="sm"
                             className="gap-1"

@@ -22,6 +22,7 @@ interface FacialConfig {
   auto_verify_on_clock_in: boolean;
   allow_manual_fallback: boolean;
   photo_quality_check: boolean;
+  allow_self_enrollment: boolean;
 }
 
 const DEFAULT_CONFIG: FacialConfig = {
@@ -33,6 +34,7 @@ const DEFAULT_CONFIG: FacialConfig = {
   auto_verify_on_clock_in: false,
   allow_manual_fallback: true,
   photo_quality_check: true,
+  allow_self_enrollment: false,
 };
 
 export const FacialRecognitionConfigPanel = () => {
@@ -260,6 +262,21 @@ export const FacialRecognitionConfigPanel = () => {
                     <Switch
                       checked={currentConfig.photo_quality_check}
                       onCheckedChange={v => update("photo_quality_check", v)}
+                    />
+                  </div>
+
+                  <div className="flex items-start justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
+                    <div className="pr-4">
+                      <Label className="text-base">Coleta pelo App do Colaborador</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Quando ativo, o colaborador poderá cadastrar a própria biometria pelo App do Colaborador.
+                        Ele faz 2 capturas (o sistema guarda a de maior qualidade) e um teste. Após aprovado, a coleta é bloqueada
+                        até o RH solicitar uma nova.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={currentConfig.allow_self_enrollment}
+                      onCheckedChange={v => update("allow_self_enrollment", v)}
                     />
                   </div>
                 </div>
