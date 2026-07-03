@@ -31,6 +31,8 @@ export const PAGE_PERMISSIONS = [
   { key: 'rh_dashboard', label: 'Dashboard', section: 'RH', icon: 'LayoutDashboard' },
   { key: 'rh_colaboradores', label: 'Colaboradores', section: 'RH', icon: 'UserPlus' },
   { key: 'rh_ponto', label: 'Ponto', section: 'RH', icon: 'Clock' },
+  { key: 'rh_relogio_ponto', label: 'Relógio de Ponto (Tablet)', section: 'RH', icon: 'ScanFace' },
+  { key: 'rh_ajuda', label: 'Ajuda RH', section: 'RH', icon: 'HelpCircle' },
   { key: 'rh_holerite', label: 'Holerite', section: 'RH', icon: 'DollarSign' },
   { key: 'rh_documentos', label: 'Documentos', section: 'RH', icon: 'FileText' },
   { key: 'rh_feriados', label: 'Feriados', section: 'RH', icon: 'CalendarDays' },
