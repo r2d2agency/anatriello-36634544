@@ -9,7 +9,7 @@ import { loadFaceModels, detectFace, captureVideoFrame, drawLandmarks, extractGe
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCapture: (data: { descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number> }) => void;
+  onCapture: (data: { descriptor: number[]; landmarks: number[][]; imageDataUrl: string; geometricProfile: Record<string, number>; quality: number; confidence: number }) => void;
   title?: string;
   description?: string;
 }
