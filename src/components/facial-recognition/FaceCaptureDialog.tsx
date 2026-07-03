@@ -173,11 +173,14 @@ export const FaceCaptureDialog = ({ open, onOpenChange, onCapture, title = "Capt
     if (!confirmedDetection || !capturedImage) return;
 
     const geometricProfile = extractGeometricProfile(confirmedDetection.landmarks);
+    const confidence = Number(confirmedDetection.confidence) || 0;
     onCapture({
       descriptor: confirmedDetection.descriptor,
       landmarks: confirmedDetection.landmarks,
       imageDataUrl: capturedImage,
       geometricProfile,
+      quality: confidence,
+      confidence,
     });
     onOpenChange(false);
   };
