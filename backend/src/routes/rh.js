@@ -2319,6 +2319,7 @@ router.get('/facial-recognition/config', async (req, res) => {
         auto_verify_on_clock_in: false,
         allow_manual_fallback: true,
         photo_quality_check: true,
+        allow_self_enrollment: false,
       });
     }
     res.json(result.rows[0]);
