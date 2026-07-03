@@ -270,6 +270,17 @@ const RHBiometria = () => {
                             <Camera className="h-3.5 w-3.5" />
                             Recadastrar
                           </Button>
+                          <Button
+                            size="sm"
+                            variant={emp.face_collection_requested ? "secondary" : "outline"}
+                            className="gap-1"
+                            title="Solicita uma nova coleta ao colaborador pelo App"
+                            disabled={requestCollectionMutation.isPending || emp.face_collection_requested}
+                            onClick={() => requestCollectionMutation.mutate(emp.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {emp.face_collection_requested ? "Coleta solicitada" : "Solicitar nova coleta"}
+                          </Button>
                         </>
                       ) : (
                         <>
@@ -277,6 +288,12 @@ const RHBiometria = () => {
                             <AlertTriangle className="h-3 w-3" />
                             Pendente
                           </Badge>
+                          {emp.face_collection_requested && (
+                            <Badge variant="secondary" className="gap-1">
+                              <Bell className="h-3 w-3" />
+                              Solicitada pelo app
+                            </Badge>
+                          )}
                           <Button
                             size="sm"
                             className="gap-1"
