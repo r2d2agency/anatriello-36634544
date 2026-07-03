@@ -39,6 +39,18 @@ export default function ColaboradorHome() {
   const [showFace, setShowFace] = useState(false);
   const [gps, setGps] = useState<{ lat: number; lng: number; acc: number } | null>(null);
 
+  const { data: faceStatus } = useQuery({
+    queryKey: ["colab-face-status"],
+    queryFn: async () => {
+      const token = localStorage.getItem("promotor_token");
+      const url = `${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}/api/promotor/face-enrollment`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      return r.json() as Promise<{ can_enroll: boolean; enrolled: boolean; collection_requested: boolean }>;
+    },
+    refetchInterval: 60000,
+  });
+
   useEffect(() => { const i = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(i); }, []);
   useEffect(() => {
     if (!navigator.geolocation) return;
