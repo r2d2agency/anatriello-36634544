@@ -2395,10 +2395,16 @@ async function ensureFaceEnrollColumn() {
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_descriptor JSONB`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_photo_url TEXT`);
   await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_enrolled_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_collection_requested BOOLEAN DEFAULT false`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_collection_requested_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_quality_score NUMERIC(5,2)`);
   faceEnrollColumnReady = true;
 }
 
-const ACTIVE_EMPLOYEE_STATUS_SQL = `COALESCE(e.status::text, '') IN ('ativo', 'active')`;
+// Considered "listable" for facial biometrics: anyone not terminated / inactive.
+// Previous filter (only 'ativo'/'active') was hiding employees created under new
+// holding/company scaffolding that come in with empty or other status values.
+const LISTABLE_EMPLOYEE_STATUS_SQL = `COALESCE(NULLIF(TRIM(e.status::text), ''), 'ativo') NOT IN ('desligado','inativo','inactive','terminated','demitido')`;
 
 // List employees with facial enrollment status
 router.get('/facial-recognition/employees', async (req, res) => {
@@ -2408,21 +2414,43 @@ router.get('/facial-recognition/employees', async (req, res) => {
     const orgId = req.query.org_id || await getUserOrgId(req.userId);
     if (!orgId) return res.json([]);
 
-    const { filter } = req.query; // 'all' | 'enrolled' | 'pending'
+    const { filter, company_id } = req.query; // 'all' | 'enrolled' | 'pending'
     let sql = `SELECT e.id, e.full_name, e.photo_url, e.cpf, e.position, e.status,
+                      e.company_id, e.branch_id,
+                      COALESCE(e.facial_required, true) as facial_verification_enabled,
                       e.face_descriptor IS NOT NULL as face_enrolled,
-                      e.face_photo_url, e.face_enrolled_at
+                      e.face_photo_url, e.face_enrolled_at,
+                      COALESCE(e.face_collection_requested, false) as face_collection_requested,
+                      e.face_collection_requested_at
                FROM employees e
-               WHERE e.organization_id = $1 AND ${ACTIVE_EMPLOYEE_STATUS_SQL}`;
+               WHERE e.organization_id = $1 AND ${LISTABLE_EMPLOYEE_STATUS_SQL}`;
+    const params = [orgId];
+    let idx = 2;
 
+    if (company_id) { sql += ` AND e.company_id = $${idx++}`; params.push(company_id); }
     if (filter === 'enrolled') sql += ` AND e.face_descriptor IS NOT NULL`;
     else if (filter === 'pending') sql += ` AND e.face_descriptor IS NULL`;
 
     sql += ` ORDER BY e.face_descriptor IS NULL DESC, e.full_name`;
-    const result = await query(sql, [orgId]);
+    const result = await query(sql, params);
     res.json(result.rows);
   } catch (err) {
     logError('rh.facial.employees', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// RH requests a new facial collection from the employee (unlocks self-enroll in app)
+router.post('/facial-recognition/request-collection/:employeeId', async (req, res) => {
+  try {
+    await ensureFaceEnrollColumn();
+    await query(
+      `UPDATE employees SET face_collection_requested = true, face_collection_requested_at = NOW() WHERE id = $1`,
+      [req.params.employeeId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logError('rh.facial.request-collection', err);
     res.status(500).json({ error: err.message });
   }
 });
