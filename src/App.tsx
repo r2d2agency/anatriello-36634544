@@ -121,6 +121,7 @@ import ColaboradorHolerite from "./pages/colaborador/ColaboradorHolerite";
 import ColaboradorDocumentos from "./pages/colaborador/ColaboradorDocumentos";
 import ColaboradorBeneficios from "./pages/colaborador/ColaboradorBeneficios";
 import ColaboradorPerfil from "./pages/colaborador/ColaboradorPerfil";
+import ColaboradorBiometria from "./pages/colaborador/ColaboradorBiometria";
 import ColabProtectedRoute from "./components/ColabProtectedRoute";
 import RequireCap from "./components/ColabRequireCap";
 import AccessLogin from "./pages/promotor/AccessLogin";
