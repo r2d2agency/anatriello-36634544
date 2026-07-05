@@ -5,9 +5,10 @@ export type Theme = 'light' | 'dark' | 'system';
 const THEME_KEY = 'app-theme';
 
 function getSystemTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'dark';
+  if (typeof window === 'undefined') return 'light';
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
+
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
