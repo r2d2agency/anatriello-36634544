@@ -1141,13 +1141,15 @@ export default function RHColaboradores() {
                 </div>
               </div>
             </TabsContent>
+            </div>
           </Tabs>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4 sticky bottom-0 bg-background pt-3 -mx-4 sm:mx-0 px-4 sm:px-0 border-t sm:border-t-0">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-4 sm:p-6 border-t bg-background shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto">Cancelar</Button>
             <Button onClick={handleSave} disabled={createMut.isPending || updateMut.isPending} className="w-full sm:w-auto">
               {createMut.isPending || updateMut.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </div>
+
 
         </DialogContent>
       </Dialog>
