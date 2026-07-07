@@ -73,6 +73,8 @@ export default function SmartRouteFrota() {
               <div><Label>Capacidade (m³)</Label><Input type="number" step="0.01" value={form.capacity_m3 || ""} onChange={(e) => setForm({ ...form, capacity_m3: +e.target.value })} /></div>
               <div><Label>Combustível</Label><Input value={form.fuel_type || "diesel"} onChange={(e) => setForm({ ...form, fuel_type: e.target.value })} /></div>
               <div><Label>Status</Label><Input value={form.status || "ativo"} onChange={(e) => setForm({ ...form, status: e.target.value })} /></div>
+              <div><Label>Consumo (km/L)</Label><Input type="number" step="0.1" placeholder="ex: 8.5" value={form.km_per_liter || ""} onChange={(e) => setForm({ ...form, km_per_liter: e.target.value ? +e.target.value : null })} /></div>
+              <div><Label>Preço combustível (R$/L)</Label><Input type="number" step="0.01" placeholder="ex: 6.19" value={form.fuel_price_per_liter || ""} onChange={(e) => setForm({ ...form, fuel_price_per_liter: e.target.value ? +e.target.value : null })} /></div>
               <div className="col-span-2"><Label>Observações</Label><Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={onSave} disabled={save.isPending}>Salvar</Button></DialogFooter>
