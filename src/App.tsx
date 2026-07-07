@@ -185,6 +185,7 @@ import SmartRoutePDVs from "./pages/smartroute/SmartRoutePDVs";
 import SmartRouteFrota from "./pages/smartroute/SmartRouteFrota";
 import SmartRouteMotoristas from "./pages/smartroute/SmartRouteMotoristas";
 import SmartRouteIA from "./pages/smartroute/SmartRouteIA";
+import SmartRouteGestorIA from "./pages/smartroute/SmartRouteGestorIA";
 import { DriverAuthProvider } from "./contexts/DriverAuthContext";
 import EntregadorLogin from "./pages/entregador/EntregadorLogin";
 import EntregadorHome from "./pages/entregador/EntregadorHome";
