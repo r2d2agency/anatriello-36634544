@@ -94,6 +94,12 @@ export default function TrackingPage() {
             <Badge className="ml-auto bg-white/20 border-white/30">{statusLabels[data.status] || data.status}</Badge>
           </div>
           {data.customer_name && <div className="text-sm mt-1 opacity-90">Para {data.customer_name}</div>}
+          {data.eta_min != null && data.status !== "entregue" && (
+            <div className="text-sm mt-2 bg-white/15 rounded px-3 py-1.5 inline-flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Chegada prevista: <b>{String(Math.floor(data.eta_min/60)).padStart(2,'0')}:{String(data.eta_min%60).padStart(2,'0')}</b>
+            </div>
+          )}
         </div>
       </div>
 
