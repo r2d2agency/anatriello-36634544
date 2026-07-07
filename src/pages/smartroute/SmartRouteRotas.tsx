@@ -46,7 +46,8 @@ export default function SmartRouteRotas() {
   };
 
   const romaneioPDF = async (r: any) => {
-    const full = await import("@/lib/api").then((m) => m.api(`/api/smartroute/routes/${r.id}`));
+    const mod = await import("@/lib/api");
+    const full: any = await mod.api(`/api/smartroute/routes/${r.id}`);
     const doc = new jsPDF();
     doc.setFontSize(14); doc.text(`Romaneio · Rota ${full.code}`, 14, 15);
     doc.setFontSize(9); doc.text(`Data: ${full.planned_date?.slice(0, 10)}   Motorista: ${full.driver_name || "—"}   Veículo: ${full.vehicle_plate || "—"}`, 14, 22);
@@ -62,17 +63,19 @@ export default function SmartRouteRotas() {
   };
 
   const shareTrackingLinks = async (r: any) => {
-    const full = await import("@/lib/api").then((m) => m.api(`/api/smartroute/routes/${r.id}`));
+    const mod = await import("@/lib/api");
+    const full: any = await mod.api(`/api/smartroute/routes/${r.id}`);
     const base = window.location.origin;
     const lines: string[] = [];
     for (const s of full.stops || []) {
       if (!s.order_id) continue;
-      const t = await import("@/lib/api").then((m) => m.api(`/api/smartroute/orders/${s.order_id}/tracking-token`, { method: "POST", body: {} }));
+      const t: any = await mod.api(`/api/smartroute/orders/${s.order_id}/tracking-token`, { method: "POST", body: {} });
       lines.push(`#${s.sequence} ${s.pdv_name}: ${base}/track/${t.token}`);
     }
     await navigator.clipboard.writeText(lines.join("\n"));
     toast.success(`${lines.length} links copiados`);
   };
+
 
 
   return (
