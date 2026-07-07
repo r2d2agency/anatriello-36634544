@@ -193,16 +193,20 @@ export default function SmartRouteRotas() {
                   <div><span className="text-muted-foreground">Motorista:</span> {viewRoute.driver_name || "—"}</div>
                   <div><span className="text-muted-foreground">Veículo:</span> {viewRoute.vehicle_plate || "—"}</div>
                   <div><span className="text-muted-foreground">Status:</span> <Badge className={statusColor[viewRoute.status] || ""}>{viewRoute.status}</Badge></div>
+                  <div><span className="text-muted-foreground">Distância:</span> {viewRoute.total_distance_km ? `${viewRoute.total_distance_km} km` : "—"}</div>
+                  <div><span className="text-muted-foreground">Duração est.:</span> {viewRoute.estimated_duration_min ? `${Math.floor(viewRoute.estimated_duration_min/60)}h${String(viewRoute.estimated_duration_min%60).padStart(2,'0')}` : "—"}</div>
+                  <div><span className="text-muted-foreground">Custo combustível:</span> {viewRoute.estimated_cost_brl ? <span className="font-semibold">R$ {Number(viewRoute.estimated_cost_brl).toFixed(2)}</span> : "—"}{viewRoute.estimated_fuel_liters ? <span className="text-xs text-muted-foreground"> · {viewRoute.estimated_fuel_liters}L</span> : null}</div>
                 </div>
                 <div className="border rounded max-h-96 overflow-y-auto">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead className="w-12">#</TableHead><TableHead>PDV</TableHead><TableHead>Pedido</TableHead><TableHead>Peso</TableHead><TableHead>Status</TableHead>
+                      <TableHead className="w-12">#</TableHead><TableHead>ETA</TableHead><TableHead>PDV</TableHead><TableHead>Pedido</TableHead><TableHead>Peso</TableHead><TableHead>Status</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {viewRoute.stops?.map((s: any) => (
                         <TableRow key={s.id}>
                           <TableCell>{s.sequence}</TableCell>
+                          <TableCell className="font-mono text-xs">{s.eta_min != null ? `${String(Math.floor(s.eta_min/60)).padStart(2,'0')}:${String(s.eta_min%60).padStart(2,'0')}` : "—"}</TableCell>
                           <TableCell>{s.pdv_name}</TableCell>
                           <TableCell className="font-mono text-xs">{s.order_number}</TableCell>
                           <TableCell>{s.weight_kg} kg</TableCell>
