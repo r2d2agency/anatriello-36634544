@@ -162,6 +162,13 @@ export async function ensureSmartRouteTables() {
     );
     CREATE INDEX IF NOT EXISTS idx_sr_evt_route ON smartroute_events(route_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sr_evt_driver ON smartroute_events(driver_id, created_at DESC);
+
+    ALTER TABLE smartroute_vehicles ADD COLUMN IF NOT EXISTS km_per_liter NUMERIC(6,2);
+    ALTER TABLE smartroute_vehicles ADD COLUMN IF NOT EXISTS fuel_price_per_liter NUMERIC(8,3);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_fuel_liters NUMERIC(10,2);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_cost_brl NUMERIC(10,2);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_duration_min INTEGER;
+    ALTER TABLE smartroute_route_stops ADD COLUMN IF NOT EXISTS eta_min INTEGER;
   `);
   ensured = true;
 }
