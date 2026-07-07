@@ -511,10 +511,19 @@ router.post('/routes', async (req, res) => {
   try {
     const b = req.body || {};
     const code = b.code || `R-${Date.now().toString(36).toUpperCase()}`;
+    let { depot_lat, depot_lng } = b;
+    let depotId = b.depot_id || null;
+    if (!depotId && (depot_lat == null || depot_lng == null)) {
+      const d = await query(`SELECT id, lat, lng FROM smartroute_depots WHERE organization_id=$1 AND is_default=true AND active=true LIMIT 1`, [orgId(req)]);
+      if (d.rows[0]) { depotId = d.rows[0].id; depot_lat = d.rows[0].lat; depot_lng = d.rows[0].lng; }
+    } else if (depotId) {
+      const d = await query(`SELECT lat, lng FROM smartroute_depots WHERE id=$1 AND organization_id=$2`, [depotId, orgId(req)]);
+      if (d.rows[0]) { depot_lat = d.rows[0].lat; depot_lng = d.rows[0].lng; }
+    }
     const r = await query(
-      `INSERT INTO smartroute_routes (organization_id, code, driver_id, vehicle_id, planned_date, status, depot_lat, depot_lng, notes)
-       VALUES ($1,$2,$3,$4,COALESCE($5,CURRENT_DATE),'planejada',$6,$7,$8) RETURNING *`,
-      [orgId(req), code, b.driver_id || null, b.vehicle_id || null, b.planned_date || null, b.depot_lat, b.depot_lng, b.notes]
+      `INSERT INTO smartroute_routes (organization_id, code, driver_id, vehicle_id, planned_date, status, depot_lat, depot_lng, depot_id, notes)
+       VALUES ($1,$2,$3,$4,COALESCE($5,CURRENT_DATE),'planejada',$6,$7,$8,$9) RETURNING *`,
+      [orgId(req), code, b.driver_id || null, b.vehicle_id || null, b.planned_date || null, depot_lat, depot_lng, depotId, b.notes]
     );
     const route = r.rows[0];
 
