@@ -43,7 +43,7 @@ export function DriverAuthProvider({ children }: { children: ReactNode }) {
   return <DriverAuthContext.Provider value={{ driver, token, loading, login, logout }}>{children}</DriverAuthContext.Provider>;
 }
 
-export async function driverApi<T = any>(path: string, opts: RequestInit & { body?: any } = {}): Promise<T> {
+export async function driverApi<T = any>(path: string, opts: Omit<RequestInit, "body"> & { body?: any } = {}): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
   const res = await fetch(path, {
     ...opts,
@@ -52,7 +52,7 @@ export async function driverApi<T = any>(path: string, opts: RequestInit & { bod
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(opts.headers || {}),
     },
-    body: opts.body && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body as any,
+    body: opts.body != null && typeof opts.body !== "string" ? JSON.stringify(opts.body) : opts.body,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Erro");
