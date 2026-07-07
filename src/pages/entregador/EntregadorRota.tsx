@@ -170,8 +170,17 @@ export default function EntregadorRota() {
           <DialogHeader><DialogTitle>Finalizar entrega</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><label className="text-sm">Nome de quem recebeu*</label><Input value={receiver} onChange={(e) => setReceiver(e.target.value)} /></div>
-            <div><label className="text-sm">Observações</label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></div>
+            <div>
+              <label className="text-sm flex items-center justify-between">Assinatura*
+                <button type="button" className="text-xs text-blue-600 flex items-center gap-1" onClick={() => sigRef.current?.clear()}><Eraser className="w-3 h-3" />Limpar</button>
+              </label>
+              <div className="border rounded bg-white mt-1">
+                <SignatureCanvas ref={sigRef} penColor="black" canvasProps={{ className: "w-full h-40" }} />
+              </div>
+            </div>
+            <div><label className="text-sm">Observações</label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} /></div>
           </div>
+
           <DialogFooter><Button variant="outline" onClick={() => setCheckoutOpen(null)}>Cancelar</Button><Button onClick={doCheckout}>Confirmar entrega</Button></DialogFooter>
         </DialogContent>
       </Dialog>
