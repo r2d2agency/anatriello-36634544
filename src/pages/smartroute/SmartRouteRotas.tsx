@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Route as RouteIcon, Wand2, Eye } from "lucide-react";
+import { Plus, Trash2, Route as RouteIcon, Wand2, Eye, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useSRRoutes, useSRSaveRoute, useSRDeleteRoute, useSRDrivers, useSRVehicles, useSROrders, useSROptimizeRoute, useSRRoute } from "@/hooks/use-smartroute";
+import { useSROptimizeAdvanced } from "@/hooks/use-smartroute-ai";
 
 const statusColor: Record<string, string> = { planejada: "bg-slate-200", em_andamento: "bg-blue-200", concluida: "bg-emerald-200", cancelada: "bg-red-200" };
 
