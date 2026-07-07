@@ -38,7 +38,7 @@ export default function SmartRouteFrota() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead>Capacidade</TableHead>
-              <TableHead>Combustível</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+              <TableHead>Combustível</TableHead><TableHead>Consumo</TableHead><TableHead>R$/L</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {data.map((v: any) => (
@@ -47,6 +47,8 @@ export default function SmartRouteFrota() {
                   <TableCell>{v.brand} {v.model}</TableCell>
                   <TableCell>{v.capacity_kg} kg · {v.capacity_m3} m³</TableCell>
                   <TableCell>{v.fuel_type}</TableCell>
+                  <TableCell>{v.km_per_liter ? `${v.km_per_liter} km/L` : "—"}</TableCell>
+                  <TableCell>{v.fuel_price_per_liter ? `R$ ${Number(v.fuel_price_per_liter).toFixed(2)}` : "—"}</TableCell>
                   <TableCell>{v.status}</TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button size="icon" variant="ghost" onClick={() => { setForm(v); setOpen(true); }}><Edit className="w-4 h-4" /></Button>
@@ -54,7 +56,7 @@ export default function SmartRouteFrota() {
                   </TableCell>
                 </TableRow>
               ))}
-              {!data.length && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum veículo cadastrado.</TableCell></TableRow>}
+              {!data.length && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum veículo cadastrado.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent></Card>
@@ -71,6 +73,8 @@ export default function SmartRouteFrota() {
               <div><Label>Capacidade (m³)</Label><Input type="number" step="0.01" value={form.capacity_m3 || ""} onChange={(e) => setForm({ ...form, capacity_m3: +e.target.value })} /></div>
               <div><Label>Combustível</Label><Input value={form.fuel_type || "diesel"} onChange={(e) => setForm({ ...form, fuel_type: e.target.value })} /></div>
               <div><Label>Status</Label><Input value={form.status || "ativo"} onChange={(e) => setForm({ ...form, status: e.target.value })} /></div>
+              <div><Label>Consumo (km/L)</Label><Input type="number" step="0.1" placeholder="ex: 8.5" value={form.km_per_liter || ""} onChange={(e) => setForm({ ...form, km_per_liter: e.target.value ? +e.target.value : null })} /></div>
+              <div><Label>Preço combustível (R$/L)</Label><Input type="number" step="0.01" placeholder="ex: 6.19" value={form.fuel_price_per_liter || ""} onChange={(e) => setForm({ ...form, fuel_price_per_liter: e.target.value ? +e.target.value : null })} /></div>
               <div className="col-span-2"><Label>Observações</Label><Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button onClick={onSave} disabled={save.isPending}>Salvar</Button></DialogFooter>

@@ -162,6 +162,13 @@ export async function ensureSmartRouteTables() {
     );
     CREATE INDEX IF NOT EXISTS idx_sr_evt_route ON smartroute_events(route_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sr_evt_driver ON smartroute_events(driver_id, created_at DESC);
+
+    ALTER TABLE smartroute_vehicles ADD COLUMN IF NOT EXISTS km_per_liter NUMERIC(6,2);
+    ALTER TABLE smartroute_vehicles ADD COLUMN IF NOT EXISTS fuel_price_per_liter NUMERIC(8,3);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_fuel_liters NUMERIC(10,2);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_cost_brl NUMERIC(10,2);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_duration_min INTEGER;
+    ALTER TABLE smartroute_route_stops ADD COLUMN IF NOT EXISTS eta_min INTEGER;
   `);
   ensured = true;
 }
@@ -225,9 +232,9 @@ router.post('/vehicles', async (req, res) => {
   try {
     const b = req.body || {};
     const r = await query(
-      `INSERT INTO smartroute_vehicles (organization_id, plate, model, brand, year, capacity_kg, capacity_m3, fuel_type, status, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,'ativo'),$10) RETURNING *`,
-      [orgId(req), b.plate, b.model, b.brand, b.year || null, b.capacity_kg || 0, b.capacity_m3 || 0, b.fuel_type || 'diesel', b.status, b.notes]
+      `INSERT INTO smartroute_vehicles (organization_id, plate, model, brand, year, capacity_kg, capacity_m3, fuel_type, status, notes, km_per_liter, fuel_price_per_liter)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9,'ativo'),$10,$11,$12) RETURNING *`,
+      [orgId(req), b.plate, b.model, b.brand, b.year || null, b.capacity_kg || 0, b.capacity_m3 || 0, b.fuel_type || 'diesel', b.status, b.notes, b.km_per_liter || null, b.fuel_price_per_liter || null]
     );
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -238,9 +245,10 @@ router.put('/vehicles/:id', async (req, res) => {
     const r = await query(
       `UPDATE smartroute_vehicles SET plate=COALESCE($3,plate), model=COALESCE($4,model), brand=COALESCE($5,brand),
         year=COALESCE($6,year), capacity_kg=COALESCE($7,capacity_kg), capacity_m3=COALESCE($8,capacity_m3),
-        fuel_type=COALESCE($9,fuel_type), status=COALESCE($10,status), notes=COALESCE($11,notes), updated_at=NOW()
+        fuel_type=COALESCE($9,fuel_type), status=COALESCE($10,status), notes=COALESCE($11,notes),
+        km_per_liter=COALESCE($12,km_per_liter), fuel_price_per_liter=COALESCE($13,fuel_price_per_liter), updated_at=NOW()
        WHERE id=$1 AND organization_id=$2 RETURNING *`,
-      [req.params.id, orgId(req), b.plate, b.model, b.brand, b.year, b.capacity_kg, b.capacity_m3, b.fuel_type, b.status, b.notes]
+      [req.params.id, orgId(req), b.plate, b.model, b.brand, b.year, b.capacity_kg, b.capacity_m3, b.fuel_type, b.status, b.notes, b.km_per_liter, b.fuel_price_per_liter]
     );
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }

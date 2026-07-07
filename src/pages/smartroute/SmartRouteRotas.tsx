@@ -50,12 +50,18 @@ export default function SmartRouteRotas() {
     const full: any = await mod.api(`/api/smartroute/routes/${r.id}`);
     const doc = new jsPDF();
     doc.setFontSize(14); doc.text(`Romaneio · Rota ${full.code}`, 14, 15);
-    doc.setFontSize(9); doc.text(`Data: ${full.planned_date?.slice(0, 10)}   Motorista: ${full.driver_name || "—"}   Veículo: ${full.vehicle_plate || "—"}`, 14, 22);
+    doc.setFontSize(9);
+    doc.text(`Data: ${full.planned_date?.slice(0, 10)}   Motorista: ${full.driver_name || "—"}   Veículo: ${full.vehicle_plate || "—"}`, 14, 22);
+    const km = full.total_distance_km ? `${full.total_distance_km} km` : "—";
+    const dur = full.estimated_duration_min ? `${Math.floor(full.estimated_duration_min/60)}h${String(full.estimated_duration_min%60).padStart(2,'0')}` : "—";
+    const cost = full.estimated_cost_brl ? `R$ ${Number(full.estimated_cost_brl).toFixed(2)}` : "—";
+    doc.text(`Distância: ${km}   Duração estimada: ${dur}   Custo combustível: ${cost}`, 14, 27);
+    const etaTxt = (m: number | null) => m == null ? "—" : `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
     autoTable(doc, {
-      startY: 28, styles: { fontSize: 8 },
-      head: [["#", "PDV", "Endereço", "Pedido", "Peso (kg)", "Volume (m³)", "Assinatura"]],
+      startY: 33, styles: { fontSize: 8 },
+      head: [["#", "ETA", "PDV", "Endereço", "Pedido", "Peso (kg)", "Volume (m³)", "Assinatura"]],
       body: (full.stops || []).map((s: any) => [
-        s.sequence, s.pdv_name || "", s.pdv_address || "", s.order_number || "",
+        s.sequence, etaTxt(s.eta_min), s.pdv_name || "", s.pdv_address || "", s.order_number || "",
         s.weight_kg || 0, s.volume_m3 || 0, "________________",
       ]),
     });
@@ -99,7 +105,7 @@ export default function SmartRouteRotas() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Código</TableHead><TableHead>Data</TableHead><TableHead>Motorista</TableHead>
-              <TableHead>Veículo</TableHead><TableHead>Paradas</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
+              <TableHead>Veículo</TableHead><TableHead>Paradas</TableHead><TableHead>Km</TableHead><TableHead>Duração</TableHead><TableHead>Custo</TableHead><TableHead>Status</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {data.map((r: any) => (
@@ -109,11 +115,14 @@ export default function SmartRouteRotas() {
                   <TableCell>{r.driver_name || "—"}</TableCell>
                   <TableCell>{r.vehicle_plate || "—"}</TableCell>
                   <TableCell>{r.completed_stops}/{r.total_stops}</TableCell>
+                  <TableCell className="text-xs">{r.total_distance_km ? `${r.total_distance_km} km` : "—"}</TableCell>
+                  <TableCell className="text-xs">{r.estimated_duration_min ? `${Math.floor(r.estimated_duration_min/60)}h${String(r.estimated_duration_min%60).padStart(2,'0')}` : "—"}</TableCell>
+                  <TableCell className="text-xs font-medium">{r.estimated_cost_brl ? `R$ ${Number(r.estimated_cost_brl).toFixed(2)}` : "—"}</TableCell>
                   <TableCell><Badge className={statusColor[r.status] || ""}>{r.status}</Badge></TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button size="icon" variant="ghost" onClick={() => setViewId(r.id)}><Eye className="w-4 h-4" /></Button>
                     <Button size="icon" variant="ghost" title="Otimizar (rápido)" onClick={() => optimize.mutate(r.id, { onSuccess: () => toast.success("Sequência otimizada") })}><Wand2 className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" title="Otimizar IA" onClick={() => optimizeAdv.mutate(r.id, { onSuccess: (d: any) => toast.success(`IA: ${d.sequenced} paradas · ${d.total_km}km`, { description: d.warnings?.length ? d.warnings.join(" | ") : undefined }) })}><Sparkles className="w-4 h-4 text-primary" /></Button>
+                    <Button size="icon" variant="ghost" title="Otimizar IA" onClick={() => optimizeAdv.mutate(r.id, { onSuccess: (d: any) => toast.success(`IA: ${d.sequenced} paradas · ${d.total_km}km${d.estimated_cost_brl ? ` · R$ ${d.estimated_cost_brl}` : ""}`, { description: d.warnings?.length ? d.warnings.join(" | ") : undefined }) })}><Sparkles className="w-4 h-4 text-primary" /></Button>
                     <Button size="icon" variant="ghost" title="Romaneio PDF" onClick={() => romaneioPDF(r)}><FileText className="w-4 h-4" /></Button>
                     <Button size="icon" variant="ghost" title="Copiar links de rastreio" onClick={() => shareTrackingLinks(r)}>🔗</Button>
                     <Link to={`/smartroute/replay/${r.id}`}><Button size="icon" variant="ghost" title="Replay"><PlayCircle className="w-4 h-4" /></Button></Link>
@@ -122,7 +131,7 @@ export default function SmartRouteRotas() {
 
                 </TableRow>
               ))}
-              {!data.length && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma rota.</TableCell></TableRow>}
+              {!data.length && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhuma rota.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent></Card>
@@ -184,16 +193,20 @@ export default function SmartRouteRotas() {
                   <div><span className="text-muted-foreground">Motorista:</span> {viewRoute.driver_name || "—"}</div>
                   <div><span className="text-muted-foreground">Veículo:</span> {viewRoute.vehicle_plate || "—"}</div>
                   <div><span className="text-muted-foreground">Status:</span> <Badge className={statusColor[viewRoute.status] || ""}>{viewRoute.status}</Badge></div>
+                  <div><span className="text-muted-foreground">Distância:</span> {viewRoute.total_distance_km ? `${viewRoute.total_distance_km} km` : "—"}</div>
+                  <div><span className="text-muted-foreground">Duração est.:</span> {viewRoute.estimated_duration_min ? `${Math.floor(viewRoute.estimated_duration_min/60)}h${String(viewRoute.estimated_duration_min%60).padStart(2,'0')}` : "—"}</div>
+                  <div><span className="text-muted-foreground">Custo combustível:</span> {viewRoute.estimated_cost_brl ? <span className="font-semibold">R$ {Number(viewRoute.estimated_cost_brl).toFixed(2)}</span> : "—"}{viewRoute.estimated_fuel_liters ? <span className="text-xs text-muted-foreground"> · {viewRoute.estimated_fuel_liters}L</span> : null}</div>
                 </div>
                 <div className="border rounded max-h-96 overflow-y-auto">
                   <Table>
                     <TableHeader><TableRow>
-                      <TableHead className="w-12">#</TableHead><TableHead>PDV</TableHead><TableHead>Pedido</TableHead><TableHead>Peso</TableHead><TableHead>Status</TableHead>
+                      <TableHead className="w-12">#</TableHead><TableHead>ETA</TableHead><TableHead>PDV</TableHead><TableHead>Pedido</TableHead><TableHead>Peso</TableHead><TableHead>Status</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
                       {viewRoute.stops?.map((s: any) => (
                         <TableRow key={s.id}>
                           <TableCell>{s.sequence}</TableCell>
+                          <TableCell className="font-mono text-xs">{s.eta_min != null ? `${String(Math.floor(s.eta_min/60)).padStart(2,'0')}:${String(s.eta_min%60).padStart(2,'0')}` : "—"}</TableCell>
                           <TableCell>{s.pdv_name}</TableCell>
                           <TableCell className="font-mono text-xs">{s.order_number}</TableCell>
                           <TableCell>{s.weight_kg} kg</TableCell>
