@@ -644,7 +644,7 @@ const AgenciesTab = () => {
                     <div><Label>CPF do contratante *</Label><Input value={orgSignerCpf} onChange={e => setOrgSignerCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" /></div>
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Preencha os dados em Modelo de Contrato → Dados da Contratante para assinar automaticamente pela Ayratech.</p>
+                  <p className="text-xs text-muted-foreground">Preencha os dados em Modelo de Contrato → Dados da Contratante para assinar automaticamente pela Anatriello.</p>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">

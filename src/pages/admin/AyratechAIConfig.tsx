@@ -78,7 +78,7 @@ export default function AyratechAIConfig() {
           <Brain className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">IA Ayratech</h1>
+          <h1 className="text-2xl font-bold">IA Anatriello</h1>
           <p className="text-sm text-muted-foreground">
             Provedor global usado para validação automática de documentos de promotores.
           </p>
@@ -96,7 +96,7 @@ export default function AyratechAIConfig() {
             )}
           </CardTitle>
           <CardDescription>
-            Esta configuração é única para todo o Ayratech e usada por features cross-organização
+            Esta configuração é única para toda a Anatriello e usada por features cross-organização
             (validação de documentos, biometria, anti-fraude).
           </CardDescription>
         </CardHeader>

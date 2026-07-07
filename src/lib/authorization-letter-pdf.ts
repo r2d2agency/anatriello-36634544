@@ -179,7 +179,7 @@ export function generateAuthorizationLetterPDF(data: AuthorizationLetterData): j
   doc.setTextColor(150, 150, 150);
   doc.setFont('helvetica', 'italic');
   doc.text(
-    'Documento gerado automaticamente pelo sistema Ayratech. Em caso de dúvidas, entre em contato com o administrador.',
+    'Documento gerado automaticamente pelo sistema Anatriello. Em caso de dúvidas, entre em contato com o administrador.',
     pageWidth / 2,
     285,
     { align: 'center' }

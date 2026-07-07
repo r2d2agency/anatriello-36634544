@@ -344,7 +344,7 @@ export default function SupermarketSettings() {
               </div>
             </div>
             <p className="text-[10px] opacity-50 pt-2" style={{ color: customForm.totem_button_text_color }}>
-              Powered by Ayratech
+              Powered by Anatriello
             </p>
           </div>
 

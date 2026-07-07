@@ -400,7 +400,7 @@ export default function RHRelogioPonto({ kiosk = false }: { kiosk?: boolean } = 
       </div>
 
       <div className="border-t border-white/10 py-3 text-center text-xs text-white/40">
-        Fuso America/Sao_Paulo · Ponto validado por biometria facial · Ayratech
+        Fuso America/Sao_Paulo · Ponto validado por biometria facial · Anatriello
       </div>
     </div>
   );

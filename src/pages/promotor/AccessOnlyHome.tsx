@@ -90,7 +90,7 @@ export default function AccessOnlyHome() {
               {employee?.name?.[0]}
             </div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Ayratech Access</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Anatriello Access</p>
               <h1 className="text-sm font-bold truncate max-w-[150px]">{employee?.name}</h1>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function AccessOnlyHome() {
 
       {/* Footer Info */}
       <footer className="px-6 py-8 text-center text-xs text-slate-400">
-        <p>© 2026 Ayratech Access • v2.0</p>
+        <p>© 2026 Anatriello Access • v2.0</p>
       </footer>
 
       {/* QR Scanner Dialog */}

@@ -263,7 +263,7 @@ export default function ModeloContrato() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Razão Social / Nome da Empresa</Label>
-                    <Input value={companyInfo.company_name} onChange={e => setCompanyInfo(c => ({ ...c, company_name: e.target.value }))} placeholder="Ex: Ayratech Tecnologia LTDA" />
+                    <Input value={companyInfo.company_name} onChange={e => setCompanyInfo(c => ({ ...c, company_name: e.target.value }))} placeholder="Ex: Anatriello Tecnologia LTDA" />
                   </div>
                   <div className="space-y-2">
                     <Label>CNPJ</Label>
