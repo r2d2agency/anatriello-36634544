@@ -45,6 +45,8 @@ export default function EntregadorRota() {
   const [checkoutOpen, setCheckoutOpen] = useState<string | null>(null);
   const [receiver, setReceiver] = useState("");
   const [notes, setNotes] = useState("");
+  const sigRef = useRef<SignatureCanvas>(null);
+
 
   const reload = () => id && driverApi(`/api/smartroute/driver/routes/${id}`).then(setRoute).catch((e) => toast.error(e.message));
   useEffect(() => { reload(); }, [id]);
