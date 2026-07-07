@@ -50,12 +50,18 @@ export default function SmartRouteRotas() {
     const full: any = await mod.api(`/api/smartroute/routes/${r.id}`);
     const doc = new jsPDF();
     doc.setFontSize(14); doc.text(`Romaneio · Rota ${full.code}`, 14, 15);
-    doc.setFontSize(9); doc.text(`Data: ${full.planned_date?.slice(0, 10)}   Motorista: ${full.driver_name || "—"}   Veículo: ${full.vehicle_plate || "—"}`, 14, 22);
+    doc.setFontSize(9);
+    doc.text(`Data: ${full.planned_date?.slice(0, 10)}   Motorista: ${full.driver_name || "—"}   Veículo: ${full.vehicle_plate || "—"}`, 14, 22);
+    const km = full.total_distance_km ? `${full.total_distance_km} km` : "—";
+    const dur = full.estimated_duration_min ? `${Math.floor(full.estimated_duration_min/60)}h${String(full.estimated_duration_min%60).padStart(2,'0')}` : "—";
+    const cost = full.estimated_cost_brl ? `R$ ${Number(full.estimated_cost_brl).toFixed(2)}` : "—";
+    doc.text(`Distância: ${km}   Duração estimada: ${dur}   Custo combustível: ${cost}`, 14, 27);
+    const etaTxt = (m: number | null) => m == null ? "—" : `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
     autoTable(doc, {
-      startY: 28, styles: { fontSize: 8 },
-      head: [["#", "PDV", "Endereço", "Pedido", "Peso (kg)", "Volume (m³)", "Assinatura"]],
+      startY: 33, styles: { fontSize: 8 },
+      head: [["#", "ETA", "PDV", "Endereço", "Pedido", "Peso (kg)", "Volume (m³)", "Assinatura"]],
       body: (full.stops || []).map((s: any) => [
-        s.sequence, s.pdv_name || "", s.pdv_address || "", s.order_number || "",
+        s.sequence, etaTxt(s.eta_min), s.pdv_name || "", s.pdv_address || "", s.order_number || "",
         s.weight_kg || 0, s.volume_m3 || 0, "________________",
       ]),
     });
