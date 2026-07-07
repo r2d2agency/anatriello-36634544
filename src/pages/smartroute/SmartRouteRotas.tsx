@@ -45,6 +45,36 @@ export default function SmartRouteRotas() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const romaneioPDF = async (r: any) => {
+    const full = await import("@/lib/api").then((m) => m.api(`/api/smartroute/routes/${r.id}`));
+    const doc = new jsPDF();
+    doc.setFontSize(14); doc.text(`Romaneio · Rota ${full.code}`, 14, 15);
+    doc.setFontSize(9); doc.text(`Data: ${full.planned_date?.slice(0, 10)}   Motorista: ${full.driver_name || "—"}   Veículo: ${full.vehicle_plate || "—"}`, 14, 22);
+    autoTable(doc, {
+      startY: 28, styles: { fontSize: 8 },
+      head: [["#", "PDV", "Endereço", "Pedido", "Peso (kg)", "Volume (m³)", "Assinatura"]],
+      body: (full.stops || []).map((s: any) => [
+        s.sequence, s.pdv_name || "", s.pdv_address || "", s.order_number || "",
+        s.weight_kg || 0, s.volume_m3 || 0, "________________",
+      ]),
+    });
+    doc.save(`romaneio-${full.code}.pdf`);
+  };
+
+  const shareTrackingLinks = async (r: any) => {
+    const full = await import("@/lib/api").then((m) => m.api(`/api/smartroute/routes/${r.id}`));
+    const base = window.location.origin;
+    const lines: string[] = [];
+    for (const s of full.stops || []) {
+      if (!s.order_id) continue;
+      const t = await import("@/lib/api").then((m) => m.api(`/api/smartroute/orders/${s.order_id}/tracking-token`, { method: "POST", body: {} }));
+      lines.push(`#${s.sequence} ${s.pdv_name}: ${base}/track/${t.token}`);
+    }
+    await navigator.clipboard.writeText(lines.join("\n"));
+    toast.success(`${lines.length} links copiados`);
+  };
+
+
   return (
     <MainLayout>
       <div className="space-y-4">
