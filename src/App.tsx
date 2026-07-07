@@ -458,6 +458,10 @@ const App = () => (
             <Route path="/smartroute/motoristas" element={<ProtectedRoute><SmartRouteMotoristas /></ProtectedRoute>} />
             <Route path="/smartroute/ia" element={<ProtectedRoute><SmartRouteIA /></ProtectedRoute>} />
             <Route path="/smartroute/gestor-ia" element={<ProtectedRoute><SmartRouteGestorIA /></ProtectedRoute>} />
+            <Route path="/smartroute/replay/:id" element={<ProtectedRoute><SmartRouteReplay /></ProtectedRoute>} />
+            <Route path="/smartroute/integracoes" element={<ProtectedRoute><SmartRouteIntegracoes /></ProtectedRoute>} />
+            <Route path="/track/:token" element={<TrackingPage />} />
+
             {/* SmartRoute AI - Driver App */}
             <Route path="/entregador/login" element={<DriverAuthProvider><EntregadorLogin /></DriverAuthProvider>} />
             <Route path="/entregador" element={<DriverAuthProvider><EntregadorHome /></DriverAuthProvider>} />
