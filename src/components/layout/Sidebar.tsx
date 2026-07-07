@@ -165,6 +165,8 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "IA & Alertas", href: "/smartroute/ia", icon: Sparkles, pageKey: 'sr_ia' },
       { name: "Gestor IA", href: "/smartroute/gestor-ia", icon: Brain, pageKey: 'sr_gestor_ia' },
       { name: "Integrações", href: "/smartroute/integracoes", icon: Sparkles, pageKey: 'sr_integracoes' },
+      { name: "Relatórios & BI", href: "/smartroute/relatorios", icon: BarChart3, pageKey: 'sr_relatorios' },
+      { name: "Configurações", href: "/smartroute/configuracoes", icon: Settings, pageKey: 'sr_configuracoes' },
     ],
 
   },

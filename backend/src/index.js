@@ -69,6 +69,8 @@ import smartrouteRoutes from './routes/smartroute.js';
 import smartrouteDriverRoutes from './routes/smartroute-driver.js';
 import smartrouteAIRoutes from './routes/smartroute-ai.js';
 import smartroutePublicRoutes from './routes/smartroute-public.js';
+import smartrouteReportsRoutes from './routes/smartroute-reports.js';
+import smartrouteOpsRoutes from './routes/smartroute-ops.js';
 
 import promoterLeavesRoutes from './routes/promoter-leaves.js';
 import accessControlDashboardRoutes from './routes/access-control-dashboard.js';
@@ -479,6 +481,8 @@ app.use('/api', agencyNetworkRequestsRoutes);
 app.use('/api/smartroute-public', smartroutePublicRoutes);
 app.use('/api/smartroute/driver', smartrouteDriverRoutes);
 app.use('/api/smartroute/ai', smartrouteAIRoutes);
+app.use('/api/smartroute/reports', smartrouteReportsRoutes);
+app.use('/api/smartroute/ops', smartrouteOpsRoutes);
 app.use('/api/smartroute', smartrouteRoutes);
 
 

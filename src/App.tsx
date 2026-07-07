@@ -188,6 +188,8 @@ import SmartRouteIA from "./pages/smartroute/SmartRouteIA";
 import SmartRouteGestorIA from "./pages/smartroute/SmartRouteGestorIA";
 import SmartRouteReplay from "./pages/smartroute/SmartRouteReplay";
 import SmartRouteIntegracoes from "./pages/smartroute/SmartRouteIntegracoes";
+import SmartRouteRelatorios from "./pages/smartroute/SmartRouteRelatorios";
+import SmartRouteConfiguracoes from "./pages/smartroute/SmartRouteConfiguracoes";
 import TrackingPage from "./pages/TrackingPage";
 import { DriverAuthProvider } from "./contexts/DriverAuthContext";
 import EntregadorLogin from "./pages/entregador/EntregadorLogin";
@@ -460,6 +462,8 @@ const App = () => (
             <Route path="/smartroute/gestor-ia" element={<ProtectedRoute><SmartRouteGestorIA /></ProtectedRoute>} />
             <Route path="/smartroute/replay/:id" element={<ProtectedRoute><SmartRouteReplay /></ProtectedRoute>} />
             <Route path="/smartroute/integracoes" element={<ProtectedRoute><SmartRouteIntegracoes /></ProtectedRoute>} />
+            <Route path="/smartroute/relatorios" element={<ProtectedRoute><SmartRouteRelatorios /></ProtectedRoute>} />
+            <Route path="/smartroute/configuracoes" element={<ProtectedRoute><SmartRouteConfiguracoes /></ProtectedRoute>} />
             <Route path="/track/:token" element={<TrackingPage />} />
 
             {/* SmartRoute AI - Driver App */}
