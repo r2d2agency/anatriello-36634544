@@ -14,6 +14,7 @@ import { Plus, Trash2, Route as RouteIcon, Wand2, Eye, Sparkles, FileText, PlayC
 import { toast } from "sonner";
 import { useSRRoutes, useSRSaveRoute, useSRDeleteRoute, useSRDrivers, useSRVehicles, useSROrders, useSROptimizeRoute, useSRRoute } from "@/hooks/use-smartroute";
 import { useSROptimizeAdvanced } from "@/hooks/use-smartroute-ai";
+import { useSRDepots } from "@/hooks/use-smartroute-depots";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
