@@ -56,8 +56,8 @@ export default function SmartRouteIA() {
     if (!ocrFile) return toast.error("Envie uma imagem");
     try {
       const { b64, mime } = await fileToBase64(ocrFile);
-      const r = await ocr.mutateAsync({ image_base64: b64, mime_type: mime });
-      toast.success("Lote/validade analisados", { description: r.result?.batch ? `Lote ${r.result.batch}` : "Sem lote legível" });
+      const r: any = await ocr.mutateAsync({ image_base64: b64, mime_type: mime });
+      toast.success("Lote/validade analisados", { description: r?.result?.batch ? `Lote ${r.result.batch}` : "Sem lote legível" });
       setOcrFile(null);
     } catch (e: any) { toast.error(e.message); }
   };
@@ -66,8 +66,8 @@ export default function SmartRouteIA() {
     try {
       const { b64, mime } = await fileToBase64(shelfFile);
       const brands = expected.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await shelf.mutateAsync({ image_base64: b64, mime_type: mime, expected_brands: brands });
-      toast.success("Gôndola analisada", { description: `${r.result?.fill_percent ?? "?"}% ocupação` });
+      const r: any = await shelf.mutateAsync({ image_base64: b64, mime_type: mime, expected_brands: brands });
+      toast.success("Gôndola analisada", { description: `${r?.result?.fill_percent ?? "?"}% ocupação` });
       setShelfFile(null);
     } catch (e: any) { toast.error(e.message); }
   };
