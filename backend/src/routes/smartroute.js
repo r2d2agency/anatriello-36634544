@@ -169,6 +169,25 @@ export async function ensureSmartRouteTables() {
     ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_cost_brl NUMERIC(10,2);
     ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS estimated_duration_min INTEGER;
     ALTER TABLE smartroute_route_stops ADD COLUMN IF NOT EXISTS eta_min INTEGER;
+
+    CREATE TABLE IF NOT EXISTS smartroute_depots (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      name TEXT NOT NULL,
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      zip TEXT,
+      lat DOUBLE PRECISION,
+      lng DOUBLE PRECISION,
+      is_default BOOLEAN DEFAULT false,
+      active BOOLEAN DEFAULT true,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_sr_depots_org ON smartroute_depots(organization_id, active);
+    ALTER TABLE smartroute_routes ADD COLUMN IF NOT EXISTS depot_id UUID;
   `);
   ensured = true;
 }
