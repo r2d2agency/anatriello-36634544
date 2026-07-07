@@ -109,7 +109,7 @@ export function PromotorLayout({ children }: PromotorLayoutProps) {
                 <img src={branding.logo_topbar || (branding as any).logo} alt="Logo" className="h-8 w-auto max-w-[100px] object-contain flex-shrink-0" />
               )}
               <h2 className="text-sm font-bold text-foreground truncate leading-tight">
-                {branding.company_name || 'Ayratech'}
+                {branding.company_name || 'Anatriello'}
               </h2>
             </div>
             <div className="flex items-center gap-1">

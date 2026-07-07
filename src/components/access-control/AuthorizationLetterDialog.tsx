@@ -74,7 +74,7 @@ export function AuthorizationLetterDialog({
     validFrom: format(new Date(), 'dd/MM/yyyy'),
     validUntil: '',
     isDigitallySigned: false,
-    organizationName: organizationName || 'Ayratech',
+    organizationName: organizationName || 'Anatriello',
   });
 
   const [brandInput, setBrandInput] = useState('');
@@ -136,7 +136,7 @@ export function AuthorizationLetterDialog({
     return {
       ...form,
       isDigitallySigned: true,
-      signedBy: form.organizationName || 'Ayratech',
+      signedBy: form.organizationName || 'Anatriello',
       signedAt: format(now, "dd/MM/yyyy 'às' HH:mm:ss (xxx)"),
       signatureHash: hash.toUpperCase(),
     };

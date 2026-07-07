@@ -31,7 +31,7 @@ export default function AccessLogin() {
       localStorage.setItem('promotor_employee', JSON.stringify(data.employee));
 
       navigate('/acesso/promotor/home');
-      toast({ title: 'Acesso Liberado!', description: 'Bem-vindo ao Ayratech Access' });
+      toast({ title: 'Acesso Liberado!', description: 'Bem-vindo ao Anatriello Access' });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
@@ -46,7 +46,7 @@ export default function AccessLogin() {
           <div className="bg-primary/20 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/30">
             <ShieldCheck className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Ayratech Access</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Anatriello Access</h1>
           <p className="text-slate-400 text-sm">Controle de acesso para promotores</p>
         </div>
 

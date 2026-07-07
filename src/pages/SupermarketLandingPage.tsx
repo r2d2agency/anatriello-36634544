@@ -903,7 +903,7 @@ export default function SupermarketLandingPage() {
               <a href="/termos-servico" className="hover:text-white transition-colors">Termos</a>
               <a href="/exclusao-dados" className="hover:text-white transition-colors">Exclusão de dados</a>
             </div>
-            <p className="text-sm">© {new Date().getFullYear()} Ayratech. Todos os direitos reservados.</p>
+            <p className="text-sm">© {new Date().getFullYear()} Anatriello. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

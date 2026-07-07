@@ -176,6 +176,20 @@ import PromoterAppScanner from "./pages/promoter-app/PromoterAppScanner";
 import PromoterAppVisit from "./pages/promoter-app/PromoterAppVisit";
 import PromoterAppHistory from "./pages/promoter-app/PromoterAppHistory";
 
+// SmartRoute AI
+import SmartRouteDashboard from "./pages/smartroute/SmartRouteDashboard";
+import SmartRouteMapa from "./pages/smartroute/SmartRouteMapa";
+import SmartRouteRotas from "./pages/smartroute/SmartRouteRotas";
+import SmartRoutePedidos from "./pages/smartroute/SmartRoutePedidos";
+import SmartRoutePDVs from "./pages/smartroute/SmartRoutePDVs";
+import SmartRouteFrota from "./pages/smartroute/SmartRouteFrota";
+import SmartRouteMotoristas from "./pages/smartroute/SmartRouteMotoristas";
+import { DriverAuthProvider } from "./contexts/DriverAuthContext";
+import EntregadorLogin from "./pages/entregador/EntregadorLogin";
+import EntregadorHome from "./pages/entregador/EntregadorHome";
+import EntregadorRota from "./pages/entregador/EntregadorRota";
+
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -428,6 +442,19 @@ const App = () => (
             {/* Ayratech Access (Access Only App) */}
             <Route path="/acesso/promotor/login" element={<AccessLogin />} />
             <Route path="/acesso/promotor/home" element={<AccessOnlyHome />} />
+            {/* SmartRoute AI - Admin */}
+            <Route path="/smartroute" element={<ProtectedRoute><SmartRouteDashboard /></ProtectedRoute>} />
+            <Route path="/smartroute/mapa" element={<ProtectedRoute><SmartRouteMapa /></ProtectedRoute>} />
+            <Route path="/smartroute/rotas" element={<ProtectedRoute><SmartRouteRotas /></ProtectedRoute>} />
+            <Route path="/smartroute/pedidos" element={<ProtectedRoute><SmartRoutePedidos /></ProtectedRoute>} />
+            <Route path="/smartroute/pdvs" element={<ProtectedRoute><SmartRoutePDVs /></ProtectedRoute>} />
+            <Route path="/smartroute/frota" element={<ProtectedRoute><SmartRouteFrota /></ProtectedRoute>} />
+            <Route path="/smartroute/motoristas" element={<ProtectedRoute><SmartRouteMotoristas /></ProtectedRoute>} />
+            {/* SmartRoute AI - Driver App */}
+            <Route path="/entregador/login" element={<DriverAuthProvider><EntregadorLogin /></DriverAuthProvider>} />
+            <Route path="/entregador" element={<DriverAuthProvider><EntregadorHome /></DriverAuthProvider>} />
+            <Route path="/entregador/home" element={<DriverAuthProvider><EntregadorHome /></DriverAuthProvider>} />
+            <Route path="/entregador/rota/:id" element={<DriverAuthProvider><EntregadorRota /></DriverAuthProvider>} />
             <Route path="/api-docs" element={<ApiDocumentation />} />
             <Route path="/f/:slug" element={<PublicFormPage />} />
             <Route path="/assinar/:token" element={<AssinarDocumento />} />

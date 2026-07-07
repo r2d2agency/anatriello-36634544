@@ -65,6 +65,8 @@ import pdvBlocksRoutes from './routes/pdv-blocks.js';
 import networkPortalRoutes from './routes/network-portal.js';
 import agencyNetworkRequestsRoutes from './routes/agency-network-requests.js';
 import promoterAccessRoutes from './routes/promoter-access.js';
+import smartrouteRoutes from './routes/smartroute.js';
+import smartrouteDriverRoutes from './routes/smartroute-driver.js';
 import promoterLeavesRoutes from './routes/promoter-leaves.js';
 import accessControlDashboardRoutes from './routes/access-control-dashboard.js';
 import appLogsRoutes from './routes/app-logs.js';
@@ -470,6 +472,9 @@ app.use('/api/pdv-blocks', pdvBlocksRoutes);
 app.use('/api/network-portal', networkPortalRoutes);
 app.use('/api', agencyNetworkRequestsRoutes);
 // promoterAccessRoutes already mounted above (before /api/public)
+// SmartRoute AI — driver mounted before admin so /driver/* isn't caught by admin's authenticate middleware
+app.use('/api/smartroute/driver', smartrouteDriverRoutes);
+app.use('/api/smartroute', smartrouteRoutes);
 
 app.use('/api/promoter-leaves', promoterLeavesRoutes);
 app.use('/api/access-control-dashboard', accessControlDashboardRoutes);

@@ -1108,7 +1108,7 @@ const TotemAccess = () => {
           </div>
         )}
 
-        <p className="text-center text-xs text-white/35">Powered by Ayratech</p>
+        <p className="text-center text-xs text-white/35">Powered by Anatriello</p>
       </div>
 
       {/* Facial Verification Dialog */}

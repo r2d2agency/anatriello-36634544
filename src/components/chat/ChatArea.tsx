@@ -702,7 +702,7 @@ export function ChatArea({
         <div className="flex flex-col items-center justify-center text-center -mt-12">
           <img 
             src="/icons/ayratech-logo.jpg" 
-            alt="Ayratech" 
+            alt="Anatriello" 
             className="h-32 w-auto mb-8 opacity-80"
           />
           <h3 className="text-xl font-semibold text-foreground mb-3">Selecione uma conversa</h3>

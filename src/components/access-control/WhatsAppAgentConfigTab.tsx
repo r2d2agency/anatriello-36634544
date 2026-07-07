@@ -586,7 +586,7 @@ export default function WhatsAppAgentConfigTab() {
                 const targets = [
                   { id: 'agency', label: 'Agência' },
                   { id: 'supermarket', label: 'Supermercado' },
-                  { id: 'admin', label: 'Admin Ayratech' },
+                  { id: 'admin', label: 'Admin Anatriello' },
                   { id: 'supervisor', label: 'Supervisor Regional' },
                 ];
                 return (

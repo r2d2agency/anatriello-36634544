@@ -57,6 +57,10 @@ import {
   ScanFace,
   AlertTriangle,
   HelpCircle,
+  Truck,
+  Route as RouteIcon,
+  Package,
+  Users2,
 } from "lucide-react";
 import { API_URL, getAuthToken } from "@/lib/api";
 import ayratechLogo from "@/assets/ayratech_logo.jpg";
@@ -145,6 +149,19 @@ const getNavSections = (hasConnections: boolean): NavSection[] => [
       { name: "Rastreamento", href: "/rh/rastreamento", icon: Navigation, pageKey: 'rh_rastreamento', moduleKey: 'rh' },
       { name: "Logs & Erros", href: "/rh/logs", icon: Code, pageKey: 'rh_logs', moduleKey: 'rh' },
       { name: "Ajuda", href: "/rh/ajuda", icon: HelpCircle, pageKey: 'rh_ajuda', moduleKey: 'rh' },
+    ],
+  },
+  {
+    title: "SmartRoute AI",
+    icon: RouteIcon,
+    items: [
+      { name: "Dashboard", href: "/smartroute", icon: LayoutDashboard, pageKey: 'sr_dashboard' },
+      { name: "Mapa ao Vivo", href: "/smartroute/mapa", icon: Map, pageKey: 'sr_mapa' },
+      { name: "Rotas", href: "/smartroute/rotas", icon: RouteIcon, pageKey: 'sr_rotas' },
+      { name: "Pedidos", href: "/smartroute/pedidos", icon: Package, pageKey: 'sr_pedidos' },
+      { name: "PDVs / Clientes", href: "/smartroute/pdvs", icon: Store, pageKey: 'sr_pdvs' },
+      { name: "Frota", href: "/smartroute/frota", icon: Truck, pageKey: 'sr_frota' },
+      { name: "Motoristas", href: "/smartroute/motoristas", icon: Users2, pageKey: 'sr_motoristas' },
     ],
   },
   {

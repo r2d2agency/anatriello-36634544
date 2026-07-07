@@ -88,7 +88,7 @@ export function NetworkSettings() {
       <Card><CardContent className="pt-4 space-y-2">
         <p className="text-sm text-muted-foreground">
           As configurações de validação documental, modo de aprovação (IA/híbrido/manual) e
-          notificações são geridas pela equipe Ayratech junto com sua rede. Solicite alterações
+          notificações são geridas pela equipe Anatriello junto com sua rede. Solicite alterações
           pelo seu contato comercial.
         </p>
       </CardContent></Card>
