@@ -207,7 +207,34 @@ async function ensureSchema() {
     DROP TRIGGER IF EXISTS trg_set_tb_expiration ON time_bank_entries;
     CREATE TRIGGER trg_set_tb_expiration BEFORE INSERT ON time_bank_entries
       FOR EACH ROW EXECUTE FUNCTION set_time_bank_expiration();
+
+    -- ==== FASE 8: Espelho Digital com Aceite ====
+    CREATE TABLE IF NOT EXISTS time_mirror_acceptances (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+      employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      reference_month VARCHAR(7) NOT NULL,
+      period_start DATE NOT NULL,
+      period_end DATE NOT NULL,
+      snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      totals_json JSONB DEFAULT '{}'::jsonb,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      accepted_at TIMESTAMPTZ,
+      rejected_at TIMESTAMPTZ,
+      rejection_reason TEXT,
+      employee_comments TEXT,
+      signature_hash VARCHAR(128),
+      signature_ip VARCHAR(45),
+      device_info JSONB,
+      generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      generated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_mirror_org_month ON time_mirror_acceptances(organization_id, reference_month);
+    CREATE INDEX IF NOT EXISTS idx_mirror_emp ON time_mirror_acceptances(employee_id, reference_month);
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_mirror_emp_month ON time_mirror_acceptances(employee_id, reference_month);
   `).catch(err => logError('timeclock.ensureSchema', err));
+
   schemaReady = true;
 }
 
