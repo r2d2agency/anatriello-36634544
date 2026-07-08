@@ -15,7 +15,7 @@ import {
   Cake, Filter, Loader2, Download, Calendar,
 } from "lucide-react";
 import { useRhAnalytics } from "@/hooks/use-rh-analytics";
-import { useCompanies } from "@/hooks/use-rh";
+import { useCompanies } from "@/hooks/use-companies";
 import { useRhDepartments } from "@/hooks/use-rh";
 import { format } from "date-fns";
 
