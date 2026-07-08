@@ -76,6 +76,7 @@ import RHFeriasColetivas from "./pages/RHFeriasColetivas";
 import RHDesligamento from "./pages/RHDesligamento";
 import RHAdmissao from "./pages/RHAdmissao";
 import RHAdvertencias from "./pages/RHAdvertencias";
+import RHESocial from "./pages/RHESocial";
 import RHEspelhoDigital from "./pages/RHEspelhoDigital";
 
 
