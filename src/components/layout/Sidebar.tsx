@@ -58,6 +58,7 @@ import {
   ScanFace,
   AlertTriangle,
   HelpCircle,
+  BookOpen,
   Truck,
   Route as RouteIcon,
   Package,
