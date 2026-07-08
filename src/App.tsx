@@ -70,6 +70,8 @@ import RHHolerite from "./pages/RHHolerite";
 import RHDashboard from "./pages/RHDashboard";
 import RHAnalytics from "./pages/RHAnalytics";
 import RHFolhaExport from "./pages/RHFolhaExport";
+import RHBancoHoras from "./pages/RHBancoHoras";
+
 import RHDocumentos from "./pages/RHDocumentos";
 import RHPontoMonitor from "./pages/RHPontoMonitor";
 import RHPDVs from "./pages/RHPDVs";
