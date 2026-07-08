@@ -2778,4 +2778,201 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+// ============================================================
+// FASE 9 - FÉRIAS COLETIVAS
+// ============================================================
+async function ensureCollectiveVacationsTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS rh_collective_vacations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      scope TEXT NOT NULL DEFAULT 'company',
+      company_ids UUID[] DEFAULT '{}',
+      branch_ids UUID[] DEFAULT '{}',
+      department_ids UUID[] DEFAULT '{}',
+      employee_ids UUID[] DEFAULT '{}',
+      exclude_employee_ids UUID[] DEFAULT '{}',
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      days_total INTEGER NOT NULL,
+      abono_pecuniario BOOLEAN DEFAULT false,
+      abono_days INTEGER DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'planejada',
+      notice_sent_at TIMESTAMPTZ,
+      union_notified BOOLEAN DEFAULT false,
+      mte_notified BOOLEAN DEFAULT false,
+      notes TEXT,
+      created_by UUID,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await query(`ALTER TABLE rh_vacations ADD COLUMN IF NOT EXISTS collective_id UUID`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_rh_vacations_collective ON rh_vacations(collective_id)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_rh_collective_vacations_org ON rh_collective_vacations(organization_id, start_date)`);
+}
+
+async function resolveCollectiveEmployees(orgId, payload) {
+  const parts = [`organization_id = $1`, `status IN ('ativo','afastado')`];
+  const params = [orgId];
+  let idx = 2;
+  const anyFilter = (payload.company_ids?.length || payload.branch_ids?.length || payload.department_ids?.length || payload.employee_ids?.length);
+  if (payload.employee_ids?.length) {
+    parts.push(`id = ANY($${idx++}::uuid[])`);
+    params.push(payload.employee_ids);
+  } else {
+    const subs = [];
+    if (payload.company_ids?.length) { subs.push(`company_id = ANY($${idx++}::uuid[])`); params.push(payload.company_ids); }
+    if (payload.branch_ids?.length) { subs.push(`branch_id = ANY($${idx++}::uuid[])`); params.push(payload.branch_ids); }
+    if (payload.department_ids?.length) { subs.push(`department_id = ANY($${idx++}::uuid[])`); params.push(payload.department_ids); }
+    if (subs.length) parts.push(`(${subs.join(' OR ')})`);
+  }
+  if (!anyFilter && payload.scope !== 'company') return [];
+  if (payload.exclude_employee_ids?.length) {
+    parts.push(`id <> ALL($${idx++}::uuid[])`);
+    params.push(payload.exclude_employee_ids);
+  }
+  const sql = `SELECT id, full_name, position, department_id, branch_id, company_id, admission_date FROM employees WHERE ${parts.join(' AND ')} ORDER BY full_name`;
+  const r = await query(sql, params);
+  return r.rows;
+}
+
+function daysBetween(start, end) {
+  const s = new Date(start); const e = new Date(end);
+  return Math.round((e - s) / 86400000) + 1;
+}
+
+// Preview: simulate affected employees before creating
+router.post('/vacations/collective/preview', async (req, res) => {
+  try {
+    await ensureCollectiveVacationsTables();
+    const orgId = req.body.organization_id || await getUserOrgId(req.userId);
+    if (!orgId) return res.json({ employees: [], total: 0, conflicts: [] });
+    const employees = await resolveCollectiveEmployees(orgId, req.body);
+    const empIds = employees.map(e => e.id);
+    let conflicts = [];
+    if (empIds.length && req.body.start_date && req.body.end_date) {
+      const c = await query(
+        `SELECT v.id, v.employee_id, e.full_name, v.start_date, v.end_date, v.vacation_type
+         FROM rh_vacations v JOIN employees e ON e.id = v.employee_id
+         WHERE v.employee_id = ANY($1::uuid[])
+           AND v.status IN ('agendada','em_andamento')
+           AND daterange(v.start_date, v.end_date, '[]') && daterange($2::date, $3::date, '[]')`,
+        [empIds, req.body.start_date, req.body.end_date]
+      );
+      conflicts = c.rows;
+    }
+    res.json({ employees, total: employees.length, conflicts, days_total: req.body.start_date && req.body.end_date ? daysBetween(req.body.start_date, req.body.end_date) : 0 });
+  } catch (err) { logError('rh.collective.preview', err); res.status(500).json({ error: 'Erro ao simular férias coletivas' }); }
+});
+
+// List collective vacations
+router.get('/vacations/collective', async (req, res) => {
+  try {
+    await ensureCollectiveVacationsTables();
+    const orgId = req.query.org_id || await getUserOrgId(req.userId);
+    if (!orgId) return res.json([]);
+    const r = await query(
+      `SELECT c.*, (SELECT COUNT(*) FROM rh_vacations v WHERE v.collective_id = c.id) as employees_count
+       FROM rh_collective_vacations c WHERE c.organization_id = $1 ORDER BY c.start_date DESC`,
+      [orgId]
+    );
+    res.json(r.rows);
+  } catch (err) { logError('rh.collective.list', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Get detail with affected employees
+router.get('/vacations/collective/:id', async (req, res) => {
+  try {
+    await ensureCollectiveVacationsTables();
+    const c = await query(`SELECT * FROM rh_collective_vacations WHERE id = $1`, [req.params.id]);
+    if (!c.rows[0]) return res.status(404).json({ error: 'Não encontrado' });
+    const vacs = await query(
+      `SELECT v.*, e.full_name as employee_name, e.position
+       FROM rh_vacations v JOIN employees e ON e.id = v.employee_id
+       WHERE v.collective_id = $1 ORDER BY e.full_name`,
+      [req.params.id]
+    );
+    res.json({ ...c.rows[0], employees: vacs.rows });
+  } catch (err) { logError('rh.collective.detail', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Create collective vacation
+router.post('/vacations/collective', async (req, res) => {
+  try {
+    await ensureCollectiveVacationsTables();
+    const orgId = req.body.organization_id || await getUserOrgId(req.userId);
+    const d = req.body;
+    if (!d.start_date || !d.end_date || !d.title) return res.status(400).json({ error: 'Título, início e fim são obrigatórios' });
+    const daysTotal = daysBetween(d.start_date, d.end_date);
+    if (daysTotal < 5) return res.status(400).json({ error: 'Férias coletivas mínimas: 5 dias corridos (CLT art. 139)' });
+
+    const employees = await resolveCollectiveEmployees(orgId, d);
+    if (!employees.length) return res.status(400).json({ error: 'Nenhum colaborador selecionado' });
+
+    const parent = await query(
+      `INSERT INTO rh_collective_vacations (organization_id, title, description, scope, company_ids, branch_ids, department_ids, employee_ids, exclude_employee_ids, start_date, end_date, days_total, abono_pecuniario, abono_days, status, union_notified, mte_notified, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+      [orgId, d.title, d.description || null, d.scope || 'custom',
+        d.company_ids || [], d.branch_ids || [], d.department_ids || [], d.employee_ids || [], d.exclude_employee_ids || [],
+        d.start_date, d.end_date, daysTotal, d.abono_pecuniario || false, d.abono_days || 0,
+        d.status || 'planejada', d.union_notified || false, d.mte_notified || false, d.notes || null, req.userId]
+    );
+    const parentId = parent.rows[0].id;
+
+    let created = 0, skipped = 0;
+    for (const emp of employees) {
+      try {
+        const overlap = await query(
+          `SELECT 1 FROM rh_vacations WHERE employee_id = $1 AND status IN ('agendada','em_andamento')
+           AND daterange(start_date, end_date, '[]') && daterange($2::date, $3::date, '[]')`,
+          [emp.id, d.start_date, d.end_date]);
+        if (overlap.rowCount && !d.override_conflicts) { skipped++; continue; }
+        await query(
+          `INSERT INTO rh_vacations (organization_id, employee_id, vacation_type, start_date, end_date, days_total, days_taken, days_remaining, abono_pecuniario, abono_days, status, notes, approved, created_by, collective_id)
+           VALUES ($1,$2,'coletiva',$3,$4,$5,$5,0,$6,$7,'agendada',$8,true,$9,$10)`,
+          [orgId, emp.id, d.start_date, d.end_date, daysTotal, d.abono_pecuniario || false, d.abono_days || 0,
+            `Férias coletivas: ${d.title}`, req.userId, parentId]);
+        created++;
+      } catch (e) { logError('rh.collective.employeeInsert', e, { employeeId: emp.id }); skipped++; }
+    }
+    await auditLog(orgId, 'collective_vacation', parentId, 'create',
+      [{ field: 'title', oldVal: null, newVal: `${d.title} (${created} colaboradores, ${d.start_date} - ${d.end_date})` }], req.userId);
+
+    res.json({ ...parent.rows[0], created, skipped, total_employees: employees.length });
+  } catch (err) { logError('rh.collective.create', err); res.status(500).json({ error: 'Erro ao criar férias coletivas' }); }
+});
+
+// Update status/notes
+router.put('/vacations/collective/:id', async (req, res) => {
+  try {
+    await ensureCollectiveVacationsTables();
+    const d = req.body;
+    const r = await query(
+      `UPDATE rh_collective_vacations SET title = COALESCE($2,title), description = COALESCE($3,description),
+         status = COALESCE($4,status), union_notified = COALESCE($5,union_notified),
+         mte_notified = COALESCE($6,mte_notified), notice_sent_at = COALESCE($7,notice_sent_at),
+         notes = COALESCE($8,notes), updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, d.title, d.description, d.status, d.union_notified, d.mte_notified,
+        d.notice_sent ? new Date() : null, d.notes]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { logError('rh.collective.update', err); res.status(500).json({ error: 'Erro' }); }
+});
+
+// Cancel collective vacation (removes not-started child vacations)
+router.delete('/vacations/collective/:id', async (req, res) => {
+  try {
+    await ensureCollectiveVacationsTables();
+    const today = new Date().toISOString().slice(0, 10);
+    await query(`DELETE FROM rh_vacations WHERE collective_id = $1 AND start_date > $2 AND status = 'agendada'`,
+      [req.params.id, today]);
+    await query(`UPDATE rh_collective_vacations SET status = 'cancelada', updated_at = NOW() WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { logError('rh.collective.cancel', err); res.status(500).json({ error: 'Erro ao cancelar' }); }
+});
+
 export default router;
