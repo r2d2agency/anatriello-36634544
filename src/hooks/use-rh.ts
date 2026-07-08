@@ -696,3 +696,81 @@ export function useCancelOnboarding() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-onboardings'] }),
   });
 }
+
+// ===== FASE 12 - ADVERTÊNCIAS E MEDIDAS DISCIPLINARES =====
+export function useWarnings(filters?: { employee_id?: string; status?: string; type?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.employee_id) params.set('employee_id', filters.employee_id);
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.type) params.set('type', filters.type);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ['rh-warnings', qs],
+    queryFn: () => api<any[]>(`/api/rh/warnings${qs ? `?${qs}` : ''}`),
+  });
+}
+
+export function useWarning(id?: string) {
+  return useQuery({
+    queryKey: ['rh-warning', id],
+    queryFn: () => api<any>(`/api/rh/warnings/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateWarning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api<any>('/api/rh/warnings', { method: 'POST', body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-warnings'] }),
+  });
+}
+
+export function useUpdateWarning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: any) => api<any>(`/api/rh/warnings/${id}`, { method: 'PUT', body: data }),
+    onSuccess: (_d, v: any) => {
+      qc.invalidateQueries({ queryKey: ['rh-warnings'] });
+      qc.invalidateQueries({ queryKey: ['rh-warning', v.id] });
+    },
+  });
+}
+
+export function useAcknowledgeWarning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, signature, note }: { id: string; signature: string; note?: string }) =>
+      api<any>(`/api/rh/warnings/${id}/acknowledge`, { method: 'POST', body: { signature, note } }),
+    onSuccess: (_d, v: any) => {
+      qc.invalidateQueries({ queryKey: ['rh-warnings'] });
+      qc.invalidateQueries({ queryKey: ['rh-warning', v.id] });
+    },
+  });
+}
+
+export function useRefuseWarning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      api<any>(`/api/rh/warnings/${id}/refuse`, { method: 'POST', body: { reason } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-warnings'] }),
+  });
+}
+
+export function useRevokeWarning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api<any>(`/api/rh/warnings/${id}/revoke`, { method: 'POST', body: { reason } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-warnings'] }),
+  });
+}
+
+export function useDeleteWarning() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<any>(`/api/rh/warnings/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-warnings'] }),
+  });
+}
