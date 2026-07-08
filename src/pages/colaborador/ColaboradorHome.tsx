@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, FileText, Umbrella, Gift, FolderOpen, Edit3, Clock, MessageSquare, ChevronRight, Megaphone, Loader2, Camera, MapPin, ShieldOff, ScanFace } from "lucide-react";
+import { Bell, FileText, Umbrella, Gift, FolderOpen, Edit3, Clock, MessageSquare, ChevronRight, Megaphone, Loader2, Camera, MapPin, ShieldOff, ScanFace, FileSignature } from "lucide-react";
 import { ColaboradorLayout } from "./ColaboradorLayout";
 import { usePromotorHome, usePromotorPunch, usePromotorNotifications, usePromotorMarkRead } from "@/hooks/use-promotor";
 import { useColabAnnouncements, useColabMeFull } from "@/hooks/use-promotor";
@@ -194,7 +194,9 @@ export default function ColaboradorHome() {
             {can("documents.view") && <QuickAction icon={FolderOpen} label="Documentos" color="#8b5cf6" onClick={() => nav("/colaborador/documentos")} />}
             {can("requests.view") && <QuickAction icon={Edit3} label="Solicitações" color="#f59e0b" onClick={() => nav("/colaborador/solicitacoes")} />}
             {can("journey.view") && <QuickAction icon={Clock} label="Jornada" color="#10b981" onClick={() => nav("/colaborador/jornada")} />}
+            <QuickAction icon={FileSignature} label="Espelho" color="#0ea5e9" onClick={() => nav("/colaborador/espelho")} />
             {can("announcements.view") && <QuickAction icon={Bell} label="Comunicados" color="#ef4444" onClick={() => nav("/colaborador/perfil")} />}
+
           </div>
         </div>
 

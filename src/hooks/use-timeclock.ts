@@ -218,6 +218,39 @@ export function useSchedulePreview() {
   });
 }
 
+// ---------- ESPELHO DIGITAL (Fase 8) ----------
+export function useMirrorAcceptances(params: { month?: string; status?: string; company_id?: string } = {}) {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
+  return useQuery({
+    queryKey: ['timeclock', 'mirror', qs],
+    queryFn: () => api<any[]>(`/api/timeclock/mirror-acceptance${qs ? `?${qs}` : ''}`),
+  });
+}
+export function useMirrorAcceptance(id?: string) {
+  return useQuery({
+    queryKey: ['timeclock', 'mirror', id],
+    queryFn: () => api<any>(`/api/timeclock/mirror-acceptance/${id}`),
+    enabled: !!id,
+  });
+}
+export function useGenerateMirrors() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { reference_month: string; company_id?: string; employee_ids?: string[] }) =>
+      api<{ ok: boolean; created: number; skipped: number; total: number }>(
+        '/api/timeclock/mirror-acceptance/generate', { method: 'POST', body: data }
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timeclock', 'mirror'] }),
+  });
+}
+export function useDeleteMirror() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/timeclock/mirror-acceptance/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timeclock', 'mirror'] }),
+  });
+}
+
 
 // ---------- JORNADAS DE TRABALHO (Fase 3) ----------
 export function useWorkSchedules() {

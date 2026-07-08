@@ -72,6 +72,8 @@ import RHAnalytics from "./pages/RHAnalytics";
 import RHFolhaExport from "./pages/RHFolhaExport";
 import RHBancoHoras from "./pages/RHBancoHoras";
 import RHEscalas from "./pages/RHEscalas";
+import RHEspelhoDigital from "./pages/RHEspelhoDigital";
+
 
 
 import RHDocumentos from "./pages/RHDocumentos";
@@ -124,6 +126,8 @@ import PromotorTrocarSenha from "./pages/promotor/PromotorTrocarSenha";
 import PromotorEquipe from "./pages/promotor/PromotorEquipe";
 import ColaboradorHome from "./pages/colaborador/ColaboradorHome";
 import ColaboradorJornada from "./pages/colaborador/ColaboradorJornada";
+import ColaboradorEspelho from "./pages/colaborador/ColaboradorEspelho";
+
 import ColaboradorSolicitacoes from "./pages/colaborador/ColaboradorSolicitacoes";
 import ColaboradorFerias from "./pages/colaborador/ColaboradorFerias";
 import ColaboradorHolerite from "./pages/colaborador/ColaboradorHolerite";
@@ -342,6 +346,8 @@ const App = () => (
             <Route path="/rh/folha-export" element={<ProtectedRoute><RHFolhaExport /></ProtectedRoute>} />
             <Route path="/rh/banco-horas" element={<ProtectedRoute><RHBancoHoras /></ProtectedRoute>} />
             <Route path="/rh/escalas" element={<ProtectedRoute><RHEscalas /></ProtectedRoute>} />
+            <Route path="/rh/espelho-digital" element={<ProtectedRoute><RHEspelhoDigital /></ProtectedRoute>} />
+
 
 
             <Route path="/rh/documentos" element={<ProtectedRoute><RHDocumentos /></ProtectedRoute>} />
@@ -446,6 +452,8 @@ const App = () => (
             <Route path="/colaborador" element={<Navigate to="/colaborador/home" replace />} />
             <Route path="/colaborador/home" element={<ColabProtectedRoute><ColaboradorHome /></ColabProtectedRoute>} />
             <Route path="/colaborador/jornada" element={<ColabProtectedRoute><RequireCap cap="journey.view"><ColaboradorJornada /></RequireCap></ColabProtectedRoute>} />
+            <Route path="/colaborador/espelho" element={<ColabProtectedRoute><ColaboradorEspelho /></ColabProtectedRoute>} />
+
             <Route path="/colaborador/solicitacoes" element={<ColabProtectedRoute><RequireCap cap="requests.view"><ColaboradorSolicitacoes /></RequireCap></ColabProtectedRoute>} />
             <Route path="/colaborador/ferias" element={<ColabProtectedRoute><RequireCap cap="vacations.view"><ColaboradorFerias /></RequireCap></ColabProtectedRoute>} />
             <Route path="/colaborador/holerite" element={<ColabProtectedRoute><RequireCap cap="payslip.view"><ColaboradorHolerite /></RequireCap></ColabProtectedRoute>} />
