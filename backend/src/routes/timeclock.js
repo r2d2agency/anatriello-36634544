@@ -955,7 +955,7 @@ router.delete('/time-bank/compensations/:id', async (req, res) => {
 // ============================================
 // FASE 8: ESPELHO DIGITAL COM ACEITE
 // ============================================
-import crypto from 'crypto';
+
 
 async function buildMirrorSnapshot({ orgId, employeeId, start, end }) {
   const emp = await query(
