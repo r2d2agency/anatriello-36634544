@@ -77,6 +77,7 @@ import RHDesligamento from "./pages/RHDesligamento";
 import RHAdmissao from "./pages/RHAdmissao";
 import RHAdvertencias from "./pages/RHAdvertencias";
 import RHESocial from "./pages/RHESocial";
+import RHAvaliacoes from "./pages/RHAvaliacoes";
 import RHEspelhoDigital from "./pages/RHEspelhoDigital";
 
 
