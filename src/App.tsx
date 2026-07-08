@@ -452,6 +452,8 @@ const App = () => (
             <Route path="/colaborador" element={<Navigate to="/colaborador/home" replace />} />
             <Route path="/colaborador/home" element={<ColabProtectedRoute><ColaboradorHome /></ColabProtectedRoute>} />
             <Route path="/colaborador/jornada" element={<ColabProtectedRoute><RequireCap cap="journey.view"><ColaboradorJornada /></RequireCap></ColabProtectedRoute>} />
+            <Route path="/colaborador/espelho" element={<ColabProtectedRoute><ColaboradorEspelho /></ColabProtectedRoute>} />
+
             <Route path="/colaborador/solicitacoes" element={<ColabProtectedRoute><RequireCap cap="requests.view"><ColaboradorSolicitacoes /></RequireCap></ColabProtectedRoute>} />
             <Route path="/colaborador/ferias" element={<ColabProtectedRoute><RequireCap cap="vacations.view"><ColaboradorFerias /></RequireCap></ColabProtectedRoute>} />
             <Route path="/colaborador/holerite" element={<ColabProtectedRoute><RequireCap cap="payslip.view"><ColaboradorHolerite /></RequireCap></ColabProtectedRoute>} />
