@@ -511,3 +511,59 @@ export function useRhMapData() {
     queryFn: () => api<any>('/api/rh/map-data'),
   });
 }
+
+// ===== FASE 9 - FÉRIAS COLETIVAS =====
+export function useCollectiveVacations() {
+  return useQuery({
+    queryKey: ['rh-collective-vacations'],
+    queryFn: () => api<any[]>('/api/rh/vacations/collective'),
+  });
+}
+
+export function useCollectiveVacation(id?: string) {
+  return useQuery({
+    queryKey: ['rh-collective-vacation', id],
+    queryFn: () => api<any>(`/api/rh/vacations/collective/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function usePreviewCollectiveVacation() {
+  return useMutation({
+    mutationFn: (data: any) => api<any>('/api/rh/vacations/collective/preview', { method: 'POST', body: data }),
+  });
+}
+
+export function useCreateCollectiveVacation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api<any>('/api/rh/vacations/collective', { method: 'POST', body: data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rh-collective-vacations'] });
+      qc.invalidateQueries({ queryKey: ['rh-vacations'] });
+      qc.invalidateQueries({ queryKey: ['rh-dashboard'] });
+    },
+  });
+}
+
+export function useUpdateCollectiveVacation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: any) => api<any>(`/api/rh/vacations/collective/${id}`, { method: 'PUT', body: data }),
+    onSuccess: (_d, v: any) => {
+      qc.invalidateQueries({ queryKey: ['rh-collective-vacations'] });
+      qc.invalidateQueries({ queryKey: ['rh-collective-vacation', v.id] });
+    },
+  });
+}
+
+export function useCancelCollectiveVacation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<any>(`/api/rh/vacations/collective/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rh-collective-vacations'] });
+      qc.invalidateQueries({ queryKey: ['rh-vacations'] });
+    },
+  });
+}
